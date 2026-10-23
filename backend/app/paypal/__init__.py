@@ -1,1 +1,31 @@
-"""PayPal integration package."""
+"""PayPal OAuth and Payouts client package."""
+from app.paypal.auth import clear_token_cache, get_access_token
+from app.paypal.exceptions import PayPalAPIError, PayPalAuthError
+from app.paypal.models import (
+    CreatePayoutRequest,
+    OAuthTokenResponse,
+    PayoutBatchDetails,
+    PayoutBatchHeader,
+    PayoutItem,
+    PayoutItemAmount,
+    PayoutResponse,
+    SenderBatchHeader,
+)
+from app.paypal.payouts import create_payout, get_payout_status
+
+__all__ = [
+    "get_access_token",
+    "clear_token_cache",
+    "create_payout",
+    "get_payout_status",
+    "PayPalAPIError",
+    "PayPalAuthError",
+    "OAuthTokenResponse",
+    "PayoutItemAmount",
+    "PayoutItem",
+    "SenderBatchHeader",
+    "CreatePayoutRequest",
+    "PayoutBatchHeader",
+    "PayoutResponse",
+    "PayoutBatchDetails",
+]
