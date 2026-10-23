@@ -67,6 +67,43 @@ Or run directly with coverage:
 pytest -v
 ```
 
+### 4. PayPal Webhook Configuration
+
+The API provides a verified webhook receiver endpoint at `POST /webhooks/paypal` with cryptographic signature verification and idempotency deduplication.
+
+#### Local Tunneling with ngrok
+Because PayPal requires a public HTTPS URL to deliver webhook notifications, use ngrok (or Cloudflare Tunnels) during local development:
+
+```bash
+ngrok http 8000
+```
+Copy the generated HTTPS forwarding URL (e.g., `https://abc1234.ngrok-free.app`).
+
+#### Register Webhook in PayPal Dashboard
+1. Log into the [PayPal Developer Dashboard](https://developer.paypal.com/dashboard/).
+2. Navigate to **Apps & Credentials** and select your Sandbox App.
+3. Under **Webhooks**, click **Add Webhook**.
+4. Set the **Webhook URL** to:
+   ```
+   https://<your-ngrok-url>.ngrok-free.app/webhooks/paypal
+   ```
+5. Select the following Payout event types:
+   - `PAYMENT.PAYOUTS-ITEM.SUCCEEDED`
+   - `PAYMENT.PAYOUTS-ITEM.FAILED`
+   - `PAYMENT.PAYOUTS-ITEM.BLOCKED`
+   - `PAYMENT.PAYOUTS-ITEM.DENIED`
+   - `PAYMENT.PAYOUTS-ITEM.RETURNED`
+   - `PAYMENT.PAYOUTSBATCH.SUCCESS`
+   - `PAYMENT.PAYOUTSBATCH.DENIED`
+6. Save the webhook and copy the generated **Webhook ID**.
+7. Add the Webhook ID to your `.env` file:
+   ```ini
+   PAYPAL_WEBHOOK_ID=your_paypal_webhook_id_here
+   ```
+
+> [!NOTE]
+> **Render Free Tier Sleep Behavior:** Render's free tier web services spin down after 15 minutes of inactivity. Incoming PayPal webhook calls to a sleeping instance may time out (HTTP 504) while waking up. For reliable webhook delivery in production, use a persistent instance or keep the instance awake.
+
 ## Repository Structure
 
 ```

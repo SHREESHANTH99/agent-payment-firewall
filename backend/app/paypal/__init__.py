@@ -12,12 +12,14 @@ from app.paypal.models import (
     SenderBatchHeader,
 )
 from app.paypal.payouts import create_payout, get_payout_status
+from app.paypal.webhooks import verify_webhook
 
 __all__ = [
     "get_access_token",
     "clear_token_cache",
     "create_payout",
     "get_payout_status",
+    "verify_webhook",
     "PayPalAPIError",
     "PayPalAuthError",
     "OAuthTokenResponse",

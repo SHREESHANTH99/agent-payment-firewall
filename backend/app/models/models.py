@@ -6,6 +6,7 @@ from decimal import Decimal
 from typing import Any, Optional
 
 from sqlalchemy import (
+    Boolean,
     Column,
     DateTime,
     Enum as SQLEnum,
@@ -13,6 +14,7 @@ from sqlalchemy import (
     Numeric,
     String,
     Text,
+    Uuid,
 )
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.types import JSON
@@ -94,3 +96,16 @@ class AuditLog(Base):
     prev_hash = Column(String(64), nullable=True)
     hash = Column(String(64), nullable=False)
     created_at = Column(DateTime(timezone=True), nullable=False, default=utc_now)
+
+
+class WebhookEvent(Base):
+    """Incoming verified PayPal webhook event for asynchronous handling and idempotency."""
+    __tablename__ = "webhook_events"
+
+    id = Column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    event_id = Column(String(255), unique=True, index=True, nullable=False)
+    event_type = Column(String(255), nullable=False)
+    resource = Column(JSONType, nullable=False, default=dict)
+    received_at = Column(DateTime(timezone=True), nullable=False, default=utc_now)
+    processed = Column(Boolean, nullable=False, default=False)
+
