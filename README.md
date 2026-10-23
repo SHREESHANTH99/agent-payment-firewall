@@ -1,0 +1,100 @@
+# Agent Payment Firewall
+
+A real-time security proxy and policy firewall that intercepts, inspects, and executes autonomous AI agent payment requests. It provides deterministic policy checks (budget limits, per-transaction caps, merchant allowlists), anomaly detection, cryptographically chained audit logging, and secure PayPal sandbox payout execution.
+
+## System Architecture
+
+- **Backend API**: FastAPI (Python 3.11+ async) serving REST endpoints for mandate governance, payment intent ingestion, policy evaluation, and payout triggers.
+- **Data Persistence**: PostgreSQL (async via SQLAlchemy + asyncpg) for transactional data (Mandates, PaymentIntents, AuditLogs).
+- **Cache & Rate Limiting**: Redis for idempotency locking and state caching.
+- **PayPal Integration**: Sandbox OAuth authentication (in-memory caching) and batch payouts execution (`/v1/payments/payouts`).
+- **Dashboard**: Next.js + TypeScript interface (placeholder in `/dashboard`).
+- **Demo**: Scenarios and simulations (placeholder in `/demo`).
+
+## Getting Started
+
+### Prerequisites
+- Docker & Docker Compose
+- Python 3.11+ (for local development and testing)
+
+### 1. Environment Setup
+
+Copy `.env.example` to `.env` (do not commit `.env` with actual secrets):
+```bash
+cp .env.example .env
+```
+
+Configure your sandbox PayPal credentials in `.env`:
+```ini
+PAYPAL_CLIENT_ID=your_paypal_client_id
+PAYPAL_CLIENT_SECRET=your_paypal_client_secret
+PAYPAL_MODE=sandbox
+PAYPAL_TEST_RECEIVER_EMAIL=your-sandbox-receiver@example.com
+```
+
+### 2. Running with Docker Compose
+
+To start the API, PostgreSQL database, and Redis cache:
+```bash
+docker compose up --build -d
+```
+
+Verify the service is healthy:
+```bash
+curl http://localhost:8000/health
+# Response: {"status":"OK"}
+```
+
+To stop the services:
+```bash
+docker compose down
+```
+
+### 3. Local Development & Running Pytest
+
+Install Python dependencies:
+```bash
+pip install -r backend/requirements.txt
+```
+
+Run tests from the project root:
+```bash
+pytest
+```
+
+Or run directly with coverage:
+```bash
+pytest -v
+```
+
+## Repository Structure
+
+```
+├── .env.example              # Environment variables template
+├── .gitignore                # Git ignore rules
+├── docker-compose.yml        # Docker compose services (api, postgres, redis)
+├── LICENSE                   # MIT License
+├── pytest.ini                # Pytest configuration
+├── README.md                 # Project documentation
+├── backend/
+│   ├── Dockerfile            # Container definition for FastAPI backend
+│   ├── pytest.ini            # Pytest configuration for backend folder
+│   ├── requirements.txt      # Python dependencies
+│   ├── app/
+│   │   ├── api/              # API endpoints and routers
+│   │   ├── core/             # Configuration and database connection
+│   │   ├── models/           # SQLAlchemy models (Mandate, PaymentIntent, AuditLog)
+│   │   ├── paypal/           # PayPal OAuth client and Payouts integration
+│   │   ├── risk/             # Risk scoring and evaluation engines
+│   │   ├── services/         # Application business services
+│   │   └── main.py           # FastAPI entry point
+│   ├── scripts/              # Operational scripts (e.g. test_payout.py)
+│   └── tests/                # Backend test package
+├── dashboard/                # Next.js frontend dashboard placeholder
+├── demo/                     # Scenario walkthroughs and demo scripts
+└── tests/                    # Project test suite
+```
+
+## License
+
+MIT License - Copyright (c) 2026 SHREESHANTH99
