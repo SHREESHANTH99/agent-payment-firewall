@@ -62,47 +62,80 @@ end
 
 # Redis Lua Script for atomic commit (move reserved -> spent)
 # KEYS[1] = res_key
+# ARGV[1] = fallback_amount (optional, number)
+# ARGV[2] = fallback_mandate_id (optional, string)
+# ARGV[3] = fallback_period_key (optional, string)
 COMMIT_LUA_SCRIPT = """
 local res_key = KEYS[1]
+local fallback_amount = tonumber(ARGV[1] or "0")
+local fallback_mandate_id = ARGV[2]
+local fallback_period_key = ARGV[3]
 
 local data_str = redis.call("GET", res_key)
-if not data_str then
+if data_str then
+    local data = cjson.decode(data_str)
+    local amount = tonumber(data["amount"])
+    local mandate_id = data["mandate_id"]
+    local period_key = data["period_key"]
+    local balance_key = "mandate:" .. mandate_id .. ":" .. period_key .. ":balance"
+
+    -- Decrement reserved and increment spent
+    redis.call("HINCRBY", balance_key, "reserved", -amount)
+    redis.call("HINCRBY", balance_key, "spent", amount)
+    redis.call("DEL", res_key)
+    return 1
+else
+    -- Fallback commit if reservation key expired or was missing
+    if fallback_amount > 0 and fallback_mandate_id and fallback_period_key then
+        local balance_key = "mandate:" .. fallback_mandate_id .. ":" .. fallback_period_key .. ":balance"
+        -- Decrement reserved (capped at 0 so it doesn't go below 0) and increment spent
+        local current_res = tonumber(redis.call("HGET", balance_key, "reserved") or "0")
+        local decr = math.min(current_res, fallback_amount)
+        if decr > 0 then
+            redis.call("HINCRBY", balance_key, "reserved", -decr)
+        end
+        redis.call("HINCRBY", balance_key, "spent", fallback_amount)
+        return 1
+    end
     return 0
 end
-
-local data = cjson.decode(data_str)
-local amount = tonumber(data["amount"])
-local mandate_id = data["mandate_id"]
-local period_key = data["period_key"]
-local balance_key = "mandate:" .. mandate_id .. ":" .. period_key .. ":balance"
-
--- Decrement reserved and increment spent
-redis.call("HINCRBY", balance_key, "reserved", -amount)
-redis.call("HINCRBY", balance_key, "spent", amount)
-redis.call("DEL", res_key)
-return 1
 """
 
 # Redis Lua Script for atomic release (decrement reserved and remove record)
 # KEYS[1] = res_key
+# ARGV[1] = fallback_amount (optional, number)
+# ARGV[2] = fallback_mandate_id (optional, string)
+# ARGV[3] = fallback_period_key (optional, string)
 RELEASE_LUA_SCRIPT = """
 local res_key = KEYS[1]
+local fallback_amount = tonumber(ARGV[1] or "0")
+local fallback_mandate_id = ARGV[2]
+local fallback_period_key = ARGV[3]
 
 local data_str = redis.call("GET", res_key)
-if not data_str then
+if data_str then
+    local data = cjson.decode(data_str)
+    local amount = tonumber(data["amount"])
+    local mandate_id = data["mandate_id"]
+    local period_key = data["period_key"]
+    local balance_key = "mandate:" .. mandate_id .. ":" .. period_key .. ":balance"
+
+    redis.call("HINCRBY", balance_key, "reserved", -amount)
+    redis.call("DEL", res_key)
+    return 1
+else
+    if fallback_amount > 0 and fallback_mandate_id and fallback_period_key then
+        local balance_key = "mandate:" .. fallback_mandate_id .. ":" .. fallback_period_key .. ":balance"
+        local current_res = tonumber(redis.call("HGET", balance_key, "reserved") or "0")
+        local decr = math.min(current_res, fallback_amount)
+        if decr > 0 then
+            redis.call("HINCRBY", balance_key, "reserved", -decr)
+        end
+        return 1
+    end
     -- Safe to call twice, already released or expired
     return 0
 end
-
-local data = cjson.decode(data_str)
-local amount = tonumber(data["amount"])
-local mandate_id = data["mandate_id"]
-local period_key = data["period_key"]
-local balance_key = "mandate:" .. mandate_id .. ":" .. period_key .. ":balance"
-
-redis.call("HINCRBY", balance_key, "reserved", -amount)
-redis.call("DEL", res_key)
-return 1
 """
 
 
@@ -190,20 +223,54 @@ class BudgetService:
             logger.error("Error executing reserve Lua script: %s", e)
             raise
 
-    async def commit(self, intent_id: str) -> bool:
+    async def persist(self, intent_id: str) -> bool:
         """
-        Atomically move reserved funds -> spent and remove reservation record.
+        Remove the TTL from an existing reservation key using Redis PERSIST.
+        Ensures slow payouts in 'approved' or 'executing' status do not lose their reservation.
         """
         r = await self.get_redis()
         res_key = self._res_key(intent_id)
         try:
-            result = await r.eval(COMMIT_LUA_SCRIPT, 1, res_key)
+            res = await r.persist(res_key)
+            return bool(res == 1)
+        except Exception as e:
+            logger.error("Error persisting reservation key %s: %s", res_key, e)
+            return False
+
+    async def commit(
+        self,
+        intent_id: str,
+        fallback_amount: int = 0,
+        fallback_mandate_id: Optional[str] = None,
+        fallback_period_key: Optional[str] = None,
+    ) -> bool:
+        """
+        Atomically move reserved funds -> spent and remove reservation record.
+        Falls back to using fallback_amount, mandate_id, and period_key if res_key expired.
+        """
+        r = await self.get_redis()
+        res_key = self._res_key(intent_id)
+        try:
+            result = await r.eval(
+                COMMIT_LUA_SCRIPT,
+                1,
+                res_key,
+                fallback_amount,
+                fallback_mandate_id or "",
+                fallback_period_key or "",
+            )
             return bool(result == 1)
         except Exception as e:
             logger.error("Error executing commit Lua script: %s", e)
             raise
 
-    async def release(self, intent_id: str) -> bool:
+    async def release(
+        self,
+        intent_id: str,
+        fallback_amount: int = 0,
+        fallback_mandate_id: Optional[str] = None,
+        fallback_period_key: Optional[str] = None,
+    ) -> bool:
         """
         Atomically release reserved funds and remove reservation record.
         Safe to call twice (idempotent / no-op if already released).
@@ -211,7 +278,14 @@ class BudgetService:
         r = await self.get_redis()
         res_key = self._res_key(intent_id)
         try:
-            result = await r.eval(RELEASE_LUA_SCRIPT, 1, res_key)
+            result = await r.eval(
+                RELEASE_LUA_SCRIPT,
+                1,
+                res_key,
+                fallback_amount,
+                fallback_mandate_id or "",
+                fallback_period_key or "",
+            )
             return bool(result == 1)
         except Exception as e:
             logger.error("Error executing release Lua script: %s", e)

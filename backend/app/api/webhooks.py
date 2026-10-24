@@ -163,7 +163,18 @@ async def handle_paypal_webhook(
             # Idempotent: only commit budget if not already executed
             intent.status = PaymentIntentStatus.EXECUTED
             await db.commit()
-            await budget_service.commit(intent.id)
+
+            # Retrieve mandate to calculate fallback period key
+            stmt_m = select(Mandate).where(Mandate.mandate_id == intent.mandate_id)
+            mandate_obj = (await db.execute(stmt_m)).scalar_one_or_none()
+            p_key = budget_service.get_period_key(mandate_obj.period, intent.created_at) if mandate_obj else "lifetime"
+
+            await budget_service.commit(
+                intent.id,
+                fallback_amount=int(intent.amount),
+                fallback_mandate_id=intent.mandate_id,
+                fallback_period_key=p_key,
+            )
             await append_event(
                 db,
                 intent_id=intent.id,
@@ -181,7 +192,17 @@ async def handle_paypal_webhook(
                 {"code": "PAYOUT_FAILED", "message": f"PayPal event: {event_type}"}
             ]
             await db.commit()
-            await budget_service.release(intent.id)
+
+            stmt_m = select(Mandate).where(Mandate.mandate_id == intent.mandate_id)
+            mandate_obj = (await db.execute(stmt_m)).scalar_one_or_none()
+            p_key = budget_service.get_period_key(mandate_obj.period, intent.created_at) if mandate_obj else "lifetime"
+
+            await budget_service.release(
+                intent.id,
+                fallback_amount=int(intent.amount),
+                fallback_mandate_id=intent.mandate_id,
+                fallback_period_key=p_key,
+            )
             await append_event(
                 db,
                 intent_id=intent.id,

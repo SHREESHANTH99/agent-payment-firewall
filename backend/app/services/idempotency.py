@@ -11,7 +11,9 @@ from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
-IDEMPOTENCY_TTL_SECONDS = 86400  # 24 hours
+IDEMPOTENCY_IN_PROGRESS_TTL_SECONDS = 120  # 120 seconds while processing
+IDEMPOTENCY_COMPLETED_TTL_SECONDS = 86400    # 24 hours for final response
+IDEMPOTENCY_TTL_SECONDS = IDEMPOTENCY_COMPLETED_TTL_SECONDS
 
 
 def compute_payload_hash(payload: Any) -> str:
@@ -46,14 +48,14 @@ class IdempotencyService:
         self,
         idempotency_key: str,
         payload_hash: str,
-        ttl_seconds: int = IDEMPOTENCY_TTL_SECONDS,
+        ttl_seconds: int = IDEMPOTENCY_IN_PROGRESS_TTL_SECONDS,
     ) -> Optional[dict[str, Any]]:
         """
         Check idempotency claim for a given key.
-        - If key does not exist: claims it atomically with SET NX storing the payload hash. Returns None (caller proceeds).
+        - If key does not exist: claims it atomically with short TTL (120s) while processing.
         - If key exists with same payload hash:
             - If response is already stored: returns the stored response dict (replay).
-            - If response is still pending: returns {"status": "in_progress"}.
+            - If response is still pending: raises HTTP 409 {"detail": "request in progress"}.
         - If key exists with a different payload hash: raises HTTP 409 Conflict.
         """
         r = await self.get_redis()
@@ -102,15 +104,24 @@ class IdempotencyService:
         if stored_response is not None:
             return stored_response
 
-        return {"status": "in_progress"}
+        # Request is currently in progress
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="request in progress",
+        )
+
+    async def delete_claim(self, idempotency_key: str) -> None:
+        """Delete claim on pipeline failure to allow immediate retry."""
+        r = await self.get_redis()
+        await r.delete(self._key(idempotency_key))
 
     async def store_response(
         self,
         idempotency_key: str,
         response_data: dict[str, Any],
-        ttl_seconds: int = IDEMPOTENCY_TTL_SECONDS,
+        ttl_seconds: int = IDEMPOTENCY_COMPLETED_TTL_SECONDS,
     ) -> None:
-        """Store the final response for replay on subsequent identical requests."""
+        """Store the final response with 24h TTL for replay on subsequent identical requests."""
         r = await self.get_redis()
         redis_key = self._key(idempotency_key)
 

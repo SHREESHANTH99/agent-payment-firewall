@@ -26,8 +26,8 @@ class IntentCreateRequest(BaseModel):
     currency: str = "USD"
     merchant: str
     description: Optional[str] = None
-    reasoning: Optional[str] = None
-    source_context: Optional[dict[str, Any]] = None
+    reasoning: Optional[str] = Field(default=None, max_length=4000)
+    source_context: Optional[str] = Field(default=None, max_length=50000)
 
 
 class IntentDecisionResponse(BaseModel):
@@ -142,6 +142,9 @@ async def approve_intent(
     intent.status = PaymentIntentStatus.APPROVED
     await db.commit()
     await db.refresh(intent)
+
+    # Persist reservation so slow executing payouts never lose reservation
+    await budget_service.persist(intent.id)
 
     await append_event(
         db,

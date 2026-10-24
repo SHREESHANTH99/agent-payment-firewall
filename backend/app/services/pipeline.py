@@ -284,6 +284,9 @@ async def process_intent(
         await session.commit()
         await append_event(session, intent.id, "intent.approved", {"amount_cents": amount_cents})
 
+        # Hardening 1a: Remove reservation TTL so slow payout in executing never loses reservation
+        await budget_service.persist(intent.id)
+
         # Execute payout
         await execute_intent(intent, session)
 
@@ -309,4 +312,11 @@ async def process_intent(
             await append_event(session, intent.id, "intent.failed", {"error": str(exc), "stage": "pipeline"})
         except Exception:
             pass
+
+        # Clean up or update idempotency claim on failure
+        try:
+            await idempotency_service.delete_claim(idempotency_key)
+        except Exception:
+            pass
+
         raise
