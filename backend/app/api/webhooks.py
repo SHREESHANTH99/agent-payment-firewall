@@ -4,27 +4,36 @@ import logging
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
-from app.models.models import WebhookEvent
+from app.models.models import PaymentIntent, PaymentIntentStatus, WebhookEvent
 from app.paypal.webhooks import verify_webhook
+from app.services.audit import append_event
+from app.services.budget import budget_service
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/webhooks", tags=["webhooks"])
 
-PAYOUT_EVENT_TYPES = {
+# Events that signal a successful payout
+PAYOUT_SUCCESS_EVENTS = {
     "PAYMENT.PAYOUTS-ITEM.SUCCEEDED",
+    "PAYMENT.PAYOUTSBATCH.SUCCESS",
+}
+
+# Events that signal a failed payout
+PAYOUT_FAILURE_EVENTS = {
     "PAYMENT.PAYOUTS-ITEM.FAILED",
     "PAYMENT.PAYOUTS-ITEM.BLOCKED",
     "PAYMENT.PAYOUTS-ITEM.DENIED",
     "PAYMENT.PAYOUTS-ITEM.RETURNED",
-    "PAYMENT.PAYOUTSBATCH.SUCCESS",
     "PAYMENT.PAYOUTSBATCH.DENIED",
 }
+
+ALL_PAYOUT_EVENT_TYPES = PAYOUT_SUCCESS_EVENTS | PAYOUT_FAILURE_EVENTS
 
 
 def _extract_batch_identifiers(resource: dict[str, Any]) -> tuple[str | None, str | None]:
@@ -44,6 +53,25 @@ def _extract_batch_identifiers(resource: dict[str, Any]) -> tuple[str | None, st
     return payout_batch_id, sender_batch_id
 
 
+async def _resolve_intent(
+    db: AsyncSession,
+    payout_batch_id: str | None,
+    sender_batch_id: str | None,
+) -> PaymentIntent | None:
+    """Find the PaymentIntent matching by paypal_ref or idempotency_key."""
+    filters = []
+    if payout_batch_id:
+        filters.append(PaymentIntent.paypal_ref == payout_batch_id)
+    if sender_batch_id:
+        filters.append(PaymentIntent.idempotency_key == sender_batch_id)
+
+    if not filters:
+        return None
+
+    stmt = select(PaymentIntent).where(or_(*filters))
+    return (await db.execute(stmt)).scalar_one_or_none()
+
+
 @router.post("/paypal")
 async def handle_paypal_webhook(
     request: Request,
@@ -53,7 +81,8 @@ async def handle_paypal_webhook(
     Handle PayPal webhook notifications.
 
     Reads exact raw bytes, verifies cryptographic signature with PayPal,
-    deduplicates by event_id, stores the event, and processes payout updates.
+    deduplicates by event_id, stores the event, links it to a PaymentIntent,
+    and updates budget (commit on success / release on failure).
     """
     # Read the exact bytes without re-serialization
     raw_body = await request.body()
@@ -85,14 +114,14 @@ async def handle_paypal_webhook(
             detail="missing event id",
         )
 
-    # Check if event already exists (deduplication)
+    # Deduplicate by event_id
     stmt = select(WebhookEvent).where(WebhookEvent.event_id == event_id)
     existing_event = (await db.execute(stmt)).scalar_one_or_none()
     if existing_event:
-        logger.info("Duplicate PayPal webhook event received (id=%s), returning duplicate status", event_id)
+        logger.info("Duplicate PayPal webhook event received (id=%s), skipping", event_id)
         return {"status": "duplicate"}
 
-    # Insert new event
+    # Persist new event
     webhook_event = WebhookEvent(
         event_id=event_id,
         event_type=event_type,
@@ -100,7 +129,6 @@ async def handle_paypal_webhook(
         processed=False,
     )
     db.add(webhook_event)
-
     try:
         await db.commit()
         await db.refresh(webhook_event)
@@ -109,24 +137,62 @@ async def handle_paypal_webhook(
         logger.info("Concurrent duplicate insertion prevented for event_id=%s", event_id)
         return {"status": "duplicate"}
 
-    # Handle payout event types
-    payout_batch_id, sender_batch_id = _extract_batch_identifiers(resource)
+    # Route to intent handler for payout events
+    if event_type not in ALL_PAYOUT_EVENT_TYPES:
+        logger.info("Unhandled PayPal event type=%s (id=%s)", event_type, event_id)
+        return {"status": "ok"}
 
-    if event_type in PAYOUT_EVENT_TYPES:
+    payout_batch_id, sender_batch_id = _extract_batch_identifiers(resource)
+    logger.info(
+        "Processing PayPal webhook: type=%s payout_batch_id=%s sender_batch_id=%s",
+        event_type, payout_batch_id, sender_batch_id,
+    )
+
+    intent = await _resolve_intent(db, payout_batch_id, sender_batch_id)
+    if not intent:
         logger.info(
-            "Processing PayPal webhook event: type=%s payout_batch_id=%s sender_batch_id=%s",
-            event_type,
-            payout_batch_id,
-            sender_batch_id,
+            "No PaymentIntent found for event type=%s payout_batch_id=%s sender_batch_id=%s",
+            event_type, payout_batch_id, sender_batch_id,
         )
-        # TODO: Update PaymentIntent status by paypal_ref (payout_batch_id or sender_batch_id) once the intent pipeline exists.
         webhook_event.processed = True
         await db.commit()
-    else:
-        logger.info(
-            "Received unknown/unhandled PayPal webhook event type: %s (id=%s)",
-            event_type,
-            event_id,
-        )
+        return {"status": "ok"}
+
+    if event_type in PAYOUT_SUCCESS_EVENTS:
+        if intent.status not in (PaymentIntentStatus.EXECUTED,):
+            # Idempotent: only commit budget if not already executed
+            intent.status = PaymentIntentStatus.EXECUTED
+            await db.commit()
+            await budget_service.commit(intent.id)
+            await append_event(
+                db,
+                intent_id=intent.id,
+                event="intent.executed",
+                payload={"via": "webhook", "event_type": event_type, "event_id": event_id},
+            )
+            logger.info("Intent id=%s marked executed via webhook %s", intent.id, event_type)
+        else:
+            logger.info("Intent id=%s already executed, skipping re-commit", intent.id)
+
+    elif event_type in PAYOUT_FAILURE_EVENTS:
+        if intent.status not in (PaymentIntentStatus.FAILED,):
+            intent.status = PaymentIntentStatus.FAILED
+            intent.decision_reasons = (intent.decision_reasons or []) + [
+                {"code": "PAYOUT_FAILED", "message": f"PayPal event: {event_type}"}
+            ]
+            await db.commit()
+            await budget_service.release(intent.id)
+            await append_event(
+                db,
+                intent_id=intent.id,
+                event="intent.failed",
+                payload={"via": "webhook", "event_type": event_type, "event_id": event_id},
+            )
+            logger.info("Intent id=%s marked failed via webhook %s", intent.id, event_type)
+        else:
+            logger.info("Intent id=%s already failed, skipping re-release", intent.id)
+
+    webhook_event.processed = True
+    await db.commit()
 
     return {"status": "ok"}
