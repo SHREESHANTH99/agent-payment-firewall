@@ -111,6 +111,138 @@ Copy the generated HTTPS forwarding URL (e.g., `https://abc1234.ngrok-free.app`)
 > [!NOTE]
 > **Render Free Tier Sleep Behavior:** Render's free tier web services spin down after 15 minutes of inactivity. Incoming PayPal webhook calls to a sleeping instance may time out (HTTP 504) while waking up. For reliable webhook delivery in production, use a persistent instance or keep the instance awake.
 
+## API Reference
+
+All endpoints require authentication. Operators use `Authorization: Bearer <OPERATOR_TOKEN>`. Agents use `X-Agent-Key: <key>`.
+
+### Health
+
+```bash
+curl http://localhost:8000/health
+# {"status":"OK"}
+```
+
+### Mandates (Operator-only)
+
+```bash
+# Create a mandate
+curl -X POST http://localhost:8000/mandates \
+  -H "Authorization: Bearer $OPERATOR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "mandate_id": "mandate-001",
+    "agent_id": "my-agent",
+    "budget_total": "100.00",
+    "per_transaction_cap": "50.00",
+    "escalation_threshold": "20.00",
+    "period": "lifetime",
+    "allowed_currencies": ["USD"],
+    "allowlist_merchants": ["vendor@paypal.com"]
+  }'
+
+# List all mandates
+curl http://localhost:8000/mandates \
+  -H "Authorization: Bearer $OPERATOR_TOKEN"
+
+# Get a specific mandate (includes remaining/reserved/spent)
+curl http://localhost:8000/mandates/mandate-001 \
+  -H "Authorization: Bearer $OPERATOR_TOKEN"
+
+# Freeze / Unfreeze / Revoke
+curl -X POST http://localhost:8000/mandates/mandate-001/freeze \
+  -H "Authorization: Bearer $OPERATOR_TOKEN"
+curl -X POST http://localhost:8000/mandates/mandate-001/unfreeze \
+  -H "Authorization: Bearer $OPERATOR_TOKEN"
+curl -X POST http://localhost:8000/mandates/mandate-001/revoke \
+  -H "Authorization: Bearer $OPERATOR_TOKEN"
+```
+
+### Payment Intents
+
+```bash
+# Submit a payment intent (Agent-authenticated)
+# Returns: decision = approved | escalated | denied
+curl -X POST http://localhost:8000/intents \
+  -H "X-Agent-Key: $AGENT_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "idempotency_key": "txn-unique-001",
+    "mandate_id": "mandate-001",
+    "amount": "5.00",
+    "currency": "USD",
+    "merchant": "vendor@paypal.com",
+    "description": "SaaS subscription renewal",
+    "reasoning": "Monthly billing cycle"
+  }'
+
+# List all intents (Operator-only)
+curl http://localhost:8000/intents \
+  -H "Authorization: Bearer $OPERATOR_TOKEN"
+
+# Get a specific intent (Operator-only)
+curl http://localhost:8000/intents/<intent-id> \
+  -H "Authorization: Bearer $OPERATOR_TOKEN"
+
+# Approve an escalated intent (executes the PayPal payout)
+curl -X POST http://localhost:8000/intents/<intent-id>/approve \
+  -H "Authorization: Bearer $OPERATOR_TOKEN"
+
+# Reject an escalated intent (releases budget reservation)
+curl -X POST http://localhost:8000/intents/<intent-id>/reject \
+  -H "Authorization: Bearer $OPERATOR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"reason": "Amount exceeds policy for this week"}'
+```
+
+### Audit Log (Operator-only)
+
+```bash
+# List audit log entries (paginated)
+curl "http://localhost:8000/audit?limit=50&offset=0" \
+  -H "Authorization: Bearer $OPERATOR_TOKEN"
+
+# Verify cryptographic chain integrity
+# Returns: {"valid": true, "checked": <n>, "first_broken_index": null}
+curl http://localhost:8000/audit/verify \
+  -H "Authorization: Bearer $OPERATOR_TOKEN"
+```
+
+### Example: Full Intent Flow
+
+```bash
+# 1. Create mandate ($100 budget, $50 cap, $20 escalation threshold)
+curl -X POST http://localhost:8000/mandates \
+  -H "Authorization: Bearer $OPERATOR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"mandate_id":"m1","agent_id":"bot","budget_total":"100.00","per_transaction_cap":"50.00","escalation_threshold":"20.00","period":"lifetime","allowed_currencies":["USD"],"allowlist_merchants":["vendor@paypal.com"]}'
+
+# 2. Submit a $5 intent (auto-approved)
+curl -X POST http://localhost:8000/intents \
+  -H "X-Agent-Key: $AGENT_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"idempotency_key":"k1","mandate_id":"m1","amount":"5.00","currency":"USD","merchant":"vendor@paypal.com"}'
+
+# 3. Submit a $25 intent (escalated — above $20 threshold)
+curl -X POST http://localhost:8000/intents \
+  -H "X-Agent-Key: $AGENT_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"idempotency_key":"k2","mandate_id":"m1","amount":"25.00","currency":"USD","merchant":"vendor@paypal.com"}'
+
+# 4. Operator approves the escalated intent
+curl -X POST http://localhost:8000/intents/<escalated-intent-id>/approve \
+  -H "Authorization: Bearer $OPERATOR_TOKEN"
+
+# 5. Submit a $99 intent (denied — exceeds $50 cap)
+curl -X POST http://localhost:8000/intents \
+  -H "X-Agent-Key: $AGENT_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"idempotency_key":"k3","mandate_id":"m1","amount":"99.00","currency":"USD","merchant":"vendor@paypal.com"}'
+
+# 6. Verify audit chain is intact
+curl http://localhost:8000/audit/verify \
+  -H "Authorization: Bearer $OPERATOR_TOKEN"
+```
+
 ## Repository Structure
 
 ```
