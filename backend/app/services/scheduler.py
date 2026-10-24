@@ -73,8 +73,9 @@ async def _poll_executing_intents() -> None:
             for intent in intents:
                 logger.info("Polling PayPal status for intent id=%s paypal_ref=%s", intent.id, intent.paypal_ref)
                 try:
-                    payout_status = await get_payout_status(intent.paypal_ref)
-                    batch_status = (payout_status.get("batch_header", {}) or {}).get("batch_status", "")
+                    payout_details = await get_payout_status(intent.paypal_ref)
+                    # get_payout_status returns a PayoutBatchDetails model
+                    batch_status = payout_details.batch_status or ""
 
                     SUCCESS_STATUSES = {"SUCCESS"}
                     FAILURE_STATUSES = {"DENIED", "CANCELED", "FAILED"}
