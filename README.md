@@ -243,6 +243,63 @@ curl http://localhost:8000/audit/verify \
   -H "Authorization: Bearer $OPERATOR_TOKEN"
 ```
 
+### Risk Configuration & Admin (Operator-only)
+
+Inspect or toggle the Canary and Judge layers at runtime for live demos:
+
+```bash
+# Get current runtime status
+curl http://localhost:8000/admin/risk-config \
+  -H "Authorization: Bearer $OPERATOR_TOKEN"
+
+# Toggle layers (all updates are recorded to the immutable audit log)
+curl -X POST http://localhost:8000/admin/risk-config \
+  -H "Authorization: Bearer $OPERATOR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"canary_enabled": true, "judge_enabled": true}'
+```
+
+## AI Risk Layer: Canary, Judge & Circuit Breaker
+
+The firewall introduces a multi-tier defense against malicious agent prompt injection and goal drift:
+
+1. **Honeypot Canary Scanner (`app/risk/canary.py`)**:
+   - Inspects `source_context` across 3500-char overlapping segments.
+   - Wraps content in `<untrusted_content>` tags and prompts an isolated LLM with a deliberately permissive system prompt.
+   - Exposes fake dummy tools (`execute_command`, `send_payment`, `send_email`, `read_database`, `transfer_funds`).
+   - If an injection in the text triggers any honeypot tool call, the canary trips immediately.
+   - Any LLM timeout/error or input $>20000$ characters **fails closed**.
+   - Tripping the canary **immediately freezes the mandate** via the Circuit Breaker and releases the budget reservation.
+
+2. **AI Payment Judge (`app/risk/judge.py`)**:
+   - Examines mandate scope, intent details, reasoning, and untrusted context to detect goal drift, coercion language, or merchant mismatches.
+   - Uses strict Pydantic JSON schema evaluation.
+   - Deterministic verdict mapping:
+     - `safe=True` and `confidence >= 0.8` $\to$ `allow`
+     - `safe=True` and `confidence < 0.8` $\to$ `escalate`
+     - `safe=False` $\to$ `deny`
+     - Timeouts / errors $\to$ fallback to `JUDGE_FAIL_MODE` (`escalate` or `deny`).
+   - A high-confidence injection (`injection_suspected=True`, `confidence >= 0.9`) also trips the Circuit Breaker.
+
+3. **Automated Circuit Breaker (`app/services/circuit_breaker.py`)**:
+   - Freezes compromised mandates in real-time (`status = frozen`).
+   - Dispatches a `mandate_frozen` alert on Redis Pub/Sub channel `apf:events`.
+   - Appends an audit event to the cryptographic chain.
+   - Prevents all subsequent agent actions under that mandate until an operator unfreezes it.
+
+### AI Risk Layer Environment Variables
+
+```ini
+LLM_BASE_URL=https://api.openai.com/v1      # OpenAI, Groq, OpenRouter, or Gemini compatible endpoint
+LLM_API_KEY=your_llm_api_key_here          # API key for the LLM provider
+CANARY_MODEL=gpt-4o-mini                    # Model used for honeypot tool evaluation
+JUDGE_MODEL=gpt-4o-mini                     # Model used for contextual risk judging
+LLM_TIMEOUT_SECONDS=15                      # Network timeout for LLM queries
+JUDGE_FAIL_MODE=escalate                    # Fallback on LLM judge failure (escalate | deny)
+CANARY_ENABLED=true                         # Initial state of canary scanner
+JUDGE_ENABLED=true                          # Initial state of judge
+```
+
 ## Repository Structure
 
 ```
