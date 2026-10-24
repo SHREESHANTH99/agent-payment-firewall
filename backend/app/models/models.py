@@ -17,6 +17,7 @@ from sqlalchemy import (
     String,
     Text,
     Uuid,
+    event as sa_event,
 )
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.types import JSON
@@ -120,6 +121,16 @@ class AuditLog(Base):
     prev_hash = Column(String(64), nullable=True)
     hash = Column(String(64), nullable=False)
     created_at = Column(DateTime(timezone=True), nullable=False, default=utc_now)
+
+
+@sa_event.listens_for(AuditLog, "before_update")
+def receive_before_update(mapper, connection, target):
+    raise ValueError("AuditLog entries are immutable and cannot be updated")
+
+
+@sa_event.listens_for(AuditLog, "before_delete")
+def receive_before_delete(mapper, connection, target):
+    raise ValueError("AuditLog entries are immutable and cannot be deleted")
 
 
 class WebhookEvent(Base):
