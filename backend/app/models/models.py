@@ -6,11 +6,13 @@ from decimal import Decimal
 from typing import Any, Optional
 
 from sqlalchemy import (
+    BigInteger,
     Boolean,
     Column,
     DateTime,
     Enum as SQLEnum,
     ForeignKey,
+    Integer,
     Numeric,
     String,
     Text,
@@ -26,13 +28,31 @@ from app.core.database import Base
 JSONType = JSON().with_variant(JSONB, "postgresql")
 
 
+class MandatePeriod(str, enum.Enum):
+    """Spending budget period type for a mandate."""
+    LIFETIME = "lifetime"
+    DAILY = "daily"
+    WEEKLY = "weekly"
+
+
+class MandateStatus(str, enum.Enum):
+    """Lifecycle status of a mandate."""
+    ACTIVE = "active"
+    FROZEN = "frozen"
+    REVOKED = "revoked"
+    EXPIRED = "expired"
+
+
 class PaymentIntentStatus(str, enum.Enum):
     """Status lifecycle of a payment intent."""
     PENDING = "pending"
-    APPROVED = "approved"
     DENIED = "denied"
     ESCALATED = "escalated"
+    APPROVED = "approved"
+    EXECUTING = "executing"
     EXECUTED = "executed"
+    REJECTED = "rejected"
+    EXPIRED = "expired"
     FAILED = "failed"
 
 
@@ -52,13 +72,15 @@ class Mandate(Base):
 
     mandate_id = Column(String(64), primary_key=True, default=generate_uuid)
     agent_id = Column(String(255), nullable=False, index=True)
-    budget_total = Column(Numeric(12, 2), nullable=False)
-    per_transaction_cap = Column(Numeric(12, 2), nullable=False)
-    allowlist_merchants = Column(JSONType, nullable=False, default=list)
+    budget_total = Column(BigInteger, nullable=False)  # stored in integer cents
+    per_transaction_cap = Column(BigInteger, nullable=False)  # stored in integer cents
+    allowlist_merchants = Column(JSONType, nullable=False, default=list)  # list of emails/merchants
+    allowed_currencies = Column(JSONType, nullable=False, default=lambda: ["USD"])
+    period = Column(String(20), nullable=False, default="lifetime")  # lifetime | daily | weekly
     valid_from = Column(DateTime(timezone=True), nullable=False)
     valid_until = Column(DateTime(timezone=True), nullable=False)
-    escalation_threshold = Column(Numeric(12, 2), nullable=True)
-    status = Column(String(50), nullable=False, default="active")
+    escalation_threshold = Column(BigInteger, nullable=True)  # stored in integer cents
+    status = Column(String(50), nullable=False, default="active")  # active | frozen | revoked | expired
     created_at = Column(DateTime(timezone=True), nullable=False, default=utc_now)
 
 
@@ -69,9 +91,9 @@ class PaymentIntent(Base):
     id = Column(String(64), primary_key=True, default=generate_uuid)
     mandate_id = Column(String(64), ForeignKey("mandates.mandate_id", ondelete="SET NULL"), nullable=True, index=True)
     idempotency_key = Column(String(255), unique=True, index=True, nullable=False)
-    amount = Column(Numeric(12, 2), nullable=False)
+    amount = Column(BigInteger, nullable=False)  # stored in integer cents
     currency = Column(String(10), nullable=False, default="USD")
-    merchant = Column(String(255), nullable=False)
+    merchant = Column(String(255), nullable=False)  # PayPal recipient email
     description = Column(Text, nullable=True)
     reasoning = Column(Text, nullable=True)
     source_context = Column(JSONType, nullable=True)
@@ -81,6 +103,8 @@ class PaymentIntent(Base):
         default=PaymentIntentStatus.PENDING,
     )
     risk_details = Column(JSONType, nullable=True, default=dict)
+    paypal_ref = Column(String(255), nullable=True)
+    decision_reasons = Column(JSONType, nullable=True, default=list)
     created_at = Column(DateTime(timezone=True), nullable=False, default=utc_now)
     updated_at = Column(DateTime(timezone=True), nullable=False, default=utc_now, onupdate=utc_now)
 

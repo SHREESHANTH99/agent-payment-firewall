@@ -1,4 +1,20 @@
 """Database models package."""
-from app.models.models import Mandate, PaymentIntent, AuditLog, PaymentIntentStatus, WebhookEvent
+from app.models.models import (
+    AuditLog,
+    Mandate,
+    MandatePeriod,
+    MandateStatus,
+    PaymentIntent,
+    PaymentIntentStatus,
+    WebhookEvent,
+)
 
-__all__ = ["Mandate", "PaymentIntent", "AuditLog", "PaymentIntentStatus", "WebhookEvent"]
+__all__ = [
+    "Mandate",
+    "MandatePeriod",
+    "MandateStatus",
+    "PaymentIntent",
+    "PaymentIntentStatus",
+    "AuditLog",
+    "WebhookEvent",
+]
