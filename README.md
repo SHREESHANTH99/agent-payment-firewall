@@ -50,6 +50,13 @@ To stop the services:
 docker compose down
 ```
 
+> [!IMPORTANT]
+> **Database Reset on Model Changes:** Database tables are initialized using SQLAlchemy `create_all`, which does not automatically alter existing table schemas. After schema or model changes during development, reset the database and persistent volumes using:
+> ```bash
+> docker compose down -v
+> docker compose up --build -d
+> ```
+
 ### 3. Local Development & Running Pytest
 
 Install Python dependencies:

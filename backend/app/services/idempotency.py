@@ -32,8 +32,11 @@ class IdempotencyService:
         self._redis = redis_client
 
     async def get_redis(self) -> aioredis.Redis:
-        if self._redis is None:
+        import asyncio
+        loop = asyncio.get_running_loop()
+        if self._redis is None or getattr(self._redis, "_loop", None) != loop:
             self._redis = aioredis.from_url(settings.REDIS_URL, decode_responses=True)
+            setattr(self._redis, "_loop", loop)
         return self._redis
 
     def _key(self, idempotency_key: str) -> str:

@@ -116,8 +116,11 @@ class BudgetService:
         self._release_sha: Optional[str] = None
 
     async def get_redis(self) -> aioredis.Redis:
-        if self._redis is None:
+        import asyncio
+        loop = asyncio.get_running_loop()
+        if self._redis is None or getattr(self._redis, "_loop", None) != loop:
             self._redis = aioredis.from_url(settings.REDIS_URL, decode_responses=True)
+            setattr(self._redis, "_loop", loop)
         return self._redis
 
     @staticmethod
