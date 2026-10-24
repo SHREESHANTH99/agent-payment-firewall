@@ -13,11 +13,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.models.models import Mandate, PaymentIntent, PaymentIntentStatus
+from app.risk.canary import canary_scan
+from app.risk.judge import judge
 from app.risk.rules import RuleResult, evaluate_rules, to_cents
 from app.services.audit import append_event
 from app.services.budget import budget_service
+from app.services.circuit_breaker import trip as trip_circuit_breaker
 from app.services.execution import execute_intent
 from app.services.idempotency import compute_payload_hash, idempotency_service
+from app.services.risk_config import risk_config_state
 
 logger = logging.getLogger(__name__)
 
@@ -212,39 +216,118 @@ async def process_intent(
             "amount_cents": amount_cents,
         })
 
-        # e. Risk checks hooks
+        # e. AI Risk checks (Canary & Judge)
+        risk_cfg = risk_config_state.get_config()
+        risk_details: dict[str, Any] = {}
         risk_escalate = False
-        risk_deny = False
-        collected_risk: dict[str, Any] = {}
 
-        for check in RISK_CHECKS:
-            r_res: RiskResult = await check(intent, mandate)
-            collected_risk[check.__name__] = r_res.details
-            if r_res.verdict == "deny":
-                risk_deny = True
-            elif r_res.verdict == "escalate":
+        # 1. Canary Scan (if enabled)
+        if risk_cfg.canary_enabled and source_context:
+            canary_res = await canary_scan(source_context)
+            risk_details["canary"] = {
+                "tripped": canary_res.tripped,
+                "honeypot_calls": canary_res.honeypot_calls,
+                "segments": canary_res.segments,
+                "error": canary_res.error,
+            }
+
+            if canary_res.tripped:
+                # Canary tripped -> audit event, freeze mandate via circuit breaker, deny intent
+                logger.warning("Canary scan tripped for intent %s!", intent.id)
+                await append_event(session, intent.id, "canary_tripped", risk_details["canary"])
+                await trip_circuit_breaker(
+                    mandate_id=mandate.mandate_id,
+                    intent_id=intent.id,
+                    cause="canary",
+                    details=risk_details["canary"],
+                    session=session,
+                )
+
+                # Release budget reservation
+                await budget_service.release(intent.id)
+                reservation_made = False
+
+                intent.status = PaymentIntentStatus.DENIED
+                intent.risk_details = risk_details
+                # Agent-facing reason is strictly generic
+                intent.decision_reasons = [{"code": "RISK_POLICY_VIOLATION", "message": "blocked by risk policy"}]
+                await session.commit()
+                await append_event(session, intent.id, "intent.denied", {"risk": risk_details})
+
+                res = {
+                    "intent_id": intent.id,
+                    "decision": "denied",
+                    "status": intent.status.value,
+                    "reasons": intent.decision_reasons,
+                    "risk": intent.risk_details,
+                }
+                await idempotency_service.store_response(idempotency_key, res)
+                return res
+
+        # 2. Judge Evaluation (if enabled and rules did not deny)
+        if risk_cfg.judge_enabled:
+            mandate_summary = {
+                "mandate_id": mandate.mandate_id,
+                "agent_id": mandate.agent_id,
+                "budget_total": str(mandate.budget_total),
+                "per_transaction_cap": str(mandate.per_transaction_cap),
+                "allowlist_merchants": mandate.allowlist_merchants,
+            }
+            intent_summary = {
+                "amount": str(amount_cents / 100),
+                "currency": currency,
+                "merchant": merchant,
+                "description": description,
+                "reasoning": reasoning,
+            }
+
+            judge_res, judge_verdict = await judge(mandate_summary, intent_summary, source_context)
+            risk_details["judge"] = {
+                "safe": judge_res.safe,
+                "confidence": judge_res.confidence,
+                "injection_suspected": judge_res.injection_suspected,
+                "reasons": judge_res.reasons,
+                "verdict": judge_verdict,
+            }
+            await append_event(session, intent.id, "judge_evaluated", risk_details["judge"])
+
+            # Check circuit breaker trigger: judge not safe with injection_suspected and confidence >= 0.9
+            if not judge_res.safe and judge_res.injection_suspected and judge_res.confidence >= 0.9:
+                logger.warning("Judge detected high-confidence prompt injection for intent %s", intent.id)
+                await trip_circuit_breaker(
+                    mandate_id=mandate.mandate_id,
+                    intent_id=intent.id,
+                    cause="judge_injection",
+                    details=risk_details["judge"],
+                    session=session,
+                )
+
+            if judge_verdict == "deny":
+                await budget_service.release(intent.id)
+                reservation_made = False
+
+                intent.status = PaymentIntentStatus.DENIED
+                intent.risk_details = risk_details
+                intent.decision_reasons = [{"code": "RISK_POLICY_VIOLATION", "message": "blocked by risk policy"}]
+                await session.commit()
+                await append_event(session, intent.id, "intent.denied", {"risk": risk_details})
+
+                res = {
+                    "intent_id": intent.id,
+                    "decision": "denied",
+                    "status": intent.status.value,
+                    "reasons": intent.decision_reasons,
+                    "risk": intent.risk_details,
+                }
+                await idempotency_service.store_response(idempotency_key, res)
+                return res
+
+            elif judge_verdict == "escalate":
                 risk_escalate = True
 
-        intent.risk_details = collected_risk
+        intent.risk_details = risk_details
 
         # f. Decision evaluation
-        if risk_deny:
-            await budget_service.release(intent.id)
-            reservation_made = False
-            intent.status = PaymentIntentStatus.DENIED
-            intent.decision_reasons = [{"code": "RISK_DENIED", "message": "Denied by risk policy check"}]
-            await session.commit()
-            await append_event(session, intent.id, "intent.denied", {"risk": collected_risk})
-            res = {
-                "intent_id": intent.id,
-                "decision": "denied",
-                "status": intent.status.value,
-                "reasons": intent.decision_reasons,
-                "risk": intent.risk_details,
-            }
-            await idempotency_service.store_response(idempotency_key, res)
-            return res
-
         if rule_result.escalate or risk_escalate:
             intent.status = PaymentIntentStatus.ESCALATED
             intent.decision_reasons = [{"code": "ESCALATED_THRESHOLD", "message": "Transaction exceeded escalation threshold"}]
