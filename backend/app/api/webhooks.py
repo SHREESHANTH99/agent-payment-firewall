@@ -9,7 +9,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
-from app.models.models import PaymentIntent, PaymentIntentStatus, WebhookEvent
+from app.models.models import Mandate, PaymentIntent, PaymentIntentStatus, WebhookEvent
 from app.paypal.webhooks import verify_webhook
 from app.services.audit import append_event
 from app.services.budget import budget_service

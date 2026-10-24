@@ -42,10 +42,14 @@ PAYPAL_VERIFY_URL = "https://api-m.sandbox.paypal.com/v1/notifications/verify-we
 
 @pytest.fixture(autouse=True)
 def setup_test_settings(monkeypatch):
+    from app.services.risk_config import risk_config_state
     monkeypatch.setattr(settings, "OPERATOR_TOKEN", OPERATOR_TOKEN)
     monkeypatch.setattr(settings, "AGENT_API_KEYS", {AGENT_KEY: AGENT_ID})
     monkeypatch.setattr(settings, "PAYPAL_WEBHOOK_ID", "test-webhook-id")
+    # For Phase 2B tests, disable Phase 3A AI risk layer so pure 2B functionality is verified
+    risk_config_state.set_config(canary_enabled=False, judge_enabled=False)
     yield
+    risk_config_state.set_config(canary_enabled=True, judge_enabled=True)
 
 
 @pytest.fixture
