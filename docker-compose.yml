@@ -14,6 +14,9 @@ services:
       - PAYPAL_WEBHOOK_ID=${PAYPAL_WEBHOOK_ID:-}
       - PAYPAL_MODE=${PAYPAL_MODE:-sandbox}
       - PAYPAL_TEST_RECEIVER_EMAIL=${PAYPAL_TEST_RECEIVER_EMAIL:-sb-receiver@personal.example.com}
+      - OPERATOR_TOKEN=${OPERATOR_TOKEN:-}
+      - AGENT_API_KEYS=${AGENT_API_KEYS:-{}}
+      - ESCALATION_TIMEOUT_SECONDS=${ESCALATION_TIMEOUT_SECONDS:-600}
     depends_on:
       postgres:
         condition: service_healthy
