@@ -1,12 +1,13 @@
 import asyncio
 import json
+import os
 import time
 import uuid
 import httpx
 
-BASE = "http://localhost:8000"
-OPERATOR_TOKEN = "6e748a4974804cf0075e618de902a138f9867f598a2a0c38a7d1f2ac6589551a"
-AGENT_KEY = "ae95a6888af1b9825b949f4bb7e7110f103549785a616322"
+BASE = os.getenv("API_BASE_URL", "http://localhost:8000")
+OPERATOR_TOKEN = os.getenv("OPERATOR_TOKEN", "test-operator-token")
+AGENT_KEY = os.getenv("AGENT_KEY", "test-agent-key")
 
 OP_HEADERS = {"Authorization": f"Bearer {OPERATOR_TOKEN}", "Content-Type": "application/json"}
 AGENT_HEADERS = {"X-Agent-Key": AGENT_KEY, "Content-Type": "application/json"}
