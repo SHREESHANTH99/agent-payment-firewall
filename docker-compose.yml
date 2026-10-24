@@ -17,6 +17,14 @@ services:
       - OPERATOR_TOKEN=${OPERATOR_TOKEN:-}
       - AGENT_API_KEYS=${AGENT_API_KEYS:-{}}
       - ESCALATION_TIMEOUT_SECONDS=${ESCALATION_TIMEOUT_SECONDS:-600}
+      - LLM_BASE_URL=${LLM_BASE_URL:-https://api.openai.com/v1}
+      - LLM_API_KEY=${LLM_API_KEY:-}
+      - CANARY_MODEL=${CANARY_MODEL:-gpt-4o-mini}
+      - JUDGE_MODEL=${JUDGE_MODEL:-gpt-4o-mini}
+      - LLM_TIMEOUT_SECONDS=${LLM_TIMEOUT_SECONDS:-15}
+      - JUDGE_FAIL_MODE=${JUDGE_FAIL_MODE:-escalate}
+      - CANARY_ENABLED=${CANARY_ENABLED:-true}
+      - JUDGE_ENABLED=${JUDGE_ENABLED:-true}
     depends_on:
       postgres:
         condition: service_healthy

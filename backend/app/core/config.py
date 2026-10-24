@@ -19,6 +19,16 @@ class Settings(BaseSettings):
     OPERATOR_TOKEN: str = "dev-operator-secret-token"
     AGENT_API_KEYS: dict[str, str] = {}
 
+    # LLM & AI Risk Layer Configuration
+    LLM_BASE_URL: str = "https://api.openai.com/v1"
+    LLM_API_KEY: str = ""
+    CANARY_MODEL: str = "gpt-4o-mini"
+    JUDGE_MODEL: str = "gpt-4o-mini"
+    LLM_TIMEOUT_SECONDS: int = 15
+    JUDGE_FAIL_MODE: str = "escalate"  # escalate | deny
+    CANARY_ENABLED: bool = True
+    JUDGE_ENABLED: bool = True
+
     @field_validator("AGENT_API_KEYS", mode="before")
     @classmethod
     def parse_agent_api_keys(cls, v: Any) -> dict[str, str]:
