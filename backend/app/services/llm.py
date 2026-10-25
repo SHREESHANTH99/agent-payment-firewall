@@ -90,12 +90,12 @@ class LLMClient:
         fallback_api_key: Optional[str] = None,
         fallback_model: Optional[str] = None,
     ):
-        self.base_url = (base_url or settings.LLM_BASE_URL).rstrip("/")
+        self.base_url = (base_url if base_url is not None else settings.LLM_BASE_URL).rstrip("/")
         self.api_key = api_key if api_key is not None else settings.LLM_API_KEY
         self.timeout = timeout or settings.LLM_TIMEOUT_SECONDS
-        self.fallback_base_url = (fallback_base_url or getattr(settings, "LLM_FALLBACK_BASE_URL", "")).rstrip("/")
+        self.fallback_base_url = (fallback_base_url if fallback_base_url is not None else getattr(settings, "LLM_FALLBACK_BASE_URL", "")).rstrip("/")
         self.fallback_api_key = fallback_api_key if fallback_api_key is not None else getattr(settings, "LLM_FALLBACK_API_KEY", "")
-        self.fallback_model = fallback_model or getattr(settings, "LLM_FALLBACK_MODEL", "")
+        self.fallback_model = fallback_model if fallback_model is not None else getattr(settings, "LLM_FALLBACK_MODEL", "")
 
     def _headers(self, api_key: str) -> dict[str, str]:
         headers = {"Content-Type": "application/json"}

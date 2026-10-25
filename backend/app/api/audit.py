@@ -3,7 +3,7 @@ from typing import Any, Optional
 
 from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel, ConfigDict
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
@@ -26,14 +26,24 @@ class AuditLogResponse(BaseModel):
     created_at: str
 
 
-@router.get("", response_model=list[AuditLogResponse])
+class PaginatedAuditResponse(BaseModel):
+    items: list[AuditLogResponse]
+    total: int
+    limit: int
+    offset: int
+
+
+@router.get("", response_model=PaginatedAuditResponse)
 async def list_audit_logs(
     limit: int = Query(50, ge=1, le=500),
     offset: int = Query(0, ge=0),
     db: AsyncSession = Depends(get_db),
     _: bool = Depends(operator_auth),
-) -> list[AuditLogResponse]:
-    """Get paginated audit logs (Operator-only)."""
+) -> PaginatedAuditResponse:
+    """Get paginated audit logs with total count (Operator-only)."""
+    count_stmt = select(func.count(AuditLog.id))
+    total = (await db.execute(count_stmt)).scalar_one()
+
     stmt = (
         select(AuditLog)
         .order_by(AuditLog.created_at.asc(), AuditLog.id.asc())
@@ -41,7 +51,7 @@ async def list_audit_logs(
         .limit(limit)
     )
     rows = (await db.execute(stmt)).scalars().all()
-    return [
+    items = [
         AuditLogResponse(
             id=row.id,
             intent_id=row.intent_id,
@@ -53,6 +63,7 @@ async def list_audit_logs(
         )
         for row in rows
     ]
+    return PaginatedAuditResponse(items=items, total=total, limit=limit, offset=offset)
 
 
 @router.get("/verify")

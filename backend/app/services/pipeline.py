@@ -19,6 +19,7 @@ from app.risk.rules import RuleResult, evaluate_rules, to_cents
 from app.services.audit import append_event
 from app.services.budget import budget_service
 from app.services.circuit_breaker import trip as trip_circuit_breaker
+from app.services.events import event_publisher
 from app.services.execution import execute_intent
 from app.services.idempotency import compute_payload_hash, idempotency_service
 from app.services.risk_config import risk_config_state
@@ -118,6 +119,16 @@ async def process_intent(
         },
     )
 
+    # Publish intent_created event
+    await event_publisher.publish("intent_created", {
+        "intent_id": intent.id,
+        "mandate_id": mandate_id,
+        "agent_id": agent_id,
+        "amount": amount_cents,
+        "currency": currency,
+        "merchant": merchant,
+    })
+
     reservation_made = False
 
     try:
@@ -130,6 +141,10 @@ async def process_intent(
             intent.decision_reasons = [{"code": "MANDATE_NOT_FOUND", "message": f"Mandate '{mandate_id}' not found"}]
             await session.commit()
             await append_event(session, intent.id, "intent.denied", {"reasons": intent.decision_reasons})
+            await event_publisher.publish("intent_status_changed", {
+                "intent_id": intent.id, "old_status": "pending", "new_status": "denied",
+                "amount": amount_cents, "merchant": merchant,
+            })
             res = {
                 "intent_id": intent.id,
                 "decision": "denied",
@@ -148,6 +163,10 @@ async def process_intent(
             }]
             await session.commit()
             await append_event(session, intent.id, "intent.denied", {"reasons": intent.decision_reasons})
+            await event_publisher.publish("intent_status_changed", {
+                "intent_id": intent.id, "old_status": "pending", "new_status": "denied",
+                "amount": amount_cents, "merchant": merchant,
+            })
             res = {
                 "intent_id": intent.id,
                 "decision": "denied",
@@ -171,6 +190,10 @@ async def process_intent(
             intent.decision_reasons = rule_result.failures
             await session.commit()
             await append_event(session, intent.id, "intent.denied", {"reasons": rule_result.failures})
+            await event_publisher.publish("intent_status_changed", {
+                "intent_id": intent.id, "old_status": "pending", "new_status": "denied",
+                "amount": amount_cents, "merchant": merchant,
+            })
             res = {
                 "intent_id": intent.id,
                 "decision": "denied",
@@ -199,6 +222,10 @@ async def process_intent(
             intent.decision_reasons = [{"code": "BUDGET_EXCEEDED", "message": "Insufficient mandate budget"}]
             await session.commit()
             await append_event(session, intent.id, "intent.denied", {"reasons": intent.decision_reasons})
+            await event_publisher.publish("intent_status_changed", {
+                "intent_id": intent.id, "old_status": "pending", "new_status": "denied",
+                "amount": amount_cents, "merchant": merchant,
+            })
             res = {
                 "intent_id": intent.id,
                 "decision": "denied",
@@ -254,6 +281,10 @@ async def process_intent(
                 intent.decision_reasons = [{"code": "RISK_POLICY_VIOLATION", "message": "blocked by risk policy"}]
                 await session.commit()
                 await append_event(session, intent.id, "intent.denied", {"risk": risk_details})
+                await event_publisher.publish("intent_status_changed", {
+                    "intent_id": intent.id, "old_status": "pending", "new_status": "denied",
+                    "amount": amount_cents, "merchant": merchant,
+                })
 
                 res = {
                     "intent_id": intent.id,
@@ -313,6 +344,10 @@ async def process_intent(
                 intent.decision_reasons = [{"code": "RISK_POLICY_VIOLATION", "message": "blocked by risk policy"}]
                 await session.commit()
                 await append_event(session, intent.id, "intent.denied", {"risk": risk_details})
+                await event_publisher.publish("intent_status_changed", {
+                    "intent_id": intent.id, "old_status": "pending", "new_status": "denied",
+                    "amount": amount_cents, "merchant": merchant,
+                })
 
                 res = {
                     "intent_id": intent.id,
@@ -340,19 +375,19 @@ async def process_intent(
                 "timeout_seconds": settings.ESCALATION_TIMEOUT_SECONDS,
             })
 
-            # Publish Redis pub/sub event "intent_escalated" on channel "apf:events"
-            try:
-                r = await budget_service.get_redis()
-                await r.publish("apf:events", json.dumps({
-                    "event": "intent_escalated",
-                    "intent_id": intent.id,
-                    "agent_id": agent_id,
-                    "amount_cents": amount_cents,
-                    "merchant": merchant,
-                    "mandate_id": mandate.mandate_id,
-                }))
-            except Exception as pe:
-                logger.warning("Failed to publish pub/sub intent_escalated event: %s", pe)
+            # Publish via event_publisher (intent_status_changed + intent_escalated)
+            await event_publisher.publish("intent_status_changed", {
+                "intent_id": intent.id, "old_status": "pending", "new_status": "escalated",
+                "amount": amount_cents, "merchant": merchant,
+            })
+            await event_publisher.publish("intent_escalated", {
+                "intent_id": intent.id,
+                "agent_id": agent_id,
+                "amount": amount_cents,
+                "currency": currency,
+                "merchant": merchant,
+                "mandate_id": mandate.mandate_id,
+            })
 
             res = {
                 "intent_id": intent.id,
@@ -368,6 +403,10 @@ async def process_intent(
         intent.status = PaymentIntentStatus.APPROVED
         await session.commit()
         await append_event(session, intent.id, "intent.approved", {"amount_cents": amount_cents})
+        await event_publisher.publish("intent_status_changed", {
+            "intent_id": intent.id, "old_status": "pending", "new_status": "approved",
+            "amount": amount_cents, "merchant": merchant,
+        })
 
         # Hardening 1a: Remove reservation TTL so slow payout in executing never loses reservation
         await budget_service.persist(intent.id)

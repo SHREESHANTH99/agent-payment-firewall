@@ -165,7 +165,14 @@ async def test_llm_cache_hit_avoids_second_call():
 @pytest.mark.asyncio
 async def test_llm_errors_not_cached():
     """Failed calls are never stored in cache."""
-    client = LLMClient(base_url="https://mock-llm.local", api_key="test-key", timeout=5)
+    client = LLMClient(
+        base_url="https://mock-llm.local",
+        api_key="test-key",
+        timeout=5,
+        fallback_base_url="",  # Ensure fallback is empty so error propagates directly
+        fallback_api_key="",
+        fallback_model="",
+    )
     call_count = 0
 
     async def mock_handler(request: httpx.Request):

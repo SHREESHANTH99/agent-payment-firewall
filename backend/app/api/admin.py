@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_db
 from app.core.security import operator_auth
 from app.services.audit import append_event
+from app.services.events import event_publisher
 from app.services.risk_config import RiskConfig, risk_config_state
 
 router = APIRouter(prefix="/admin", tags=["admin"])
@@ -43,5 +44,12 @@ async def update_risk_config(
             "judge_enabled": new_cfg.judge_enabled,
         },
     )
+
+    # Publish risk_config_changed event (fire-and-forget)
+    await event_publisher.publish("risk_config_changed", {
+        "canary_enabled": new_cfg.canary_enabled,
+        "judge_enabled": new_cfg.judge_enabled,
+        "changed_by": "operator",
+    })
 
     return new_cfg

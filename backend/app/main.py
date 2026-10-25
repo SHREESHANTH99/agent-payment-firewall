@@ -4,12 +4,15 @@ from contextlib import asynccontextmanager
 import logging
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.admin import router as admin_router
 from app.api.audit import router as audit_router
 from app.api.intents import router as intents_router
 from app.api.mandates import router as mandates_router
 from app.api.webhooks import router as webhooks_router
+from app.api.websocket import router as websocket_router
+from app.core.config import settings
 from app.core.database import AsyncSessionLocal, Base, engine
 from app.services.budget import budget_service
 from app.services.scheduler import escalation_expiry_loop, payout_polling_loop
@@ -56,11 +59,21 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+# CORS configuration restricted to DASHBOARD_ORIGIN
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[settings.DASHBOARD_ORIGIN],
+    allow_credentials=True,
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
+    allow_headers=["Authorization", "Content-Type"],
+)
+
 app.include_router(mandates_router)
 app.include_router(webhooks_router)
 app.include_router(intents_router)
 app.include_router(audit_router)
 app.include_router(admin_router)
+app.include_router(websocket_router)
 
 
 @app.get("/health")

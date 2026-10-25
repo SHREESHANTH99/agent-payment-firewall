@@ -36,6 +36,7 @@ async def append_event(
     """
     Append an immutable event to the cryptographic audit chain.
     Takes pg_advisory_xact_lock to ensure chain linearity under concurrent transactions.
+    After commit, publishes audit_appended event to Redis pub/sub (fire-and-forget).
     """
     # Take transaction-level advisory lock in PostgreSQL (no-op on sqlite)
     try:
@@ -69,6 +70,19 @@ async def append_event(
     session.add(log_entry)
     await session.commit()
     await session.refresh(log_entry)
+
+    # Publish audit_appended event (fire-and-forget, never propagates errors)
+    try:
+        from app.services.events import event_publisher
+        await event_publisher.publish("audit_appended", {
+            "id": log_entry.id,
+            "event": event,
+            "intent_id": intent_id,
+            "hash": row_hash[:16],
+        })
+    except Exception as exc:
+        logger.debug("audit_appended publish skipped: %s", exc)
+
     return log_entry
 
 

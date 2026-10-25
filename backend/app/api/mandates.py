@@ -281,6 +281,8 @@ async def unfreeze_mandate(
     _: bool = Depends(operator_auth),
 ) -> MandateResponse:
     """Unfreeze a frozen mandate back to active (Operator-only)."""
+    from app.services.events import event_publisher
+
     stmt = select(Mandate).where(Mandate.mandate_id == mandate_id)
     mandate = (await db.execute(stmt)).scalar_one_or_none()
     if not mandate:
@@ -292,4 +294,10 @@ async def unfreeze_mandate(
     mandate.status = "active"
     await db.commit()
     await db.refresh(mandate)
+
+    await event_publisher.publish("mandate_unfrozen", {
+        "mandate_id": mandate_id,
+        "unfrozen_by": "operator",
+    })
+
     return await _enrich_mandate_response(mandate)

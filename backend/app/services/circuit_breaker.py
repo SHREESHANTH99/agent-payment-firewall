@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.models import Mandate, MandateStatus
 from app.services.audit import append_event
 from app.services.budget import budget_service
+from app.services.events import event_publisher
 
 logger = logging.getLogger(__name__)
 
