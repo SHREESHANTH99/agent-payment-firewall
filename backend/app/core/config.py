@@ -28,6 +28,13 @@ class Settings(BaseSettings):
     JUDGE_FAIL_MODE: str = "escalate"  # escalate | deny
     CANARY_ENABLED: bool = True
     JUDGE_ENABLED: bool = True
+    LLM_CACHE_ENABLED: bool = True
+    LLM_CACHE_TTL_SECONDS: int = 600
+    LLM_CACHE_MAX_ENTRIES: int = 500
+    LLM_FALLBACK_BASE_URL: str = ""
+    LLM_FALLBACK_API_KEY: str = ""
+    LLM_FALLBACK_MODEL: str = ""
+    DASHBOARD_ORIGIN: str = "http://localhost:3000"
 
     @field_validator("AGENT_API_KEYS", mode="before")
     @classmethod

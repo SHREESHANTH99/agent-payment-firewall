@@ -46,6 +46,7 @@ class JudgeResult:
     confidence: float
     injection_suspected: bool
     reasons: list[str] = field(default_factory=list)
+    meta: Optional[dict[str, Any]] = None
 
 
 def map_judge_verdict(result: JudgeResult, fail_mode: Optional[str] = None) -> str:
@@ -100,18 +101,32 @@ async def judge(
         fail_mode = "escalate"
 
     try:
-        validated_dict = await llm_client.complete_json(
+        raw_res = await llm_client.complete_json(
             model=settings.JUDGE_MODEL,
             system=JUDGE_SYSTEM_PROMPT,
             user=user_prompt,
             schema=JudgeOutputSchema,
         )
+        if isinstance(raw_res, tuple):
+            validated_dict, meta = raw_res
+            meta_dict = {
+                "provider": meta.provider,
+                "model": meta.model,
+                "latency_ms": meta.latency_ms,
+                "cached": meta.cached,
+                "retries": meta.retries,
+                "fallback_used": meta.fallback_used,
+            }
+        else:
+            validated_dict = raw_res
+            meta_dict = None
 
         res = JudgeResult(
             safe=bool(validated_dict["safe"]),
             confidence=float(validated_dict["confidence"]),
             injection_suspected=bool(validated_dict["injection_suspected"]),
             reasons=list(validated_dict.get("reasons", [])),
+            meta=meta_dict,
         )
         verdict = map_judge_verdict(res, fail_mode)
         return res, verdict

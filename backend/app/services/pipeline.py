@@ -229,6 +229,7 @@ async def process_intent(
                 "honeypot_calls": canary_res.honeypot_calls,
                 "segments": canary_res.segments,
                 "error": canary_res.error,
+                "meta": canary_res.meta,
             }
 
             if canary_res.tripped:
@@ -288,6 +289,7 @@ async def process_intent(
                 "injection_suspected": judge_res.injection_suspected,
                 "reasons": judge_res.reasons,
                 "verdict": judge_verdict,
+                "meta": judge_res.meta,
             }
             await append_event(session, intent.id, "judge_evaluated", risk_details["judge"])
 

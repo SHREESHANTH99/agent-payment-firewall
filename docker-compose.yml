@@ -25,6 +25,11 @@ services:
       - JUDGE_FAIL_MODE=${JUDGE_FAIL_MODE:-escalate}
       - CANARY_ENABLED=${CANARY_ENABLED:-true}
       - JUDGE_ENABLED=${JUDGE_ENABLED:-true}
+      - LLM_CACHE_ENABLED=${LLM_CACHE_ENABLED:-true}
+      - LLM_FALLBACK_BASE_URL=${LLM_FALLBACK_BASE_URL:-}
+      - LLM_FALLBACK_API_KEY=${LLM_FALLBACK_API_KEY:-}
+      - LLM_FALLBACK_MODEL=${LLM_FALLBACK_MODEL:-}
+      - DASHBOARD_ORIGIN=${DASHBOARD_ORIGIN:-http://localhost:3000}
     depends_on:
       postgres:
         condition: service_healthy

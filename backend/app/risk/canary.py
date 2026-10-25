@@ -101,6 +101,7 @@ class CanaryResult:
     honeypot_calls: list[dict[str, Any]] = field(default_factory=list)
     segments: int = 0
     error: Optional[str] = None
+    meta: Optional[dict[str, Any]] = None
 
 
 def split_segments(text: str, segment_size: int = CANARY_SEGMENT_SIZE, overlap: int = CANARY_OVERLAP_SIZE) -> list[str]:
@@ -144,16 +145,30 @@ async def canary_scan(source_context: Optional[str]) -> CanaryResult:
 
     segments = split_segments(source_context)
     all_honeypot_calls: list[dict[str, Any]] = []
+    last_meta = None
 
     for seg in segments:
         user_prompt = f"<untrusted_content>\n{seg}\n</untrusted_content>"
         try:
-            calls = await llm_client.complete_with_tools(
+            res = await llm_client.complete_with_tools(
                 model=settings.CANARY_MODEL,
                 system=CANARY_SYSTEM_PROMPT,
                 user=user_prompt,
                 tools=HONEYPOT_TOOLS,
             )
+            if isinstance(res, tuple):
+                calls, meta = res
+                last_meta = {
+                    "provider": meta.provider,
+                    "model": meta.model,
+                    "latency_ms": meta.latency_ms,
+                    "cached": meta.cached,
+                    "retries": meta.retries,
+                    "fallback_used": meta.fallback_used,
+                }
+            else:
+                calls = res
+                last_meta = None
             if calls:
                 all_honeypot_calls.extend(calls)
                 # Early return upon first tripped honeypot
@@ -162,6 +177,7 @@ async def canary_scan(source_context: Optional[str]) -> CanaryResult:
                     honeypot_calls=all_honeypot_calls,
                     segments=len(segments),
                     error=None,
+                    meta=last_meta,
                 )
         except LLMError as exc:
             logger.error("Canary scan failed due to LLMError (failing closed): %s", exc)
@@ -170,6 +186,7 @@ async def canary_scan(source_context: Optional[str]) -> CanaryResult:
                 honeypot_calls=[],
                 segments=len(segments),
                 error=f"llm_error: {exc}",
+                meta=last_meta,
             )
         except Exception as exc:
             logger.exception("Unexpected error in canary_scan (failing closed): %s", exc)
@@ -178,6 +195,7 @@ async def canary_scan(source_context: Optional[str]) -> CanaryResult:
                 honeypot_calls=[],
                 segments=len(segments),
                 error=f"unexpected_error: {exc}",
+                meta=last_meta,
             )
 
     return CanaryResult(
@@ -185,4 +203,5 @@ async def canary_scan(source_context: Optional[str]) -> CanaryResult:
         honeypot_calls=[],
         segments=len(segments),
         error=None,
+        meta=last_meta,
     )
