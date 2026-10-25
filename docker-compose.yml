@@ -64,6 +64,20 @@ services:
       - redis_data:/data
     restart: unless-stopped
 
+  dashboard:
+    build:
+      context: ./dashboard
+      dockerfile: Dockerfile
+    container_name: payment_firewall_dashboard
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://localhost:8000}
+    depends_on:
+      - api
+    restart: unless-stopped
+    restart: unless-stopped
+
 volumes:
   postgres_data:
   redis_data:

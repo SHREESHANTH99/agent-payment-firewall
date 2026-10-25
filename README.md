@@ -314,6 +314,30 @@ Detailed empirical measurements and metrics breakdown are tracked in:
 > [!NOTE]
 > LLM-based prompt injection detection is inherently probabilistic. Model generation behavior varies based on model family, temperature, quantization, and prompt phrasing. Our calibration dataset provides a standardized benchmark, but production deployments should continuously monitor audit logs and tune risk policies accordingly.
 
+## Real-Time Approval Dashboard
+
+The real-time operator dashboard is built with Next.js 14 App Router, TypeScript, Tailwind CSS, and AG Grid. It connects to the backend WebSocket endpoint (`/ws/dashboard`) via one-time tickets to receive streaming updates on transaction lifecycle changes and circuit breaker events without page reloads.
+
+### Dashboard Features
+- **Overview**: Real-time KPI counters (spent, reserved, remaining, pending escalations, frozen mandates), 24h decision distribution, and live event stream.
+- **Approvals Queue**: Human-in-the-loop review interface showing amount, merchant, agent reasoning, collapsible source context, and canary/judge verdicts with Approve and Reject actions.
+- **Payment Intents**: AG Grid table with server-side pagination, status filtering, and side drawer displaying full risk metadata and linked cryptographic audit trail.
+- **Spending Mandates**: Real-time budget progress bars, create mandate form, and operator Freeze, Unfreeze, and Revoke controls.
+- **Audit Ledger**: Verified view of the cryptographic SHA-256 hash chain with a one-click "Verify Chain Integrity" tool.
+- **Risk Controls**: Runtime toggles for canary scanning and AI judge inspection with persistent "Protections Off" visual warnings.
+
+### Running the Dashboard
+```bash
+# Development mode
+cd dashboard
+npm install
+npm run dev
+
+# Production via Docker Compose
+docker compose up -d dashboard
+```
+Accessible at: `http://localhost:3000` (Authenticate using `OPERATOR_TOKEN`).
+
 ## Repository Structure
 
 ```
