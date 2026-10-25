@@ -43,7 +43,23 @@ export default function OverviewPage() {
   }, [])
 
   if (loading && !stats) {
-    return <div className="p-8 text-xs text-muted-foreground">Loading firewall telemetry...</div>
+    return (
+      <div className="space-y-6 animate-pulse">
+        <div>
+          <div className="h-6 w-48 bg-muted rounded mb-2" />
+          <div className="h-4 w-80 bg-muted/60 rounded" />
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+          {[...Array(5)].map((_, i) => (
+            <div key={i} className="h-24 bg-card border border-border rounded-lg" />
+          ))}
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="md:col-span-2 h-72 bg-card border border-border rounded-lg" />
+          <div className="h-72 bg-card border border-border rounded-lg" />
+        </div>
+      </div>
+    )
   }
 
   return (

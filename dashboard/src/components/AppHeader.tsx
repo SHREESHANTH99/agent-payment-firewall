@@ -46,9 +46,12 @@ export function AppHeader() {
   useEffect(() => {
     // Sync dark class on mount
     document.documentElement.classList.add('dark')
-    checkFrozenState()
-    checkRiskConfig()
-  }, [])
+    // Check state only if authenticated
+    if (api.getToken()) {
+      checkFrozenState()
+      checkRiskConfig()
+    }
+  }, [pathname])
 
   const toggleTheme = () => {
     if (theme === 'dark') {

@@ -91,18 +91,15 @@ export function RealtimeProvider({ children }: { children: React.ReactNode }) {
         setStatus('disconnected')
         wsRef.current = null
 
-        // Reconnect after 3s delay
+        // Reconnect after 5s backoff to prevent fast spin/flicker
         if (reconnectTimeoutRef.current) clearTimeout(reconnectTimeoutRef.current)
         reconnectTimeoutRef.current = setTimeout(() => {
           if (isMountedRef.current) connect()
-        }, 3000)
+        }, 5000)
       }
 
       ws.onerror = (e) => {
-        // Close cleanly on error
-        try {
-          ws.close()
-        } catch {}
+        // ws.onclose will fire after onerror
       }
     } catch (err) {
       if (!isMountedRef.current) return
@@ -120,12 +117,8 @@ export function RealtimeProvider({ children }: { children: React.ReactNode }) {
     connect()
 
     return () => {
-      isMountedRef.current = false
+      // Do not aggressively close on fast sub-renders; only if unmounted
       if (reconnectTimeoutRef.current) clearTimeout(reconnectTimeoutRef.current)
-      if (wsRef.current) {
-        wsRef.current.onclose = null
-        wsRef.current.close()
-      }
     }
   }, [connect])
 

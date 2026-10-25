@@ -16,12 +16,20 @@ export default function ApprovalsPage() {
   const [rejectReason, setRejectReason] = useState('')
   const [highlightId, setHighlightId] = useState<string | null>(null)
 
-  const loadEscalations = async () => {
+  const loadEscalations = async (silent = false) => {
+    if (!silent) setLoading(true)
     try {
       const res = await api.getIntents({ status: 'escalated', page_size: 50 })
-      // For each item, fetch detail to get reasoning, risk details, source context
+      // For items without risk_details / reasoning, fetch detail in parallel
       const fullItems = await Promise.all(
-        res.items.map((i: any) => api.getIntent(i.id).catch(() => i))
+        res.items.map(async (item: any) => {
+          if (item.risk_details && item.decision_reasons) return item
+          try {
+            return await api.getIntent(item.id)
+          } catch {
+            return item
+          }
+        })
       )
       setEscalations(fullItems)
     } catch {
@@ -36,9 +44,9 @@ export default function ApprovalsPage() {
       const intentId = event.data.intent_id
       setHighlightId(intentId)
       setTimeout(() => setHighlightId(null), 4000)
-      loadEscalations()
+      loadEscalations(true)
     } else if (event.type === 'intent_status_changed') {
-      loadEscalations()
+      loadEscalations(true)
     }
   })
 
@@ -76,8 +84,19 @@ export default function ApprovalsPage() {
     setExpandedContext((prev) => ({ ...prev, [id]: !prev[id] }))
   }
 
-  if (loading) {
-    return <div className="p-8 text-xs text-muted-foreground">Loading approval queue...</div>
+  if (loading && escalations.length === 0) {
+    return (
+      <div className="space-y-6 animate-pulse">
+        <div>
+          <div className="h-6 w-48 bg-muted rounded mb-2" />
+          <div className="h-4 w-96 bg-muted/60 rounded" />
+        </div>
+        <div className="space-y-4">
+          <div className="h-32 bg-card border border-border rounded-lg" />
+          <div className="h-32 bg-card border border-border rounded-lg" />
+        </div>
+      </div>
+    )
   }
 
   return (
