@@ -298,7 +298,21 @@ LLM_TIMEOUT_SECONDS=15                      # Network timeout for LLM queries
 JUDGE_FAIL_MODE=escalate                    # Fallback on LLM judge failure (escalate | deny)
 CANARY_ENABLED=true                         # Initial state of canary scanner
 JUDGE_ENABLED=true                          # Initial state of judge
+LLM_CACHE_ENABLED=true                      # In-memory TTL cache for prompt responses
+LLM_FALLBACK_BASE_URL=                      # Optional secondary provider endpoint
+LLM_FALLBACK_API_KEY=                       # Optional secondary provider API key
+LLM_FALLBACK_MODEL=                         # Optional secondary provider model
 ```
+
+## Detection Quality & Calibration
+
+Detection quality for the Honeypot Canary and AI Risk Judge is evaluated against a calibration suite covering benign product listings, invoices, multi-lingual contexts, and diverse prompt injection techniques (blunt override, hidden DOM elements, fake system banners, review-embedded traps, base64 payloads, spaced tokens, and multi-paragraph exploits).
+
+Detailed empirical measurements and metrics breakdown are tracked in:
+👉 [**Risk Layer Calibration Report (`results/CALIBRATION.md`)**](results/CALIBRATION.md)
+
+> [!NOTE]
+> LLM-based prompt injection detection is inherently probabilistic. Model generation behavior varies based on model family, temperature, quantization, and prompt phrasing. Our calibration dataset provides a standardized benchmark, but production deployments should continuously monitor audit logs and tune risk policies accordingly.
 
 ## Repository Structure
 
