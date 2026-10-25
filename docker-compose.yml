@@ -76,7 +76,6 @@ services:
     depends_on:
       - api
     restart: unless-stopped
-    restart: unless-stopped
 
 volumes:
   postgres_data:
