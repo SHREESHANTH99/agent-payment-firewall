@@ -138,12 +138,20 @@ export function RealtimeProvider({ children }: { children: React.ReactNode }) {
 
 export function useRealtime(onEvent?: EventListener) {
   const context = useContext(RealtimeContext)
+  const onEventRef = useRef<EventListener | undefined>(onEvent)
 
   useEffect(() => {
-    if (!onEvent) return
-    const unsubscribe = context.subscribe(onEvent)
+    onEventRef.current = onEvent
+  }, [onEvent])
+
+  useEffect(() => {
+    if (!onEventRef.current) return
+    const listener: EventListener = (ev) => {
+      onEventRef.current?.(ev)
+    }
+    const unsubscribe = context.subscribe(listener)
     return () => unsubscribe()
-  }, [onEvent, context])
+  }, [context.subscribe])
 
   return {
     status: context.status,
