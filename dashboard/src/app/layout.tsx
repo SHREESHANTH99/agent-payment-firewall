@@ -1,10 +1,34 @@
-import { AppHeader } from '@/components/AppHeader'
+import { IBM_Plex_Sans, IBM_Plex_Mono, Instrument_Serif } from 'next/font/google'
 import { RealtimeProvider } from '@/hooks/useRealtime'
 import './globals.css'
 
+const ibmSans = IBM_Plex_Sans({
+  subsets: ['latin'],
+  weight: ['400', '500', '600', '700'],
+  variable: '--font-ibm-sans',
+  display: 'swap',
+})
+
+const ibmMono = IBM_Plex_Mono({
+  subsets: ['latin'],
+  weight: ['400', '500', '600'],
+  variable: '--font-ibm-mono',
+  display: 'swap',
+})
+
+const instrumentSerif = Instrument_Serif({
+  subsets: ['latin'],
+  weight: ['400'],
+  variable: '--font-serif',
+  display: 'swap',
+})
+
 export const metadata = {
-  title: 'Agent Payment Firewall - Operator Console',
-  description: 'Real-time security governance for autonomous AI financial transactions',
+  title: 'Agent Payment Firewall — Settlement Interception for Autonomous AI',
+  description: 'Deterministic policy firewall, canary scanning, LLM risk judge, and SHA-256 hash-chained audit ledger for autonomous agent payments.',
+  icons: {
+    icon: '/favicon.svg',
+  },
 }
 
 export default function RootLayout({
@@ -13,13 +37,10 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en" className="dark">
-      <body className="min-h-screen bg-background text-foreground antialiased flex flex-col">
+    <html lang="en" className={`${ibmSans.variable} ${ibmMono.variable} ${instrumentSerif.variable}`}>
+      <body className="min-h-screen bg-background text-foreground antialiased flex flex-col font-sans">
         <RealtimeProvider>
-          <AppHeader />
-          <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
-            {children}
-          </main>
+          {children}
         </RealtimeProvider>
       </body>
     </html>

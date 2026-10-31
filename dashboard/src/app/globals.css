@@ -6,42 +6,101 @@
 @import 'ag-grid-community/styles/ag-theme-alpine.css';
 
 :root {
-  --background: 210 20% 98%;
-  --foreground: 222 47% 11%;
-  --card: 0 0% 100%;
-  --card-foreground: 222 47% 11%;
-  --muted: 210 40% 96%;
-  --muted-foreground: 215 16% 47%;
-  --border: 214 32% 91%;
-  --accent: 221 83% 53%;
-  --accent-foreground: 210 40% 98%;
+  /* Paper and Ink Palette (DESIGN.md specification) */
+  --paper: #F3F0E8;
+  --paper-low: #F8F3EC;
+  --paper-high: #ECE7E0;
+  --paper-highest: #E7E2DB;
+  --ink: #14130F;
+  --ink-muted: #5C403A;
+  --vermilion: #E5391B;
+  --green: #1F7A4D;
+  --amber: #B7791F;
+  --border-line: #E7E2DB;
+
+  /* Semantic Theme Bindings */
+  --background: 40 23% 93%; /* #F3F0E8 */
+  --foreground: 45 14% 7%;  /* #14130F */
+  --card: 38 43% 95%;       /* #F8F3EC */
+  --card-foreground: 45 14% 7%;
+  --muted: 36 22% 90%;      /* #ECE7E0 */
+  --muted-foreground: 11 23% 30%; /* #5C403A */
+  --border: 37 19% 88%;     /* #E7E2DB */
+  --accent: 9 82% 50%;      /* #E5391B */
+  --accent-foreground: 40 23% 97%;
 }
 
 .dark {
-  --background: 224 25% 10%;
-  --foreground: 210 20% 98%;
-  --card: 222 25% 14%;
-  --card-foreground: 210 20% 98%;
-  --muted: 223 20% 18%;
-  --muted-foreground: 215 20% 65%;
-  --border: 223 20% 22%;
-  --accent: 217 91% 60%;
-  --accent-foreground: 222 47% 11%;
+  --paper: #14130F;
+  --paper-low: #1D1C17;
+  --paper-high: #262420;
+  --paper-highest: #32302C;
+  --ink: #F3F0E8;
+  --ink-muted: #A39E93;
+  --vermilion: #FF5A3D;
+  --green: #34D399;
+  --amber: #FBBF24;
+  --border-line: #2D2B26;
+
+  --background: 45 14% 7%;
+  --foreground: 40 23% 93%;
+  --card: 48 11% 10%;
+  --card-foreground: 40 23% 93%;
+  --muted: 40 9% 14%;
+  --muted-foreground: 40 8% 61%;
+  --border: 43 9% 16%;
+  --accent: 9 100% 62%;
+  --accent-foreground: 45 14% 7%;
 }
 
 body {
-  color: hsl(var(--foreground));
-  background: hsl(var(--background));
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  color: var(--ink);
+  background-color: var(--paper);
+  font-family: var(--font-ibm-sans), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   -webkit-font-smoothing: antialiased;
+  min-height: 100vh;
 }
 
-/* Restrained ops grid */
+/* Hairline rule borders */
+.border-hairline {
+  border-width: 1px;
+  border-color: var(--border-line);
+}
+
+/* Tabular numerals */
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+/* AG Grid custom theme override */
 .ag-theme-alpine,
 .ag-theme-alpine-dark {
-  --ag-font-family: inherit;
+  --ag-font-family: var(--font-ibm-sans);
   --ag-font-size: 13px;
-  --ag-grid-size: 6px;
-  --ag-header-height: 38px;
-  --ag-row-height: 36px;
+  --ag-grid-size: 5px;
+  --ag-header-height: 36px;
+  --ag-row-height: 38px;
+  --ag-borders: solid 1px;
+  --ag-border-color: var(--border-line);
+  --ag-background-color: transparent;
+  --ag-header-background-color: var(--paper-high);
+  --ag-odd-row-background-color: transparent;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideLeft {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.15s ease-out forwards;
+}
+
+.animate-slide-left {
+  animation: slideLeft 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
