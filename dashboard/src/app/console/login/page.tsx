@@ -23,10 +23,11 @@ export default function ConsoleLoginPage() {
     if (!clean) return
     setLoading(true)
     setError(null)
+    setDemoMode(false)
     api.setToken(clean)
     try {
       await api.getStats()
-      router.replace('/console')
+      router.replace('/console?demo=0')
     } catch {
       api.setToken(null)
       setError('Invalid operator bearer token or backend unreachable.')

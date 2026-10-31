@@ -77,12 +77,14 @@ export default function ConsoleOverviewPage() {
   const [stats, setStats] = useState<StatsData | null>(null)
   const [loading, setLoading] = useState(true)
   const [events, setEvents] = useState<RealtimeEvent[]>([])
-  const demo = typeof window !== 'undefined' && isDemoMode()
+  const [demo, setDemo] = useState(false)
 
   const load = async (silent = false) => {
     if (!silent) setLoading(true)
     try {
-      if (!demo && !activeApi.getToken()) { router.replace('/console/login'); return }
+      const isDemo = isDemoMode()
+      setDemo(isDemo)
+      if (!isDemo && !activeApi.getToken()) { router.replace('/console/login'); return }
       const s = await activeApi.getStats()
       setStats(s)
     } catch {}

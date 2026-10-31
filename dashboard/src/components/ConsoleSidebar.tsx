@@ -33,7 +33,11 @@ export function ConsoleSidebar({ escalationCount = 0 }: { escalationCount?: numb
   const [mobileOpen, setMobileOpen] = useState(false)
   const [hasFrozen, setHasFrozen] = useState(false)
   const [protectionsOff, setProtectionsOff] = useState(false)
-  const demo = typeof window !== 'undefined' ? isDemoMode() : false
+  const [demo, setDemo] = useState(false)
+
+  useEffect(() => {
+    setDemo(isDemoMode())
+  }, [pathname])
 
   const { status } = useRealtime((event) => {
     if (event.type === 'mandate_frozen') setHasFrozen(true)

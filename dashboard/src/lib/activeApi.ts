@@ -8,6 +8,10 @@ export function isDemoMode(): boolean {
     sessionStorage.setItem('apf_demo_mode', '1')
     return true
   }
+  if (urlParams.get('demo') === '0') {
+    sessionStorage.removeItem('apf_demo_mode')
+    return false
+  }
   return sessionStorage.getItem('apf_demo_mode') === '1'
 }
 
