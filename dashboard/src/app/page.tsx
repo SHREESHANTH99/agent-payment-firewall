@@ -363,9 +363,15 @@ export default function LandingPage() {
             </a>
             <Link
               href="/console?demo=1"
+              className="px-3 py-1.5 border border-border bg-paper-high text-ink font-sans text-xs font-semibold hover:bg-paper-highest transition-colors"
+            >
+              Demo mode
+            </Link>
+            <Link
+              href="/console/login"
               className="px-3 py-1.5 bg-vermilion text-white font-sans text-xs font-semibold hover:bg-ink transition-colors"
             >
-              Try demo
+              Sign in with token
             </Link>
             <button
               onClick={() => setMenuOpen(!menuOpen)}
@@ -415,9 +421,16 @@ export default function LandingPage() {
               <div className="flex flex-wrap gap-3">
                 <Link
                   href="/console?demo=1"
+                  className="inline-flex items-center gap-2 px-4 py-2.5 border border-border bg-paper-high text-ink font-sans text-sm font-semibold hover:bg-paper-highest transition-colors"
+                >
+                  Explore demo
+                  <ExternalLink className="w-3.5 h-3.5" />
+                </Link>
+                <Link
+                  href="/console/login"
                   className="inline-flex items-center gap-2 px-4 py-2.5 bg-vermilion text-white font-sans text-sm font-semibold hover:bg-ink transition-colors"
                 >
-                  Explore the console
+                  Sign in with token
                   <ExternalLink className="w-3.5 h-3.5" />
                 </Link>
                 <a
