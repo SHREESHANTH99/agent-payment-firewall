@@ -14,7 +14,10 @@ export default function ConsoleLoginPage() {
   const router = useRouter()
 
   useEffect(() => {
-    if (isDemoMode() || api.getToken()) router.replace('/console')
+    // Only auto-redirect if an actual operator token exists
+    if (api.getToken() && !isDemoMode()) {
+      router.replace('/console?demo=0')
+    }
   }, [])
 
   const handleLogin = async (e: React.FormEvent) => {

@@ -75,6 +75,8 @@ export function ConsoleSidebar({ escalationCount = 0 }: { escalationCount?: numb
 
   const handleLogout = () => {
     activeApi.setToken(null)
+    sessionStorage.removeItem('apf_demo_mode')
+    sessionStorage.removeItem('apf_token')
     router.push('/console/login')
   }
 
