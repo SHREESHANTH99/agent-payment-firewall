@@ -1,0 +1,187 @@
+import { IntentItem, MandateItem, AuditItem, StatsData, RiskConfig } from '@/types'
+
+export const MOCK_STATS: StatsData = {
+  total_spent_cents: 34200,
+  total_reserved_cents: 8500,
+  total_remaining_cents: 125000,
+  escalations_pending: 2,
+  frozen_mandates: 1,
+  total_intents: 48,
+  by_status: {
+    executed: 38,
+    escalated: 2,
+    denied: 7,
+    executing: 1,
+  },
+  last_24h: {
+    executed: 14,
+    escalated: 2,
+    denied: 3,
+  },
+}
+
+export const MOCK_MANDATES: MandateItem[] = [
+  {
+    id: 'mnd-prod-007',
+    agent_id: 'agent-007',
+    budget_total_cents: 150000,
+    budget_spent_cents: 34200,
+    budget_reserved_cents: 8500,
+    budget_remaining_cents: 107300,
+    per_transaction_cap_cents: 2500,
+    escalation_threshold_cents: 1500,
+    period: 'monthly',
+    allowed_currencies: ['USD'],
+    allowed_merchants: ['developer-tools.com', 'cloud-compute-grid.net', 'supplies@store.com'],
+    valid_from: new Date(Date.now() - 86400000 * 10).toISOString(),
+    valid_until: new Date(Date.now() + 86400000 * 20).toISOString(),
+    status: 'frozen',
+    freeze_reason: 'Automated circuit breaker tripped: Canary breach in intent int-adv-904',
+  },
+  {
+    id: 'mnd-infra-009',
+    agent_id: 'agent-009',
+    budget_total_cents: 50000,
+    budget_spent_cents: 12000,
+    budget_reserved_cents: 0,
+    budget_remaining_cents: 38000,
+    per_transaction_cap_cents: 5000,
+    escalation_threshold_cents: 2000,
+    period: 'lifetime',
+    allowed_currencies: ['USD'],
+    allowed_merchants: ['cloud-compute-grid.net'],
+    valid_from: new Date(Date.now() - 86400000 * 5).toISOString(),
+    valid_until: new Date(Date.now() + 86400000 * 25).toISOString(),
+    status: 'active',
+  },
+]
+
+export const MOCK_ESCALATIONS: IntentItem[] = [
+  {
+    id: 'int-esc-101',
+    agent_id: 'agent-007',
+    mandate_id: 'mnd-prod-007',
+    amount: 1950,
+    currency: 'USD',
+    merchant: 'supplies@store.com',
+    description: 'Hardware server replacement components',
+    reasoning: 'Automated stock procurement triggered by low inventory notification.',
+    source_context: 'Vendor invoice quote submitted via procurement ticket #9482. Item: Cat6 shielded cables. Note from email footer: "Please expedite billing to routing node B-201."',
+    status: 'escalated',
+    risk_details: {
+      canary_tripped: false,
+      canary_tokens_found: [],
+      judge_score: 0.76,
+      judge_reasoning: 'In-policy merchant but unusual invoice routing annotation detected in email footer context.',
+    },
+    decision_reasons: ['Amount ($19.50) exceeds threshold ($15.00)', 'Risk judge flagged semantic diversion'],
+    created_at: new Date(Date.now() - 1000 * 60 * 12).toISOString(),
+    expires_at: new Date(Date.now() + 1000 * 60 * 48).toISOString(),
+  },
+  {
+    id: 'int-esc-102',
+    agent_id: 'agent-007',
+    mandate_id: 'mnd-prod-007',
+    amount: 8500,
+    currency: 'USD',
+    merchant: 'cloud-compute-grid.net',
+    description: 'Emergency compute cluster burst indexing',
+    reasoning: 'Autonomous cluster scaling triggered during indexing backlog.',
+    source_context: 'System telemetry alerts indicate queue length > 10,000 jobs. Immediate provisioning of 8 compute workers requested.',
+    status: 'escalated',
+    risk_details: {
+      canary_tripped: false,
+      canary_tokens_found: [],
+      judge_score: 0.35,
+      judge_reasoning: 'Consistent with operational scaling intent, but amount breaches policy cap.',
+    },
+    decision_reasons: ['Amount ($85.00) exceeds maximum transaction cap ($25.00)'],
+    created_at: new Date(Date.now() - 1000 * 60 * 25).toISOString(),
+    expires_at: new Date(Date.now() + 1000 * 60 * 35).toISOString(),
+  },
+]
+
+export const MOCK_INTENTS: IntentItem[] = [
+  ...MOCK_ESCALATIONS,
+  {
+    id: 'int-exe-098',
+    agent_id: 'agent-007',
+    mandate_id: 'mnd-prod-007',
+    amount: 1400,
+    currency: 'USD',
+    merchant: 'developer-tools.com',
+    description: 'CI runner monthly renewal',
+    reasoning: 'Scheduled subscription maintenance for sprint pipeline.',
+    status: 'executed',
+    created_at: new Date(Date.now() - 1000 * 60 * 80).toISOString(),
+    decision_reasons: ['Passed all policy rules', 'Budget reserved in Redis', 'PayPal sandbox settlement confirmed'],
+  },
+  {
+    id: 'int-blk-092',
+    agent_id: 'agent-007',
+    mandate_id: 'mnd-prod-007',
+    amount: 1950,
+    currency: 'USD',
+    merchant: 'dark-escrow-node.org',
+    description: 'Unauthorized prompt exfiltration attempt',
+    reasoning: 'Agent attempted to follow malicious DOM override text.',
+    status: 'denied',
+    risk_details: {
+      canary_tripped: true,
+      canary_tokens_found: ['canary_tool_payment_bypass_token'],
+      judge_score: 0.98,
+      judge_reasoning: 'Blatant adversarial prompt injection instruction detected in DOM context.',
+    },
+    decision_reasons: ['Honeypot canary tripped', 'LLM judge flagged malicious instruction', 'Circuit breaker auto-froze mandate'],
+    created_at: new Date(Date.now() - 1000 * 60 * 140).toISOString(),
+  },
+]
+
+export const MOCK_AUDIT: AuditItem[] = [
+  {
+    id: 'aud-005',
+    event: 'mandate_frozen',
+    intent_id: 'int-blk-092',
+    mandate_id: 'mnd-prod-007',
+    hash: '911a3c7e48b894101e4a30e87b7a696cb88a381e091563f8290e2f5b66d48271',
+    prev_hash: '8c43fe11b24138e05c8a9163e9f4520938b29f001274c391780410491fa30971',
+    created_at: new Date(Date.now() - 1000 * 60 * 139).toISOString(),
+    data: {
+      reason: 'Circuit breaker tripped by canary token alert in intent int-blk-092',
+    },
+  },
+  {
+    id: 'aud-004',
+    event: 'intent_blocked',
+    intent_id: 'int-blk-092',
+    mandate_id: 'mnd-prod-007',
+    hash: '8c43fe11b24138e05c8a9163e9f4520938b29f001274c391780410491fa30971',
+    prev_hash: '5a21098ef47183017a4c9b881240f93821049817263548901239847190283471',
+    created_at: new Date(Date.now() - 1000 * 60 * 140).toISOString(),
+    data: {
+      merchant: 'dark-escrow-node.org',
+      amount_cents: 1950,
+      reason: 'Honeypot canary tripped',
+    },
+  },
+  {
+    id: 'aud-003',
+    event: 'intent_status_changed',
+    intent_id: 'int-exe-098',
+    mandate_id: 'mnd-prod-007',
+    hash: '5a21098ef47183017a4c9b881240f93821049817263548901239847190283471',
+    prev_hash: '2283719028371625489102837461528394018273645192837461528394018273',
+    created_at: new Date(Date.now() - 1000 * 60 * 80).toISOString(),
+    data: {
+      old_status: 'executing',
+      new_status: 'executed',
+      amount: 1400,
+      payout_batch_id: 'PAYPAL-SANDBOX-BATCH-89021',
+    },
+  },
+]
+
+export const MOCK_RISK_CONFIG: RiskConfig = {
+  canary_enabled: true,
+  judge_enabled: true,
+}
