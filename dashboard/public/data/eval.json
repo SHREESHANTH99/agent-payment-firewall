@@ -1,0 +1,22 @@
+{
+  "timestamp": "2026-10-25T07:46:19.549Z",
+  "evaluated_model": "gemini-3.5-flash",
+  "total_scenarios_evaluated": 105,
+  "benign_sample_size": 15,
+  "injection_sample_size": 20,
+  "eval_repeats": 3,
+  "metrics": {
+    "canary_trip_rate": 0.45,
+    "judge_detection_rate": 0.80,
+    "combined_detection_rate": 0.95,
+    "false_positive_rate": 0.0,
+    "fail_closed_under_quota_breach": 1.0,
+    "atomic_redis_reservation_accuracy": 1.0,
+    "hash_chain_integrity": 1.0
+  },
+  "settlement": {
+    "engine": "PayPal Payouts SDK (Sandbox)",
+    "audit_ledger": "PostgreSQL SHA-256 Hash Chain",
+    "circuit_breaker": "Mandate-level Auto-Freeze on risk threshold trip"
+  }
+}

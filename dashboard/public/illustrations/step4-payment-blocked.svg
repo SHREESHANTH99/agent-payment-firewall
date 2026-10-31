@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 240" fill="none">
+  <rect width="400" height="240" fill="#F8F3EC" stroke="#E7E2DB" stroke-width="1"/>
+  <rect x="24" y="24" width="352" height="192" rx="3" fill="#FFFFFF" stroke="#E7E2DB" stroke-width="1"/>
+  <!-- Blocked Ledger card -->
+  <rect x="44" y="44" width="312" height="152" fill="#F2EDE6" stroke="#E5391B" stroke-width="2"/>
+  <text x="56" y="66" font-family="monospace" font-size="10" font-weight="bold" fill="#14130F">POSTGRES TAMPER-EVIDENT LEDGER</text>
+  <text x="56" y="86" font-family="monospace" font-size="9" fill="#5C403A">EVENT: intent_blocked</text>
+  <text x="56" y="102" font-family="monospace" font-size="9" fill="#5C403A">REASON: blocked by risk policy</text>
+  <text x="56" y="118" font-family="monospace" font-size="9" fill="#5C403A">PAYPAL SETTLEMENT: HALTED (0 funds released)</text>
+  <text x="56" y="134" font-family="monospace" font-size="9" fill="#E5391B">MANDATE STATUS: AUTO-FROZEN (Circuit Breaker)</text>
+  <!-- Stamp -->
+  <g transform="translate(180, 80) rotate(-8)">
+    <rect x="0" y="0" width="140" height="42" rx="2" fill="#E5391B" fill-opacity="0.1" stroke="#E5391B" stroke-width="3"/>
+    <text x="14" y="28" font-family="monospace" font-size="20" font-weight="bold" fill="#E5391B" letter-spacing="2">BLOCKED</text>
+  </g>
+  <text x="56" y="180" font-family="monospace" font-size="8" fill="#5C403A">SHA-256 PREV: 8c43f... HASH: 911ac...</text>
+</svg>

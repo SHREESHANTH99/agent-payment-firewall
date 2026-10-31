@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 240" fill="none">
+  <rect width="400" height="240" fill="#F8F3EC" stroke="#E7E2DB" stroke-width="1"/>
+  <rect x="24" y="24" width="352" height="192" rx="3" fill="#FFFFFF" stroke="#E7E2DB" stroke-width="1"/>
+  <!-- Inspection Chamber -->
+  <rect x="44" y="44" width="312" height="65" fill="#F2EDE6" stroke="#E7E2DB"/>
+  <text x="56" y="62" font-family="monospace" font-size="10" font-weight="bold" fill="#14130F">CANARY SCANNER &amp; HONEYPOT LAYER</text>
+  <rect x="56" y="74" width="180" height="20" fill="#FFDAD6" stroke="#E5391B"/>
+  <text x="64" y="88" font-family="monospace" font-size="9" fill="#E5391B" font-weight="bold">HONEYPOT LEAKAGE DETECTED</text>
+  <!-- Tripped Canary alert -->
+  <rect x="44" y="125" width="312" height="70" fill="#F8F3EC" stroke="#E5391B" stroke-width="1.5"/>
+  <text x="56" y="145" font-family="monospace" font-size="10" font-weight="bold" fill="#E5391B">TRIP SIGNAL: CANARY_BREACH</text>
+  <text x="56" y="162" font-family="monospace" font-size="9" fill="#14130F">Delimiter tags broken by adversarial prompt context.</text>
+  <text x="56" y="178" font-family="monospace" font-size="9" fill="#5C403A">LLM Risk Judge: Escalation flagged (Score: 0.98)</text>
+</svg>
