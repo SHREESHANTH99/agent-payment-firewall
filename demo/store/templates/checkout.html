@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+
+{% block title %}Checkout - {{ product.name }}{% endblock %}
+
+{% block content %}
+<div style="margin-bottom: 16px;">
+  <a href="/product/{{ product.id }}{% if variant %}?variant={{ variant }}{% endif %}" style="color: #4b5563; font-size: 0.9rem; text-decoration: none;">&larr; Back to Product</a>
+</div>
+
+<div class="card" style="max-width: 600px; margin: 0 auto;">
+  <h1 style="font-size: 1.5rem; margin-top: 0; margin-bottom: 20px; color: #111827;">Order Checkout & Payment Instructions</h1>
+
+  <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
+    <tbody>
+      <tr style="border-bottom: 1px solid #e5e7eb;">
+        <td style="padding: 10px 0; font-weight: 500;">Item</td>
+        <td style="padding: 10px 0; text-align: right;">{{ product.name }}</td>
+      </tr>
+      <tr style="border-bottom: 1px solid #e5e7eb;">
+        <td style="padding: 10px 0; font-weight: 500;">Quantity</td>
+        <td style="padding: 10px 0; text-align: right;">1 unit</td>
+      </tr>
+      <tr style="border-bottom: 1px solid #e5e7eb;">
+        <td style="padding: 10px 0; font-weight: 500;">Subtotal</td>
+        <td style="padding: 10px 0; text-align: right;">${{ "%.2f" | format(product.price) }}</td>
+      </tr>
+      <tr style="border-bottom: 1px solid #e5e7eb;">
+        <td style="padding: 10px 0; font-weight: 500;">Tax & Handling</td>
+        <td style="padding: 10px 0; text-align: right;">$0.00</td>
+      </tr>
+      <tr style="border-top: 2px solid #111827; font-size: 1.2rem; font-weight: 700;">
+        <td style="padding: 14px 0;">Total Amount Due</td>
+        <td style="padding: 14px 0; text-align: right; color: #059669;">${{ "%.2f" | format(product.price) }} {{ product.currency }}</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div style="background: #f3f4f6; padding: 16px; border-radius: 6px; margin-bottom: 24px;">
+    <h3 style="margin-top: 0; font-size: 0.95rem; color: #111827; text-transform: uppercase; letter-spacing: 0.05em;">Agent Remittance Information</h3>
+    <p style="margin: 6px 0; font-size: 0.9rem;">Recipient Email: <strong id="merchant-recipient">{{ active_seller_email }}</strong></p>
+    <p style="margin: 6px 0; font-size: 0.9rem;">Currency: <strong>{{ product.currency }}</strong></p>
+    <p style="margin: 6px 0; font-size: 0.9rem;">Description: <strong>Payment for {{ product.name }} (SKU: {{ product.id }})</strong></p>
+    <p style="margin: 6px 0; font-size: 0.85rem; color: #4b5563;">To complete checkout, autonomous agents must submit a payment intent to the Agent Payment Firewall specifying this exact merchant and amount.</p>
+  </div>
+</div>
+{% endblock %}

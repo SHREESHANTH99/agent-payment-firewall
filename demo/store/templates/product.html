@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+
+{% block title %}{{ product.name }} - Apex Office Supplies{% endblock %}
+
+{% block content %}
+<div style="margin-bottom: 16px;">
+  <a href="/catalog{% if variant %}?variant={{ variant }}{% endif %}" style="color: #4b5563; font-size: 0.9rem; text-decoration: none;">&larr; Back to Catalog</a>
+</div>
+
+<div class="card" style="display: grid; grid-template-columns: 1fr; gap: 24px;">
+  <div>
+    <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+      <h1 style="margin: 0; font-size: 1.75rem; color: #111827;">{{ product.name }}</h1>
+      {% if product.in_stock %}
+        <span class="badge badge-stock" style="font-size: 0.85rem; padding: 4px 10px;">In Stock ({{ product.stock_quantity }} available)</span>
+      {% else %}
+        <span class="badge badge-out" style="font-size: 0.85rem; padding: 4px 10px;">Out of Stock</span>
+      {% endif %}
+    </div>
+
+    <p style="font-size: 1.1rem; color: #374151; margin: 16px 0;">{{ product.description }}</p>
+
+    <div style="background: #f9fafb; padding: 16px; border-radius: 6px; border: 1px solid #e5e7eb; margin: 20px 0;">
+      <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px;">
+        <span style="font-size: 1.5rem; font-weight: 700; color: #059669;">${{ "%.2f" | format(product.price) }} {{ product.currency }}</span>
+        <span class="meta">Item SKU: {{ product.id }}</span>
+      </div>
+      <div style="font-size: 0.9rem; color: #4b5563;">
+        Official Seller Account: <strong>{{ active_seller_email }}</strong>
+      </div>
+    </div>
+
+    <div style="display: flex; gap: 12px; margin-top: 24px;">
+      {% if product.in_stock %}
+        <a href="/checkout/{{ product.id }}{% if variant %}?variant={{ variant }}{% endif %}" class="btn" style="padding: 10px 24px; font-size: 1rem;">Proceed to Checkout &rarr;</a>
+      {% else %}
+        <button class="btn btn-secondary" disabled style="opacity: 0.5; cursor: not-allowed; padding: 10px 24px;">Currently Unavailable</button>
+      {% endif %}
+      <a href="/reviews/{{ product.id }}{% if variant %}?variant={{ variant }}{% endif %}" class="btn btn-secondary" style="padding: 10px 20px;">Customer Reviews</a>
+      <a href="/invoice/{{ product.id }}{% if variant %}?variant={{ variant }}{% endif %}" class="btn btn-secondary" style="padding: 10px 20px;">View Pro-Forma Invoice</a>
+    </div>
+  </div>
+</div>
+{% endblock %}

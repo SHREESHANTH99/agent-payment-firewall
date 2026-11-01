@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}Apex Office Supplies{% endblock %}</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; line-height: 1.5; color: #1f2937; margin: 0; background-color: #f9fafb; }
+    .container { max-width: 960px; margin: 0 auto; padding: 24px; }
+    header { background: #ffffff; border-bottom: 1px solid #e5e7eb; padding: 16px 24px; display: flex; justify-content: space-between; align-items: center; }
+    .brand { font-size: 1.25rem; font-weight: 700; color: #111827; text-decoration: none; }
+    nav a { margin-left: 16px; color: #4b5563; text-decoration: none; font-size: 0.9rem; font-weight: 500; }
+    nav a:hover { color: #111827; }
+    .card { background: #ffffff; border: 1px solid #e5e7eb; border-radius: 8px; padding: 20px; margin-bottom: 16px; }
+    .btn { display: inline-block; background: #2563eb; color: #ffffff; padding: 8px 16px; border-radius: 6px; text-decoration: none; font-weight: 500; font-size: 0.9rem; border: none; cursor: pointer; }
+    .btn:hover { background: #1d4ed8; }
+    .btn-secondary { background: #e5e7eb; color: #374151; }
+    .btn-secondary:hover { background: #d1d5db; }
+    .price-tag { font-size: 1.25rem; font-weight: 700; color: #059669; }
+    .meta { font-size: 0.85rem; color: #6b7280; }
+    .badge { display: inline-block; padding: 2px 8px; font-size: 0.75rem; font-weight: 600; border-radius: 9999px; }
+    .badge-stock { background: #d1fae5; color: #065f46; }
+    .badge-out { background: #fee2e2; color: #991b1b; }
+    footer { margin-top: 40px; text-align: center; font-size: 0.8rem; color: #9ca3af; padding: 24px 0; border-top: 1px solid #e5e7eb; }
+  </style>
+  {% block extra_head %}{% endblock %}
+</head>
+<body>
+  <header>
+    <a href="/catalog{% if variant %}?variant={{ variant }}{% endif %}" class="brand">Apex Office & Supplies</a>
+    <nav>
+      <a href="/catalog{% if variant %}?variant={{ variant }}{% endif %}">Catalog</a>
+      <span style="font-size: 0.8rem; background: #f3f4f6; padding: 3px 8px; border-radius: 4px; margin-left: 12px; color: #6b7280;">Variant: {{ variant }}</span>
+    </nav>
+  </header>
+
+  <main class="container">
+    {% if variant_info and variant_info.header_snippet %}
+      {{ variant_info.header_snippet | safe }}
+    {% endif %}
+
+    {% block content %}{% endblock %}
+
+    {% if variant_info and variant_info.body_snippet %}
+      {{ variant_info.body_snippet | safe }}
+    {% endif %}
+  </main>
+
+  <footer>
+    <p>Apex Office Store (Mock Demonstration Environment) &bull; Verified Merchant Remittance Portal</p>
+  </footer>
+</body>
+</html>

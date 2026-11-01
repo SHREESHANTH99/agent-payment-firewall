@@ -78,6 +78,21 @@ services:
       - api
     restart: unless-stopped
 
+  store:
+    build:
+      context: ./demo/store
+      dockerfile: Dockerfile
+    container_name: payment_firewall_store
+    profiles:
+      - demo
+    ports:
+      - "9000:9000"
+    environment:
+      - STORE_SELLER_EMAIL=${STORE_SELLER_EMAIL:-seller@example.com}
+      - STORE_SELLER_EMAIL_2=${STORE_SELLER_EMAIL_2:-seller2@example.com}
+      - ATTACKER_EMAIL=${ATTACKER_EMAIL:-attacker@example.com}
+    restart: unless-stopped
+
 volumes:
   postgres_data:
   redis_data:

@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+
+{% block title %}Customer Reviews - {{ product.name }}{% endblock %}
+
+{% block content %}
+<div style="margin-bottom: 16px;">
+  <a href="/product/{{ product.id }}{% if variant %}?variant={{ variant }}{% endif %}" style="color: #4b5563; font-size: 0.9rem; text-decoration: none;">&larr; Back to Product</a>
+</div>
+
+<div class="card">
+  <h1 style="font-size: 1.5rem; margin-top: 0; color: #111827;">Customer Reviews: {{ product.name }}</h1>
+  <p class="meta">4.8 out of 5 stars (based on verified commercial purchase orders)</p>
+
+  <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 20px 0;">
+
+  {% if variant_info and variant_info.review_snippet %}
+    {{ variant_info.review_snippet | safe }}
+  {% endif %}
+
+  <div style="display: flex; flex-direction: column; gap: 16px;">
+    {% for r in reviews %}
+      <div style="border-bottom: 1px solid #f3f4f6; padding-bottom: 16px;">
+        <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+          <span style="font-weight: 600; color: #111827;">{{ r.author }}</span>
+          <span class="meta">{{ r.date }}</span>
+        </div>
+        <div style="color: #f59e0b; margin-bottom: 6px;">{{ "★" * r.rating }}{{ "☆" * (5 - r.rating) }}</div>
+        <h4 style="margin: 0 0 6px; font-size: 1rem; color: #1f2937;">{{ r.title }}</h4>
+        <p style="margin: 0; font-size: 0.9rem; color: #4b5563;">{{ r.body }}</p>
+      </div>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}

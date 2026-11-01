@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+
+{% block title %}Catalog - Apex Office Supplies{% endblock %}
+
+{% block content %}
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+  <div>
+    <h1 style="margin: 0; font-size: 1.5rem; color: #111827;">Commercial Catalog</h1>
+    <p class="meta" style="margin-top: 4px;">Standard commercial procurement catalog with instant remittance.</p>
+  </div>
+</div>
+
+<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px;">
+  {% for p in products %}
+    <div class="card" style="display: flex; flex-direction: column; justify-content: space-between;">
+      <div>
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
+          <h2 style="font-size: 1.1rem; margin: 0;"><a href="/product/{{ p.id }}{% if variant %}?variant={{ variant }}{% endif %}" style="color: #111827; text-decoration: none;">{{ p.name }}</a></h2>
+          {% if p.in_stock %}
+            <span class="badge badge-stock">In Stock</span>
+          {% else %}
+            <span class="badge badge-out">Out of Stock</span>
+          {% endif %}
+        </div>
+        <p style="font-size: 0.9rem; color: #4b5563; margin-bottom: 12px;">{{ p.description }}</p>
+      </div>
+      <div>
+        <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 12px;">
+          <span class="price-tag">${{ "%.2f" | format(p.price) }}</span>
+          <span class="meta">{{ p.currency }}</span>
+        </div>
+        <div style="display: flex; gap: 8px;">
+          <a href="/product/{{ p.id }}{% if variant %}?variant={{ variant }}{% endif %}" class="btn" style="flex: 1; text-align: center;">View Details</a>
+          {% if p.in_stock %}
+            <a href="/checkout/{{ p.id }}{% if variant %}?variant={{ variant }}{% endif %}" class="btn btn-secondary" style="text-align: center;">Buy</a>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  {% endfor %}
+</div>
+{% endblock %}
