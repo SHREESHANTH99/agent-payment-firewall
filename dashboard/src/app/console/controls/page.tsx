@@ -1,7 +1,8 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { activeApi, isDemoMode } from '@/lib/activeApi'
+import { activeApi } from '@/lib/activeApi'
+import { useDemoMode } from '@/hooks/useDemoMode'
 import { useRealtime } from '@/hooks/useRealtime'
 import { RiskConfig } from '@/types'
 import { Button, Banner, Skeleton } from '@/components/ui'
@@ -48,7 +49,7 @@ export default function ControlsPage() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
-  const demo = typeof window !== 'undefined' && isDemoMode()
+  const demo = useDemoMode()
 
   useRealtime((event) => {
     if (event.type === 'risk_config_changed') {
@@ -84,10 +85,10 @@ export default function ControlsPage() {
   const protectionsOff = !config?.canary_enabled || !config?.judge_enabled
 
   return (
-    <div className="space-y-4 max-w-2xl">
+    <div className="space-y-4 max-w-xl">
       <div>
         <h1 className="font-serif text-2xl text-ink">Risk controls</h1>
-        <p className="font-sans text-xs text-ink-muted mt-0.5">
+        <p className="font-sans text-xs text-ink-muted mt-0.5 max-w-[65ch]">
           Enable or disable the AI risk detection layers. Disabling either layer reduces detection coverage.
         </p>
       </div>
@@ -126,9 +127,9 @@ export default function ControlsPage() {
         </div>
       )}
 
-      <div className="border border-border bg-paper-low p-4 space-y-2 mt-4">
+      <div className="border border-border bg-paper-low p-4 space-y-2 mt-4 max-w-xl">
         <p className="font-sans font-semibold text-sm text-ink">About these controls</p>
-        <p className="font-sans text-xs text-ink-muted leading-relaxed">
+        <p className="font-sans text-xs text-ink-muted leading-relaxed max-w-[65ch]">
           The canary scanner is the primary fast-path defense. It costs one extra LLM tool slot per intent and
           adds negligible latency. The risk judge makes a separate LLM API call and adds latency proportional
           to the LLM response time. Together they provide layered defense: the canary catches direct token

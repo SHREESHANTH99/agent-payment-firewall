@@ -1,7 +1,8 @@
 'use client'
 
 import { useState, useEffect, useMemo, useCallback } from 'react'
-import { activeApi, isDemoMode } from '@/lib/activeApi'
+import { activeApi } from '@/lib/activeApi'
+import { useDemoMode } from '@/hooks/useDemoMode'
 import { AuditItem } from '@/types'
 import { formatDate, formatShortHash } from '@/lib/utils'
 import { Button, Banner, Skeleton, EmptyState } from '@/components/ui'
@@ -18,7 +19,7 @@ export default function AuditPage() {
   const [verifying, setVerifying] = useState(false)
   const [verifyResult, setVerifyResult] = useState<any | null>(null)
   const [animating, setAnimating] = useState(false)
-  const demo = typeof window !== 'undefined' && isDemoMode()
+  const demo = useDemoMode()
   const LIMIT = 50
 
   const load = useCallback(async () => {

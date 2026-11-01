@@ -12,11 +12,11 @@
   --paper-high: #ECE7E0;
   --paper-highest: #E7E2DB;
   --ink: #14130F;
-  --ink-muted: #5C403A;
-  --vermilion: #E5391B;
-  --green: #1F7A4D;
-  --amber: #B7791F;
-  --border-line: #E7E2DB;
+  --ink-muted: #5A524A;
+  --vermilion: #C8290D;
+  --green: #18683F;
+  --amber: #8E5204;
+  --border-line: #CCC4B4;
 
   /* Semantic Theme Bindings */
   --background: 40 23% 93%; /* #F3F0E8 */
@@ -24,9 +24,9 @@
   --card: 38 43% 95%;       /* #F8F3EC */
   --card-foreground: 45 14% 7%;
   --muted: 36 22% 90%;      /* #ECE7E0 */
-  --muted-foreground: 11 23% 30%; /* #5C403A */
-  --border: 37 19% 88%;     /* #E7E2DB */
-  --accent: 9 82% 50%;      /* #E5391B */
+  --muted-foreground: 33 9% 33%; /* #5A524A */
+  --border: 41 18% 75%;     /* #CCC4B4 */
+  --accent: 9 88% 42%;      /* #C8290D */
   --accent-foreground: 40 23% 97%;
 }
 
@@ -40,7 +40,7 @@
   --vermilion: #FF5A3D;
   --green: #34D399;
   --amber: #FBBF24;
-  --border-line: #2D2B26;
+  --border-line: #33302A;
 
   --background: 45 14% 7%;
   --foreground: 40 23% 93%;
@@ -48,7 +48,7 @@
   --card-foreground: 40 23% 93%;
   --muted: 40 9% 14%;
   --muted-foreground: 40 8% 61%;
-  --border: 43 9% 16%;
+  --border: 40 10% 20%;
   --accent: 9 100% 62%;
   --accent-foreground: 45 14% 7%;
 }
@@ -56,9 +56,18 @@
 body {
   color: var(--ink);
   background-color: var(--paper);
-  font-family: var(--font-ibm-sans), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-family: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   -webkit-font-smoothing: antialiased;
   min-height: 100vh;
+}
+
+p, h1, h2, h3, h4, h5, h6 {
+  text-wrap: pretty;
+}
+
+::selection {
+  background-color: var(--vermilion);
+  color: #FFFFFF;
 }
 
 /* Hairline rule borders */

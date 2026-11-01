@@ -1,7 +1,8 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { activeApi, isDemoMode } from '@/lib/activeApi'
+import { activeApi } from '@/lib/activeApi'
+import { useDemoMode } from '@/hooks/useDemoMode'
 import { useRealtime } from '@/hooks/useRealtime'
 import { MandateItem } from '@/types'
 import { formatCents, formatDate } from '@/lib/utils'
@@ -118,7 +119,7 @@ export default function MandatesPage() {
   const [loading, setLoading] = useState(true)
   const [showCreate, setShowCreate] = useState(false)
   const [creating, setCreating] = useState(false)
-  const demo = typeof window !== 'undefined' && isDemoMode()
+  const demo = useDemoMode()
 
   // Create form state
   const [agentId, setAgentId] = useState('agent-007')

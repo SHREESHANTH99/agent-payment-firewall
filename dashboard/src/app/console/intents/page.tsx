@@ -1,7 +1,8 @@
 'use client'
 
 import { useState, useEffect, useMemo, useCallback } from 'react'
-import { activeApi, isDemoMode } from '@/lib/activeApi'
+import { activeApi } from '@/lib/activeApi'
+import { useDemoMode } from '@/hooks/useDemoMode'
 import { useRealtime } from '@/hooks/useRealtime'
 import { IntentItem } from '@/types'
 import { formatCents, formatDate, getStatusBadge } from '@/lib/utils'
@@ -21,7 +22,7 @@ export default function IntentsPage() {
   const [loading, setLoading] = useState(true)
   const [selected, setSelected] = useState<IntentItem | null>(null)
   const [showRaw, setShowRaw] = useState(false)
-  const demo = typeof window !== 'undefined' && isDemoMode()
+  const demo = useDemoMode()
 
   const load = useCallback(async () => {
     setLoading(true)

@@ -5,18 +5,19 @@ import { cn } from '@/lib/utils'
 
 export interface CheckpointInfo {
   id: string
+  step: string
   name: string
   stoppedCount?: number
   description: string
 }
 
 const CHECKPOINTS: CheckpointInfo[] = [
-  { id: 'idempotency', name: '1. Idempotency', description: 'Atomic replay deduplication' },
-  { id: 'mandate', name: '2. Mandate & Rules', description: 'Deterministic policy & limits' },
-  { id: 'budget', name: '3. Atomic Budget', description: 'Redis reserve / commit / release' },
-  { id: 'canary', name: '4. Canary Scan', description: 'Honeypot token trap' },
-  { id: 'judge', name: '5. Risk Judge', description: 'LLM adversarial verification' },
-  { id: 'decision', name: '6. Decision & Payout', description: 'PayPal sandbox or human approval' },
+  { id: 'idempotency', step: '01', name: 'Idempotency', description: 'Atomic replay deduplication' },
+  { id: 'mandate', step: '02', name: 'Mandate & Rules', description: 'Deterministic policy & limits' },
+  { id: 'budget', step: '03', name: 'Atomic Budget', description: 'Redis reserve / commit' },
+  { id: 'canary', step: '04', name: 'Canary Scan', description: 'Honeypot token trap' },
+  { id: 'judge', step: '05', name: 'Risk Judge', description: 'LLM adversarial verification' },
+  { id: 'decision', step: '06', name: 'Decision & Payout', description: 'Sandbox or human approval' },
 ]
 
 export function PipelineStrip({
@@ -27,29 +28,39 @@ export function PipelineStrip({
   className?: string
 }) {
   return (
-    <div className={cn('bg-paper-low border border-border p-3 flex flex-col gap-2', className)}>
-      <div className="flex items-center justify-between text-2xs uppercase tracking-wider font-mono text-ink-muted">
-        <span>6-Stage Deterministic Inspection Chain</span>
-        <span className="text-forest font-semibold">Active & Armed</span>
+    <div className={cn('bg-paper-low border border-border rounded-lg p-4 flex flex-col gap-3 shadow-2xs', className)}>
+      <div className="flex items-center justify-between text-xs">
+        <span className="font-sans font-semibold text-xs uppercase tracking-wider text-ink-muted">
+          6-Stage Deterministic Inspection Chain
+        </span>
+        <span className="inline-flex items-center gap-1.5 text-xs text-forest font-medium">
+          <span className="w-1.5 h-1.5 rounded-full bg-forest animate-pulse" />
+          Active &amp; Armed
+        </span>
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5">
         {CHECKPOINTS.map((cp) => {
           const stops = stoppedCounts?.[cp.id] ?? 0
           return (
             <div
               key={cp.id}
-              className="p-2 bg-paper-high border border-border flex flex-col justify-between min-h-[58px]"
+              className="p-3 bg-paper border border-border/80 rounded-md flex flex-col justify-between min-h-[76px] transition-all hover:border-ink/20"
             >
-              <div className="flex items-center justify-between gap-1">
-                <span className="font-sans text-xs font-semibold text-ink truncate">{cp.name}</span>
-                {stops > 0 && (
-                  <span className="px-1 py-0.2 bg-vermilion/15 text-vermilion font-mono text-2xs font-bold">
-                    {stops} stopped
+              <div className="flex items-center justify-between gap-1 mb-1">
+                <span className="font-mono text-2xs text-vermilion font-bold">{cp.step}</span>
+                {stops > 0 ? (
+                  <span className="px-1.5 py-0.2 bg-vermilion/15 text-vermilion font-mono text-2xs font-bold rounded">
+                    {stops} blocked
                   </span>
+                ) : (
+                  <span className="w-1.5 h-1.5 rounded-full bg-forest/40" />
                 )}
               </div>
-              <span className="font-sans text-2xs text-ink-muted leading-tight mt-1">{cp.description}</span>
+              <div>
+                <p className="font-sans text-xs font-semibold text-ink leading-snug">{cp.name}</p>
+                <p className="font-sans text-2xs text-ink-muted leading-tight mt-0.5">{cp.description}</p>
+              </div>
             </div>
           )
         })}

@@ -1,7 +1,8 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { activeApi, isDemoMode } from '@/lib/activeApi'
+import { activeApi } from '@/lib/activeApi'
+import { useDemoMode } from '@/hooks/useDemoMode'
 import { useRealtime } from '@/hooks/useRealtime'
 import { IntentItem } from '@/types'
 import { Stamp } from '@/components/ui/Stamp'
@@ -201,7 +202,7 @@ export default function ApprovalsPage() {
   const [items, setItems] = useState<IntentItem[]>([])
   const [loading, setLoading] = useState(true)
   const [highlightId, setHighlightId] = useState<string | null>(null)
-  const demo = typeof window !== 'undefined' && isDemoMode()
+  const demo = useDemoMode()
 
   const load = useCallback(async (silent = false) => {
     if (!silent) setLoading(true)

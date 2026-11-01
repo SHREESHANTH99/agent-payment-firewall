@@ -53,3 +53,10 @@ redis_data/
 .idea/
 .DS_Store
 Thumbs.db
+
+
+# Agent Skills & Impeccable
+.agent/
+.agents/
+.impeccable/
+skills-lock.json

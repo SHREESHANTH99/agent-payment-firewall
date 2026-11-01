@@ -1,27 +1,5 @@
-import { IBM_Plex_Sans, IBM_Plex_Mono, Instrument_Serif } from 'next/font/google'
 import { RealtimeProvider } from '@/hooks/useRealtime'
 import './globals.css'
-
-const ibmSans = IBM_Plex_Sans({
-  subsets: ['latin'],
-  weight: ['400', '500', '600', '700'],
-  variable: '--font-ibm-sans',
-  display: 'swap',
-})
-
-const ibmMono = IBM_Plex_Mono({
-  subsets: ['latin'],
-  weight: ['400', '500', '600'],
-  variable: '--font-ibm-mono',
-  display: 'swap',
-})
-
-const instrumentSerif = Instrument_Serif({
-  subsets: ['latin'],
-  weight: ['400'],
-  variable: '--font-serif',
-  display: 'swap',
-})
 
 export const metadata = {
   title: 'Agent Payment Firewall — Settlement Interception for Autonomous AI',
@@ -37,7 +15,22 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en" className={`${ibmSans.variable} ${ibmMono.variable} ${instrumentSerif.variable}`}>
+    <html lang="en">
+      <head>
+        <link
+          rel="preconnect"
+          href="https://fonts.googleapis.com"
+        />
+        <link
+          rel="preconnect"
+          href="https://fonts.gstatic.com"
+          crossOrigin="anonymous"
+        />
+        <link
+          href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&family=Instrument+Serif&display=swap"
+          rel="stylesheet"
+        />
+      </head>
       <body className="min-h-screen bg-background text-foreground antialiased flex flex-col font-sans">
         <RealtimeProvider>
           {children}

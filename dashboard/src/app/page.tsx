@@ -192,7 +192,7 @@ function Simulator({ scenarios }: { scenarios: Scenario[] }) {
                 <div
                   key={cp.id}
                   className={`flex items-center justify-between px-3 py-1.5 border transition-all duration-200 ${
-                    i <= step ? 'border-border bg-paper' : 'border-dashed border-border/50 opacity-40'
+                    i <= step ? 'border-border bg-paper' : 'border-dashed border-border opacity-40'
                   }`}
                 >
                   <span className={`font-sans text-xs ${i <= step ? 'text-ink' : 'text-ink-muted'}`}>{cp.name}</span>
@@ -335,12 +335,16 @@ export default function LandingPage() {
           </Link>
 
           {/* Desktop nav */}
-          <nav className="hidden xl:flex items-center gap-5" aria-label="Sections">
+          <nav className="hidden xl:flex items-center gap-0.5" aria-label="Sections">
             {SECTIONS.slice(1).map((id) => (
               <button
                 key={id}
                 onClick={() => scrollTo(id)}
-                className={`font-sans text-xs uppercase tracking-wide transition-colors ${active === id ? 'text-vermilion font-semibold' : 'text-ink-muted hover:text-ink'}`}
+                className={`px-3 py-1.5 text-xs rounded-md transition-colors font-medium whitespace-nowrap ${
+                  active === id
+                    ? 'bg-paper-high text-ink font-semibold'
+                    : 'text-ink-muted hover:text-ink hover:bg-paper-high/60'
+                }`}
               >
                 {SECTION_LABELS[id]}
               </button>
@@ -348,34 +352,39 @@ export default function LandingPage() {
           </nav>
 
           {/* CTA */}
-          <div className="flex items-center gap-2">
-            <button onClick={toggle} className="p-2 text-ink-muted hover:text-ink transition-colors" aria-label="Toggle theme">
-              {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+          <div className="flex items-center gap-1.5 shrink-0">
+            <button
+              onClick={toggle}
+              className="w-8 h-8 rounded-md hover:bg-paper-high text-ink-muted hover:text-ink flex items-center justify-center transition-colors"
+              aria-label="Toggle theme"
+            >
+              {theme === 'dark' ? <Sun className="w-3.5 h-3.5" /> : <Moon className="w-3.5 h-3.5" />}
             </button>
             <a
               href="https://github.com/SHREESHANTH99/agent-payment-firewall"
               target="_blank"
               rel="noopener noreferrer"
-              className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 border border-border text-ink font-sans text-xs hover:bg-paper-high transition-colors"
+              className="hidden sm:inline-flex items-center gap-1.5 h-8 px-2.5 rounded-md hover:bg-paper-high text-ink-muted hover:text-ink font-sans text-xs font-medium transition-colors whitespace-nowrap"
             >
               <Github className="w-3.5 h-3.5" />
-              GitHub
+              <span>GitHub</span>
             </a>
             <Link
               href="/console?demo=1"
-              className="px-3 py-1.5 border border-border bg-paper-high text-ink font-sans text-xs font-semibold hover:bg-paper-highest transition-colors"
+              className="inline-flex items-center gap-1.5 h-8 px-3 rounded-full bg-amber/10 hover:bg-amber/20 text-amber font-sans text-xs font-medium border border-amber/30 transition-colors whitespace-nowrap"
             >
-              Demo mode
+              <span className="w-1.5 h-1.5 rounded-full bg-amber" />
+              <span>Demo mode</span>
             </Link>
             <Link
               href="/console/login"
-              className="px-3 py-1.5 bg-vermilion text-white font-sans text-xs font-semibold hover:bg-ink transition-colors"
+              className="inline-flex items-center gap-1.5 h-8 px-3.5 rounded-md bg-vermilion hover:bg-vermilion-bright text-white font-sans text-xs font-medium shadow-xs transition-colors whitespace-nowrap active:scale-[0.98]"
             >
-              Sign in with token
+              <span>Sign in with token</span>
             </Link>
             <button
               onClick={() => setMenuOpen(!menuOpen)}
-              className="xl:hidden p-2 text-ink-muted hover:text-ink"
+              className="xl:hidden w-8 h-8 rounded-md hover:bg-paper-high text-ink-muted hover:text-ink flex items-center justify-center transition-colors"
               aria-label={menuOpen ? 'Close menu' : 'Open menu'}
             >
               {menuOpen ? <X className="w-4 h-4" /> : <Menu className="w-4 h-4" />}
@@ -407,10 +416,6 @@ export default function LandingPage() {
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
             {/* Left */}
             <div className="lg:col-span-6 flex flex-col gap-6">
-              <div className="flex items-center gap-2">
-                <span className="w-2 h-2 bg-vermilion" />
-                <span className="font-mono text-2xs uppercase tracking-widest text-ink-muted">Open source — MIT</span>
-              </div>
               <h1 className="font-serif text-4xl md:text-5xl text-ink leading-tight">
                 Let agents pay.<br />Not blindly.
               </h1>
@@ -443,6 +448,13 @@ export default function LandingPage() {
                   GitHub
                 </a>
               </div>
+              <div className="flex items-center gap-3 text-xs font-mono text-ink-muted">
+                <span>MIT Licensed</span>
+                <span>•</span>
+                <span>Python 3.12 &amp; Next.js</span>
+                <span>•</span>
+                <span>Sandbox Settlement</span>
+              </div>
             </div>
 
             {/* Right — animated ledger */}
@@ -459,7 +471,6 @@ export default function LandingPage() {
         <section id="problem" className="bg-paper-low py-16">
           <div className="max-w-7xl mx-auto px-4 md:px-8">
             <div className="mb-8">
-              <p className="font-mono text-2xs uppercase tracking-widest text-vermilion mb-2">Why this exists</p>
               <h2 className="font-serif text-3xl text-ink">Autonomous payments fail silently.</h2>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -471,10 +482,10 @@ export default function LandingPage() {
                   svg: (
                     <svg viewBox="0 0 80 60" className="w-20 h-15 shrink-0" aria-hidden>
                       <rect x="4" y="4" width="72" height="52" rx="2" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-border" />
-                      <rect x="12" y="14" width="40" height="6" rx="1" fill="currentColor" className="text-ink-muted opacity-40" />
-                      <rect x="12" y="24" width="56" height="4" rx="1" fill="currentColor" className="text-ink-muted opacity-25" />
-                      <rect x="12" y="32" width="48" height="4" rx="1" fill="currentColor" className="text-ink-muted opacity-25" />
-                      <rect x="12" y="42" width="56" height="8" rx="1" fill="currentColor" className="text-vermilion opacity-60" />
+                      <rect x="12" y="14" width="40" height="6" rx="1" fill="currentColor" className="text-ink-muted opacity-60" />
+                      <rect x="12" y="24" width="56" height="4" rx="1" fill="currentColor" className="text-ink-muted opacity-45" />
+                      <rect x="12" y="32" width="48" height="4" rx="1" fill="currentColor" className="text-ink-muted opacity-45" />
+                      <rect x="12" y="42" width="56" height="8" rx="1" fill="currentColor" className="text-vermilion opacity-75" />
                     </svg>
                   ),
                 },
@@ -486,7 +497,7 @@ export default function LandingPage() {
                     <svg viewBox="0 0 80 60" className="w-20 h-15 shrink-0" aria-hidden>
                       <rect x="4" y="4" width="72" height="52" rx="2" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-border" />
                       <path d="M8 16 Q40 8 72 16" stroke="currentColor" strokeWidth="1" className="text-forest opacity-60" fill="none" />
-                      <circle cx="40" cy="30" r="8" fill="currentColor" className="text-vermilion opacity-30" />
+                      <circle cx="40" cy="30" r="8" fill="currentColor" className="text-vermilion opacity-50" />
                       <path d="M36 26 L44 34 M44 26 L36 34" stroke="currentColor" strokeWidth="2" strokeLinecap="square" className="text-vermilion" />
                     </svg>
                   ),
@@ -509,7 +520,7 @@ export default function LandingPage() {
               ].map(({ n, title, body, svg }) => (
                 <div key={n} className="p-5 border border-border bg-paper flex flex-col gap-3">
                   <div className="flex items-start justify-between gap-2">
-                    <span className="font-mono text-3xl font-bold text-ink-muted opacity-30">{n}</span>
+                    <span className="font-mono text-3xl font-bold text-ink-muted/60">{n}</span>
                     {svg}
                   </div>
                   <h3 className="font-sans font-semibold text-sm text-ink">{title}</h3>
@@ -524,7 +535,6 @@ export default function LandingPage() {
         <section id="attack" className="py-16 border-t border-border">
           <div className="max-w-7xl mx-auto px-4 md:px-8">
             <div className="mb-8">
-              <p className="font-mono text-2xs uppercase tracking-widest text-vermilion mb-2">Attack anatomy</p>
               <h2 className="font-serif text-3xl text-ink">How a prompt injection attack unfolds.</h2>
               <p className="font-sans text-sm text-ink-muted mt-2 max-w-xl">
                 From a poisoned web page to a blocked settlement — the four stages of an intercept.
@@ -557,7 +567,6 @@ export default function LandingPage() {
         <section id="simulator" className="bg-paper-low py-16 border-t border-border">
           <div className="max-w-7xl mx-auto px-4 md:px-8">
             <div className="mb-6">
-              <p className="font-mono text-2xs uppercase tracking-widest text-vermilion mb-2">Interactive</p>
               <h2 className="font-serif text-3xl text-ink">Run a scenario.</h2>
               <p className="font-sans text-sm text-ink-muted mt-2">
                 Select an attack scenario, toggle the firewall, and watch the checkpoint pipeline animate in order.
@@ -574,7 +583,6 @@ export default function LandingPage() {
         <section id="architecture" className="py-16 border-t border-border">
           <div className="max-w-7xl mx-auto px-4 md:px-8">
             <div className="mb-6">
-              <p className="font-mono text-2xs uppercase tracking-widest text-vermilion mb-2">How it works</p>
               <h2 className="font-serif text-3xl text-ink">Six deterministic checkpoints.</h2>
               <p className="font-sans text-sm text-ink-muted mt-2 max-w-xl">
                 Every payment intent passes through the full pipeline, in order. No shortcut. No bypass.
@@ -605,7 +613,6 @@ export default function LandingPage() {
         <section id="evidence" className="bg-paper-low py-16 border-t border-border">
           <div className="max-w-7xl mx-auto px-4 md:px-8">
             <div className="mb-6">
-              <p className="font-mono text-2xs uppercase tracking-widest text-vermilion mb-2">Calibration results</p>
               <h2 className="font-serif text-3xl text-ink">Empirically measured, honestly presented.</h2>
               <p className="font-sans text-sm text-ink-muted mt-2 max-w-xl">
                 Results from the calibration harness. Detection is probabilistic. Sample sizes are shown. No figures are invented.
@@ -622,7 +629,6 @@ export default function LandingPage() {
         <section id="preview" className="py-16 border-t border-border">
           <div className="max-w-7xl mx-auto px-4 md:px-8">
             <div className="mb-6">
-              <p className="font-mono text-2xs uppercase tracking-widest text-vermilion mb-2">Operator console</p>
               <h2 className="font-serif text-3xl text-ink">Full real-time governance console.</h2>
               <p className="font-sans text-sm text-ink-muted mt-2 max-w-xl">
                 Overview, approval queue, intent ledger, mandates, audit chain, and risk controls — all live over WebSocket.
@@ -662,7 +668,6 @@ export default function LandingPage() {
         <section id="open-source" className="bg-paper-high py-16 border-t border-border">
           <div className="max-w-7xl mx-auto px-4 md:px-8">
             <div className="mb-6">
-              <p className="font-mono text-2xs uppercase tracking-widest text-vermilion mb-2">Open source</p>
               <h2 className="font-serif text-3xl text-ink">Free, auditable, self-hosted.</h2>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">

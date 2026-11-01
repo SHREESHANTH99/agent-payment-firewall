@@ -3,82 +3,63 @@
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { useState, useEffect } from 'react'
-import { useRealtime, ConnectionStatus } from '@/hooks/useRealtime'
+import { useRealtime } from '@/hooks/useRealtime'
 import { activeApi, isDemoMode } from '@/lib/activeApi'
-import { Banner } from '@/components/ui'
 import {
-  LayoutDashboard, CheckSquare, ListOrdered, Scale, Link2, Shield,
-  LogOut, Sun, Moon, Menu, X, Wifi, WifiOff, Loader2
+  LayoutDashboard, CheckSquare, ListOrdered, Scale, Link2, Shield, X
 } from 'lucide-react'
 
-const NAV = [
+const NAV_TELEMETRY = [
   { href: '/console', label: 'Overview', icon: LayoutDashboard, exact: true },
   { href: '/console/approvals', label: 'Approvals', icon: CheckSquare, badge: true },
   { href: '/console/intents', label: 'Intents', icon: ListOrdered },
+]
+
+const NAV_GOVERNANCE = [
   { href: '/console/mandates', label: 'Mandates', icon: Scale },
   { href: '/console/audit', label: 'Audit chain', icon: Link2 },
   { href: '/console/controls', label: 'Risk controls', icon: Shield },
 ]
 
-function ConnectionDot({ status }: { status: ConnectionStatus }) {
-  if (status === 'connected') return <Wifi className="w-3.5 h-3.5 text-forest" aria-label="Live" />
-  if (status === 'connecting') return <Loader2 className="w-3.5 h-3.5 text-amber animate-spin" aria-label="Connecting" />
-  return <WifiOff className="w-3.5 h-3.5 text-ink-muted" aria-label="Disconnected" />
-}
-
 export function ConsoleSidebar({ escalationCount = 0 }: { escalationCount?: number }) {
   const pathname = usePathname()
   const router = useRouter()
-  const [theme, setTheme] = useState<'light' | 'dark'>('light')
   const [mobileOpen, setMobileOpen] = useState(false)
   const [hasFrozen, setHasFrozen] = useState(false)
   const [protectionsOff, setProtectionsOff] = useState(false)
-  const [demo, setDemo] = useState(false)
+  const [pendingCount, setPendingCount] = useState(escalationCount)
 
   useEffect(() => {
-    setDemo(isDemoMode())
+    checkStatus()
   }, [pathname])
 
   const { status } = useRealtime((event) => {
     if (event.type === 'mandate_frozen') setHasFrozen(true)
-    if (event.type === 'mandate_unfrozen') checkFrozen()
+    if (event.type === 'mandate_unfrozen') checkStatus()
+    if (event.type === 'intent_escalated') setPendingCount((c) => c + 1)
     if (event.type === 'risk_config_changed') {
       setProtectionsOff(!event.data.canary_enabled || !event.data.judge_enabled)
     }
   })
 
-  const checkFrozen = async () => {
+  const checkStatus = async () => {
     try {
       const s = await activeApi.getStats()
       setHasFrozen((s.frozen_mandates ?? 0) > 0)
+      if (s.escalations_pending !== undefined) {
+        setPendingCount(s.escalations_pending)
+      }
     } catch {}
   }
 
   useEffect(() => {
-    const savedTheme = (localStorage.getItem('apf_theme') as 'light' | 'dark') || 'light'
-    setTheme(savedTheme)
-    document.documentElement.classList.toggle('dark', savedTheme === 'dark')
-    if (activeApi.getToken()) {
-      checkFrozen()
+    if (activeApi.getToken() || isDemoMode()) {
+      checkStatus()
       activeApi.getRiskConfig().then((cfg) =>
         setProtectionsOff(!cfg.canary_enabled || !cfg.judge_enabled)
       ).catch(() => {})
     }
   }, [])
-
-  const toggleTheme = () => {
-    const next = theme === 'dark' ? 'light' : 'dark'
-    setTheme(next)
-    localStorage.setItem('apf_theme', next)
-    document.documentElement.classList.toggle('dark', next === 'dark')
-  }
-
-  const handleLogout = () => {
-    activeApi.setToken(null)
-    sessionStorage.removeItem('apf_demo_mode')
-    sessionStorage.removeItem('apf_token')
-    router.push('/console/login')
-  }
 
   const isActive = (href: string, exact?: boolean) =>
     exact ? pathname === href : pathname === href || pathname.startsWith(href + '/')
@@ -96,10 +77,8 @@ export function ConsoleSidebar({ escalationCount = 0 }: { escalationCount?: numb
             <circle cx="12" cy="15.5" r="0.75" fill="white" />
           </svg>
           <div className="min-w-0">
-            <p className="font-sans font-bold text-xs uppercase tracking-wider text-ink truncate">Gatekeeper</p>
-            <p className="font-mono text-2xs text-ink-muted uppercase tracking-widest truncate">
-              {demo ? 'Demo mode' : 'Operator console'}
-            </p>
+            <p className="font-sans font-bold text-sm tracking-tight text-ink truncate">Gatekeeper</p>
+            <p className="font-sans text-xs text-ink-muted truncate">Operator console</p>
           </div>
         </Link>
         <button
@@ -111,76 +90,72 @@ export function ConsoleSidebar({ escalationCount = 0 }: { escalationCount?: numb
         </button>
       </div>
 
-      {/* Demo badge */}
-      {demo && (
-        <div className="px-4 py-1.5 bg-amber/10 border-b border-amber/20">
-          <p className="font-mono text-2xs text-amber font-semibold uppercase tracking-wider">
-            Sample data — no real transactions
-          </p>
-        </div>
-      )}
-
-      {/* Alert banners */}
-      {hasFrozen && (
-        <Link href="/console/mandates">
-          <div className="px-4 py-2 bg-vermilion/10 border-b border-vermilion/20 flex items-center gap-2">
-            <span className="w-1.5 h-1.5 bg-vermilion rounded-none animate-pulse shrink-0" />
-            <p className="font-sans text-2xs text-vermilion">Mandate frozen — review required</p>
-          </div>
-        </Link>
-      )}
-
       {/* Navigation */}
-      <nav className="flex-1 py-3 overflow-y-auto" aria-label="Console navigation">
-        <div className="px-3 mb-1">
-          <p className="font-sans text-2xs text-ink-muted uppercase tracking-widest px-1 mb-1">Telemetry</p>
+      <nav className="flex-1 py-3 px-2 overflow-y-auto space-y-0.5" aria-label="Console navigation">
+        <div className="px-2 pt-1 pb-1">
+          <p className="font-sans text-xs font-semibold text-ink-muted/80">Telemetry</p>
         </div>
-        {NAV.slice(0, 3).map(({ href, label, icon: Icon, exact, badge }) => {
+        {NAV_TELEMETRY.map(({ href, label, icon: Icon, exact, badge }) => {
           const active = isActive(href, exact)
           return (
             <Link
               key={href}
               href={href}
               onClick={() => setMobileOpen(false)}
-              className={`flex items-center justify-between px-4 py-2 text-xs font-medium transition-colors border-l-2 ${
+              className={`flex items-center justify-between px-3 py-2 rounded-md text-xs font-medium transition-all relative ${
                 active
-                  ? 'border-vermilion bg-paper-high text-ink font-semibold'
-                  : 'border-transparent text-ink-muted hover:bg-paper-low hover:text-ink'
+                  ? 'bg-paper-high text-ink font-semibold shadow-2xs'
+                  : 'text-ink-muted hover:bg-paper-low hover:text-ink'
               }`}
               aria-current={active ? 'page' : undefined}
             >
-              <span className="flex items-center gap-2.5">
-                <Icon className="w-4 h-4 shrink-0" />
-                {label}
+              {active && (
+                <span className="absolute left-1 top-2 bottom-2 w-1 bg-vermilion rounded-full" />
+              )}
+              <span className={`flex items-center gap-2.5 ${active ? 'pl-1' : ''}`}>
+                <Icon className={`w-4 h-4 shrink-0 ${active ? 'text-vermilion' : 'text-ink-muted'}`} />
+                <span>{label}</span>
               </span>
-              {badge && escalationCount > 0 && (
-                <span className="px-1.5 py-0.5 bg-vermilion text-white font-mono text-2xs font-bold">
-                  {escalationCount}
+              {badge && pendingCount > 0 && (
+                <span className="px-1.5 py-0.5 rounded-full bg-amber/15 border border-amber/30 text-amber font-mono text-2xs font-bold">
+                  {pendingCount}
                 </span>
               )}
             </Link>
           )
         })}
 
-        <div className="px-3 mt-4 mb-1">
-          <p className="font-sans text-2xs text-ink-muted uppercase tracking-widest px-1 mb-1">Governance</p>
+        <div className="px-2 pt-4 pb-1">
+          <p className="font-sans text-xs font-semibold text-ink-muted/80">Governance</p>
         </div>
-        {NAV.slice(3).map(({ href, label, icon: Icon, exact }) => {
-          const active = isActive(href, exact)
+        {NAV_GOVERNANCE.map(({ href, label, icon: Icon }) => {
+          const active = isActive(href)
+          const isMandates = href === '/console/mandates'
           return (
             <Link
               key={href}
               href={href}
               onClick={() => setMobileOpen(false)}
-              className={`flex items-center gap-2.5 px-4 py-2 text-xs font-medium transition-colors border-l-2 ${
+              className={`flex items-center justify-between px-3 py-2 rounded-md text-xs font-medium transition-all relative ${
                 active
-                  ? 'border-vermilion bg-paper-high text-ink font-semibold'
-                  : 'border-transparent text-ink-muted hover:bg-paper-low hover:text-ink'
+                  ? 'bg-paper-high text-ink font-semibold shadow-2xs'
+                  : 'text-ink-muted hover:bg-paper-low hover:text-ink'
               }`}
               aria-current={active ? 'page' : undefined}
             >
-              <Icon className="w-4 h-4 shrink-0" />
-              {label}
+              {active && (
+                <span className="absolute left-1 top-2 bottom-2 w-1 bg-vermilion rounded-full" />
+              )}
+              <span className={`flex items-center gap-2.5 ${active ? 'pl-1' : ''}`}>
+                <Icon className={`w-4 h-4 shrink-0 ${active ? 'text-vermilion' : 'text-ink-muted'}`} />
+                <span>{label}</span>
+              </span>
+              {isMandates && hasFrozen && (
+                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-vermilion/10 text-vermilion font-mono text-2xs font-bold">
+                  <span className="w-1.5 h-1.5 rounded-full bg-vermilion animate-pulse" />
+                  1 frozen
+                </span>
+              )}
             </Link>
           )
         })}
@@ -188,54 +163,26 @@ export function ConsoleSidebar({ escalationCount = 0 }: { escalationCount?: numb
 
       {/* Protections off banner */}
       {protectionsOff && (
-        <div className="px-4 py-2 bg-amber/10 border-t border-amber/20">
-          <p className="font-mono text-2xs text-amber font-semibold uppercase">
-            ⚠ Protections off — risk layers disabled
+        <div className="px-3 py-2 bg-amber/10 border-t border-amber/20 text-xs">
+          <p className="font-sans text-xs text-amber font-medium">
+            ⚠ Risk layers disabled
           </p>
         </div>
       )}
 
       {/* Footer */}
-      <div className="p-3 border-t border-border flex items-center justify-between bg-paper-low shrink-0">
-        <div className="flex items-center gap-1.5">
-          <ConnectionDot status={status} />
-          <span className="font-mono text-2xs text-ink-muted uppercase tracking-wider">
-            {status === 'connected' ? 'Live' : status === 'connecting' ? 'Connecting…' : 'Offline'}
-          </span>
+      <div className="p-3 border-t border-border flex items-center justify-between bg-paper-low/40 shrink-0 text-xs">
+        <div className="flex items-center gap-2">
+          <span className="w-2 h-2 rounded-full bg-forest animate-pulse" />
+          <span className="font-mono text-2xs text-ink-muted font-medium">Firewall armed</span>
         </div>
-        <div className="flex items-center gap-1">
-          <button
-            onClick={toggleTheme}
-            className="p-1.5 text-ink-muted hover:text-ink hover:bg-paper-high transition-colors"
-            aria-label="Toggle theme"
-          >
-            {theme === 'dark' ? <Sun className="w-3.5 h-3.5" /> : <Moon className="w-3.5 h-3.5" />}
-          </button>
-          {!demo && (
-            <button
-              onClick={handleLogout}
-              className="p-1.5 text-ink-muted hover:text-vermilion hover:bg-paper-high transition-colors"
-              aria-label="Sign out"
-            >
-              <LogOut className="w-3.5 h-3.5" />
-            </button>
-          )}
-        </div>
+        <span className="font-mono text-2xs text-ink-muted/70">v0.1.0</span>
       </div>
     </>
   )
 
   return (
     <>
-      {/* Mobile toggle button */}
-      <button
-        onClick={() => setMobileOpen(true)}
-        className="lg:hidden fixed top-3 left-3 z-40 p-2 bg-paper-low border border-border text-ink-muted hover:text-ink"
-        aria-label="Open menu"
-      >
-        <Menu className="w-4 h-4" />
-      </button>
-
       {/* Mobile overlay */}
       {mobileOpen && (
         <div
@@ -246,7 +193,7 @@ export function ConsoleSidebar({ escalationCount = 0 }: { escalationCount?: numb
 
       {/* Mobile drawer */}
       <aside
-        className={`lg:hidden fixed inset-y-0 left-0 z-50 w-64 bg-paper border-r border-border flex flex-col transition-transform duration-200 ${
+        className={`lg:hidden fixed inset-y-0 left-0 z-50 w-60 bg-paper border-r border-border flex flex-col transition-transform duration-200 ${
           mobileOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
         aria-label="Sidebar"

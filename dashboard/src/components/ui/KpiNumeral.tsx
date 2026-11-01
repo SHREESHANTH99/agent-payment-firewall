@@ -20,23 +20,25 @@ export function KpiNumeral({
   className?: string
 }) {
   const isCents = typeof cents === 'number'
-  const { compact, full } = isCents ? formatCompactNumber(cents) : { compact: `${count ?? 0}`, full: `${count ?? 0}` }
+  const { compact, full } = isCents
+    ? formatCompactNumber(cents)
+    : { compact: `${count ?? 0}`, full: `${count ?? 0}` }
 
   return (
     <div
       className={cn(
-        'p-4 bg-paper-low border border-border flex flex-col justify-between min-w-0 transition-colors',
+        'p-4 bg-paper-low border border-border rounded-lg flex flex-col justify-between min-w-0 transition-all hover:border-ink/20 shadow-2xs',
         className
       )}
       title={isCents ? `Exact amount: ${full}` : `${label}: ${full}`}
     >
-      <div className="flex items-center justify-between gap-2 mb-1.5">
+      <div className="flex items-center justify-between gap-2 mb-2">
         <span className="font-sans text-xs text-ink-muted uppercase tracking-wider font-medium truncate">
           {label}
         </span>
-        {trend === 'danger' && <span className="w-2 h-2 bg-vermilion rounded-none" />}
-        {trend === 'warning' && <span className="w-2 h-2 bg-amber rounded-none" />}
-        {trend === 'positive' && <span className="w-2 h-2 bg-forest rounded-none" />}
+        {trend === 'danger' && <span className="w-2 h-2 rounded-full bg-vermilion" />}
+        {trend === 'warning' && <span className="w-2 h-2 rounded-full bg-amber" />}
+        {trend === 'positive' && <span className="w-2 h-2 rounded-full bg-forest" />}
       </div>
 
       <div className="flex items-baseline gap-2 min-w-0">
@@ -45,9 +47,14 @@ export function KpiNumeral({
         </span>
       </div>
 
-      <div className="mt-1 flex items-center justify-between text-2xs font-mono text-ink-muted truncate">
-        <span>{full}</span>
-        {subtext && <span className="font-sans text-ink-muted truncate">{subtext}</span>}
+      <div className="mt-2 flex items-center justify-between text-xs text-ink-muted truncate">
+        {subtext ? (
+          <span className="font-sans text-xs text-ink-muted/80 truncate">{subtext}</span>
+        ) : isCents && full !== compact ? (
+          <span className="font-mono text-2xs text-ink-muted/80 truncate">{full}</span>
+        ) : (
+          <span className="font-sans text-xs text-ink-muted/50 truncate">Live metric</span>
+        )}
       </div>
     </div>
   )

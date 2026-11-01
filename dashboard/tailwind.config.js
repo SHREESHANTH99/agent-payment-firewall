@@ -54,9 +54,9 @@ module.exports = {
         },
       },
       fontFamily: {
-        serif: ['var(--font-serif)', 'Newsreader', 'Georgia', 'serif'],
-        sans: ['var(--font-ibm-sans)', 'IBM Plex Sans', '-apple-system', 'sans-serif'],
-        mono: ['var(--font-ibm-mono)', 'JetBrains Mono', 'IBM Plex Mono', 'monospace'],
+        serif: ['Instrument Serif', 'Newsreader', 'Georgia', 'serif'],
+        sans: ['IBM Plex Sans', '-apple-system', 'BlinkMacSystemFont', 'sans-serif'],
+        mono: ['IBM Plex Mono', 'JetBrains Mono', 'monospace'],
       },
       borderRadius: {
         none: '0px',
@@ -66,7 +66,7 @@ module.exports = {
         lg: '4px',
       },
       fontSize: {
-        '2xs': ['11px', { lineHeight: '14px' }],
+        '2xs': ['12px', { lineHeight: '16px' }],
         xs: ['13px', { lineHeight: '18px' }], // Minimum text size 13px per constraint
         sm: ['14px', { lineHeight: '20px' }],
         base: ['15px', { lineHeight: '22px' }],
