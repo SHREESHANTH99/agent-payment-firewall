@@ -131,11 +131,15 @@ JUDGE_MODEL=gemini-3.5-flash
 CANARY_ENABLED=true
 JUDGE_ENABLED=true
 
-# PayPal Sandbox Credentials
+# PayPal Sandbox Credentials & Execution Mode
 PAYPAL_CLIENT_ID=your_sandbox_client_id
 PAYPAL_CLIENT_SECRET=your_sandbox_client_secret
 PAYPAL_MODE=sandbox
 PAYPAL_TEST_RECEIVER_EMAIL=your_sandbox_buyer_email@example.com
+
+# Execution Mode: 'paypal' executes sandbox payouts; 'dry_run' simulates settlement,
+# records dry-run ledger references ("dry-run-<id>"), commits budget, and skips external API calls.
+EXECUTION_MODE=dry_run
 ```
 
 ---
