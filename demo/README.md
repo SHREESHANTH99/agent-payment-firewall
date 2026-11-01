@@ -29,7 +29,7 @@ Ensure your `.env` file contains the required keys (never committed to git):
 AGENT_LLM_BASE_URL=https://api.groq.com/openai/v1
 AGENT_LLM_API_KEY=your_groq_or_openai_api_key_here
 AGENT_MODEL=llama-3.3-70b-versatile
-AGENT_API_KEYS={"1738cb5f7b39d2ae0cd4c7b4fd544901a7dc21699c6e68f6":"demo-agent"}
+AGENT_API_KEYS={"your_agent_secret_key_here":"demo-agent"}
 
 # Firewall Execution Mode (dry_run avoids actual PayPal transfers during evaluation)
 EXECUTION_MODE=dry_run

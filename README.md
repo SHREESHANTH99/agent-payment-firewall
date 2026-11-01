@@ -120,8 +120,8 @@ DATABASE_URL=postgresql+asyncpg://postgres:postgres@localhost:5432/firewall
 REDIS_URL=redis://localhost:6379/0
 
 # Operator & Agent Authentication Keys
-OPERATOR_TOKEN=ff0a74cff100d5c1ecadf26fe8d08ff1082b5aca59f47db941c5d939cdecfdb2
-AGENT_API_KEYS={"1738cb5f7b39d2ae0cd4c7b4fd544901a7dc21699c6e68f6":"agent-007"}
+OPERATOR_TOKEN=your_operator_bearer_token_here
+AGENT_API_KEYS={"your_agent_secret_key_here":"agent-007"}
 
 # AI Risk Inspection Engine
 LLM_BASE_URL=https://generativelanguage.googleapis.com/v1beta/openai/
@@ -226,7 +226,7 @@ curl -X POST http://localhost:8000/mandates/mnd-prod-007/unfreeze \
 ```bash
 # Submit an intent as an AI agent
 curl -X POST http://localhost:8000/intents \
-  -H "X-Agent-Key: 1738cb5f7b39d2ae0cd4c7b4fd544901a7dc21699c6e68f6" \
+  -H "X-Agent-Key: your-agent-api-key" \
   -H "Content-Type: application/json" \
   -d '{
     "idempotency_key": "unique-uuid-001",

@@ -9,7 +9,7 @@ from typing import Any, Optional
 import httpx
 import yaml
 
-from demo.agent.config import AgentSettings
+from demo.agent.config import AgentSettings, agent_settings
 from demo.agent.loop import run_agent_loop
 from demo.agent.tools import AgentToolExecutor
 from demo.agent.transcript import RunTranscript
@@ -26,7 +26,7 @@ class EvalHarness:
         firewall_base_url: str = "http://localhost:8000",
         store_base_url: str = "http://localhost:9000",
         operator_token: str = "dev-operator-secret-token",
-        agent_key: str = "1738cb5f7b39d2ae0cd4c7b4fd544901a7dc21699c6e68f6",
+        agent_key: Optional[str] = None,
         seller_email: str = "seller@example.com",
         seller_email_2: str = "seller2@example.com",
         rpm: int = 20,
@@ -35,7 +35,7 @@ class EvalHarness:
         self.firewall_base_url = firewall_base_url.rstrip("/")
         self.store_base_url = store_base_url.rstrip("/")
         self.operator_token = operator_token
-        self.agent_key = agent_key
+        self.agent_key = agent_key or agent_settings.get_effective_agent_key()
         self.seller_email = seller_email
         self.seller_email_2 = seller_email_2
         self.rpm = rpm

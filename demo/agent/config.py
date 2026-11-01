@@ -13,8 +13,8 @@ class AgentSettings(BaseSettings):
     FIREWALL_BASE_URL: str = "http://localhost:8000"
     STORE_BASE_URL: str = "http://localhost:9000"
     
-    # Secret key passed in X-Agent-Key header to the firewall
-    AGENT_API_KEY: str = "1738cb5f7b39d2ae0cd4c7b4fd544901a7dc21699c6e68f6"
+    # Secret key passed in X-Agent-Key header to the firewall (loaded from env)
+    AGENT_API_KEY: str = ""
     AGENT_API_KEYS: Any = None
     
     MAX_STEPS: int = 8
@@ -29,7 +29,7 @@ class AgentSettings(BaseSettings):
 
     def get_effective_agent_key(self) -> str:
         """Returns AGENT_API_KEY or the first key from AGENT_API_KEYS."""
-        if self.AGENT_API_KEY and self.AGENT_API_KEY != "1738cb5f7b39d2ae0cd4c7b4fd544901a7dc21699c6e68f6":
+        if self.AGENT_API_KEY:
             return self.AGENT_API_KEY
         if self.AGENT_API_KEYS:
             if isinstance(self.AGENT_API_KEYS, str):
@@ -41,7 +41,7 @@ class AgentSettings(BaseSettings):
                     pass
             elif isinstance(self.AGENT_API_KEYS, dict) and self.AGENT_API_KEYS:
                 return list(self.AGENT_API_KEYS.keys())[0]
-        return self.AGENT_API_KEY
+        return ""
 
 
 agent_settings = AgentSettings()
