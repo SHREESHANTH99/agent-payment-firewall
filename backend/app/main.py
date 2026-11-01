@@ -7,6 +7,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.admin import router as admin_router
+from app.api.agent import router as agent_router
 from app.api.audit import router as audit_router
 from app.api.intents import router as intents_router
 from app.api.mandates import router as mandates_router
@@ -69,6 +70,7 @@ app.add_middleware(
 )
 
 app.include_router(mandates_router)
+app.include_router(agent_router)
 app.include_router(webhooks_router)
 app.include_router(intents_router)
 app.include_router(audit_router)

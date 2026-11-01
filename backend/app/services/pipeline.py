@@ -421,6 +421,8 @@ async def process_intent(
             "reasons": intent.decision_reasons or [],
             "risk": intent.risk_details,
         }
+        if getattr(settings, "EXECUTION_MODE", "paypal") == "dry_run":
+            res["dry_run"] = True
         await idempotency_service.store_response(idempotency_key, res)
         return res
 

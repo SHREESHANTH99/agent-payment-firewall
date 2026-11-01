@@ -18,6 +18,7 @@ class Settings(BaseSettings):
     ESCALATION_TIMEOUT_SECONDS: int = 600
     OPERATOR_TOKEN: str = "dev-operator-secret-token"
     AGENT_API_KEYS: dict[str, str] = {}
+    EXECUTION_MODE: str = "paypal"  # paypal | dry_run
 
     # LLM & AI Risk Layer Configuration
     LLM_BASE_URL: str = "https://api.openai.com/v1"

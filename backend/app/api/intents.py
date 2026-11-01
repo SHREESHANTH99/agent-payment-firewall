@@ -36,6 +36,7 @@ class IntentDecisionResponse(BaseModel):
     status: str
     reasons: list[Any] = Field(default_factory=list)
     risk: dict[str, Any] = Field(default_factory=dict)
+    dry_run: Optional[bool] = None
 
 
 class IntentSummaryResponse(BaseModel):

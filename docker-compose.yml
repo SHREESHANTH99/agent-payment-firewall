@@ -16,6 +16,7 @@ services:
       - PAYPAL_TEST_RECEIVER_EMAIL=${PAYPAL_TEST_RECEIVER_EMAIL:-sb-receiver@personal.example.com}
       - OPERATOR_TOKEN=${OPERATOR_TOKEN:-}
       - AGENT_API_KEYS=${AGENT_API_KEYS:-{}}
+      - EXECUTION_MODE=${EXECUTION_MODE:-paypal}
       - ESCALATION_TIMEOUT_SECONDS=${ESCALATION_TIMEOUT_SECONDS:-600}
       - LLM_BASE_URL=${LLM_BASE_URL:-https://api.openai.com/v1}
       - LLM_API_KEY=${LLM_API_KEY:-}

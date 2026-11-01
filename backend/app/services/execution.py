@@ -5,6 +5,7 @@ from typing import Any, Optional
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import settings
 from app.models.models import PaymentIntent, PaymentIntentStatus
 from app.paypal.exceptions import PayPalAPIError
 from app.paypal.payouts import create_payout
@@ -16,12 +17,36 @@ logger = logging.getLogger(__name__)
 
 async def execute_intent(intent: PaymentIntent, session: AsyncSession) -> PaymentIntent:
     """
-    Execute an approved payment intent via PayPal Payouts API.
-    - Transitions intent status to EXECUTING
-    - Calls PayPal create_payout
-    - On success: stores payout batch_id in paypal_ref and audits execution
-    - On failure: releases budget reservation, transitions status to FAILED, audits failure
+    Execute an approved payment intent via PayPal Payouts API or dry_run.
+    - If EXECUTION_MODE is dry_run: skips PayPal, sets paypal_ref, marks EXECUTED, commits budget, audits dry_run
+    - If EXECUTION_MODE is paypal:
+      - Transitions intent status to EXECUTING
+      - Calls PayPal create_payout
+      - On success: stores payout batch_id in paypal_ref and audits execution
+      - On failure: releases budget reservation, transitions status to FAILED, audits failure
     """
+    if getattr(settings, "EXECUTION_MODE", "paypal") == "dry_run":
+        intent.status = PaymentIntentStatus.EXECUTED
+        intent.paypal_ref = f"dry-run-{intent.id}"
+        await session.commit()
+        await session.refresh(intent)
+
+        # Commit reserved budget in Redis
+        await budget_service.commit(intent.id)
+
+        await append_event(
+            session,
+            intent_id=intent.id,
+            event="intent.executed",
+            payload={
+                "dry_run": True,
+                "amount_cents": intent.amount,
+                "receiver": intent.merchant,
+                "paypal_ref": intent.paypal_ref,
+            },
+        )
+        return intent
+
     intent.status = PaymentIntentStatus.EXECUTING
     await session.commit()
     await session.refresh(intent)
