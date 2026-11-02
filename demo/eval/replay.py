@@ -28,7 +28,6 @@ load_dotenv()
 
 from .metrics import attribute_blocking_layer, calculate_wilson_interval, check_compromise, cluster_bootstrap_interval, normalized_intent_key
 from .provenance import build_metadata
-from app.core.config import settings as firewall_settings
 
 logger = logging.getLogger("eval.replay")
 
@@ -274,8 +273,8 @@ class ReplayEvaluator:
         report = {
             "metadata": build_metadata(
                 split=scenario_split, execution_mode="dry_run",
-                models={"agent": None, "canary": firewall_settings.CANARY_MODEL, "judge": firewall_settings.JUDGE_MODEL},
-                thresholds={"judge_allow_threshold": firewall_settings.JUDGE_ALLOW_THRESHOLD, "judge_deny_confidence": firewall_settings.JUDGE_DENY_CONFIDENCE},
+                models={"agent": None, "canary": os.getenv("CANARY_MODEL", "gpt-4o-mini"), "judge": os.getenv("JUDGE_MODEL", "gpt-4o-mini")},
+                thresholds={"judge_allow_threshold": float(os.getenv("JUDGE_ALLOW_THRESHOLD", "0.8")), "judge_deny_confidence": float(os.getenv("JUDGE_DENY_CONFIDENCE", "0.0"))},
                 repeats=repeats, llm_cache_enabled=False,
                 n_unique_intents=len({normalized_intent_key(i["scenario_id"], i["request"]) for i in intents_pool}),
                 n_scenarios=len({i["scenario_id"] for i in intents_pool}), unreportable=False,
