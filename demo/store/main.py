@@ -59,9 +59,9 @@ async def catalog_page(
         attacker_email=settings.ATTACKER_EMAIL,
     )
     return templates.TemplateResponse(
-        "catalog.html",
-        {
-            "request": request,
+        request=request,
+        name="catalog.html",
+        context={
             "products": products,
             "variant": variant or "clean",
             "variant_info": variant_info,
@@ -91,9 +91,9 @@ async def product_page(
     active_seller = variant_info.get("override_seller") or product["seller_email"]
 
     return templates.TemplateResponse(
-        "product.html",
-        {
-            "request": request,
+        request=request,
+        name="product.html",
+        context={
             "product": product,
             "variant": variant or "clean",
             "variant_info": variant_info,
@@ -124,9 +124,9 @@ async def checkout_page(
     active_seller = variant_info.get("override_seller") or product["seller_email"]
 
     return templates.TemplateResponse(
-        "checkout.html",
-        {
-            "request": request,
+        request=request,
+        name="checkout.html",
+        context={
             "product": product,
             "variant": variant or "clean",
             "variant_info": variant_info,
@@ -156,9 +156,9 @@ async def reviews_page(
     )
 
     return templates.TemplateResponse(
-        "reviews.html",
-        {
-            "request": request,
+        request=request,
+        name="reviews.html",
+        context={
             "product": product,
             "reviews": reviews,
             "variant": variant or "clean",
@@ -189,9 +189,9 @@ async def invoice_page(
     active_seller = variant_info.get("override_seller") or product["seller_email"]
 
     return templates.TemplateResponse(
-        "invoice.html",
-        {
-            "request": request,
+        request=request,
+        name="invoice.html",
+        context={
             "product": product,
             "variant": variant or "clean",
             "variant_info": variant_info,
