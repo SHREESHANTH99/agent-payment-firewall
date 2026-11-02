@@ -266,70 +266,71 @@ class AgentToolExecutor:
             "Content-Type": "application/json",
         }
 
-        # Post intent with retry on 429 and generous 90s timeout (risk judge + canary inspection latency)
-        max_intent_retries = 3
-        data = {}
-        status_code = 500
-        for intent_attempt in range(max_intent_retries):
-            try:
-                async with httpx.AsyncClient(timeout=90.0) as client:
-                    res = await client.post(intents_url, json=payload, headers=headers)
-                    status_code = res.status_code
-                    if status_code == 429:
-                        retry_after = res.headers.get("Retry-After")
-                        wait_sec = float(retry_after) if retry_after and retry_after.isdigit() else (2 ** intent_attempt) * 2.0
-                        logger.warning("Firewall returned 429 on /intents; backing off for %.1fs", wait_sec)
-                        await asyncio.sleep(wait_sec)
-                        continue
-                    try:
-                        data = res.json()
-                    except Exception:
-                        data = {"raw_response": res.text}
-                    break
-            except Exception as e:
-                logger.warning("Intent submit attempt %d failed: %s", intent_attempt + 1, e)
-                if intent_attempt == max_intent_retries - 1:
-                    raise
-
-            self.last_payment_decision = data
-            self.submitted_intents.append({
-                "request": payload,
-                "response": data,
-                "status_code": status_code,
-            })
-
-            decision = data.get("decision", "unknown")
-            if decision == "approved":
-                return {
-                    "decision": "approved",
-                    "status": data.get("status", "executed"),
-                    "intent_id": data.get("intent_id"),
-                    "dry_run": data.get("dry_run", False),
-                    "message": "Payment intent was APPROVED and successfully executed.",
-                }
-            elif decision == "denied":
-                return {
-                    "decision": "denied",
-                    "status": "denied",
-                    "intent_id": data.get("intent_id"),
-                    "reasons": data.get("reasons", []),
-                    "message": "Payment intent was DENIED by firewall security policy.",
-                }
-            elif decision == "escalated":
-                return {
-                    "decision": "escalated",
-                    "status": "awaiting human approval",
-                    "intent_id": data.get("intent_id"),
-                    "reasons": data.get("reasons", []),
-                    "message": "Payment intent exceeded threshold and is awaiting human approval.",
-                }
-            else:
-                return {
-                    "decision": decision,
-                    "status_code": status_code,
+        try:
+            # Post intent with retry on 429 and generous 90s timeout (risk judge + canary inspection latency)
+            max_intent_retries = 3
+            data = {}
+            status_code = 500
+            for intent_attempt in range(max_intent_retries):
+                try:
+                    async with httpx.AsyncClient(timeout=90.0) as client:
+                        res = await client.post(intents_url, json=payload, headers=headers)
+                        status_code = res.status_code
+                        if status_code == 429:
+                            retry_after = res.headers.get("Retry-After")
+                            wait_sec = float(retry_after) if retry_after and retry_after.isdigit() else (2 ** intent_attempt) * 2.0
+                            logger.warning("Firewall returned 429 on /intents; backing off for %.1fs", wait_sec)
+                            await asyncio.sleep(wait_sec)
+                            continue
+                        try:
+                            data = res.json()
+                        except Exception:
+                            data = {"raw_response": res.text}
+                        break
+                except Exception as e:
+                    logger.warning("Intent submit attempt %d failed: %s", intent_attempt + 1, e)
+                    if intent_attempt == max_intent_retries - 1:
+                        raise
+    
+                self.last_payment_decision = data
+                self.submitted_intents.append({
+                    "request": payload,
                     "response": data,
-                }
-
+                    "status_code": status_code,
+                })
+    
+                decision = data.get("decision", "unknown")
+                if decision == "approved":
+                    return {
+                        "decision": "approved",
+                        "status": data.get("status", "executed"),
+                        "intent_id": data.get("intent_id"),
+                        "dry_run": data.get("dry_run", False),
+                        "message": "Payment intent was APPROVED and successfully executed.",
+                    }
+                elif decision == "denied":
+                    return {
+                        "decision": "denied",
+                        "status": "denied",
+                        "intent_id": data.get("intent_id"),
+                        "reasons": data.get("reasons", []),
+                        "message": "Payment intent was DENIED by firewall security policy.",
+                    }
+                elif decision == "escalated":
+                    return {
+                        "decision": "escalated",
+                        "status": "awaiting human approval",
+                        "intent_id": data.get("intent_id"),
+                        "reasons": data.get("reasons", []),
+                        "message": "Payment intent exceeded threshold and is awaiting human approval.",
+                    }
+                else:
+                    return {
+                        "decision": decision,
+                        "status_code": status_code,
+                        "response": data,
+                    }
+    
         except Exception as exc:
             logger.warning("submit_payment_intent failed: %s", exc)
             return {"decision": "error", "message": f"Failed to submit payment intent: {str(exc)}"}
