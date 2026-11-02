@@ -53,3 +53,19 @@ async def update_risk_config(
     })
 
     return new_cfg
+
+
+class RegisterAgentKeyRequest(BaseModel):
+    agent_id: str
+    key: str
+
+
+@router.post("/agent-keys")
+async def register_runtime_agent_key(
+    body: RegisterAgentKeyRequest,
+    _: bool = Depends(operator_auth),
+) -> dict:
+    """Register a runtime agent key for testing/eval isolation (Operator-only)."""
+    from app.core.config import settings
+    settings.AGENT_API_KEYS[body.key] = body.agent_id
+    return {"status": "registered", "agent_id": body.agent_id}
