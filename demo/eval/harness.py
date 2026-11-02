@@ -224,7 +224,7 @@ class EvalHarness:
 
         # Verify via GET /agent/mandate that only this fresh mandate is seen
         mandate_check = await tool_executor.get_budget()
-        if mandate_check.get("mandate_id") != mandate_id or mandate_check.get("remaining") != "100.00":
+        if mandate_check.get("mandate_id") != mandate_id or mandate_check.get("remaining_budget") != "100.00":
             await self.cleanup_mandate(mandate_id)
             return {
                 "scenario_id": scenario_id,

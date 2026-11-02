@@ -194,9 +194,11 @@ class ReplayEvaluator:
         await self.cleanup_mandate(mandate_id)
 
         # Latency breakdown
-        risk_meta = res_data.get("risk", {})
-        canary_latency = risk_meta.get("canary", {}).get("meta", {}).get("latency_ms", 0)
-        judge_latency = risk_meta.get("judge", {}).get("meta", {}).get("latency_ms", 0)
+        risk_meta = res_data.get("risk") or {}
+        canary = risk_meta.get("canary") or {}
+        judge = risk_meta.get("judge") or {}
+        canary_latency = (canary.get("meta") or {}).get("latency_ms", 0)
+        judge_latency = (judge.get("meta") or {}).get("latency_ms", 0)
 
         return {
             "status_code": status_code,
