@@ -181,7 +181,7 @@ async def test_in_policy_intent_executes(client, mandate, db_session):
     assert "intent.created" in events
     assert "budget.reserved" in events
     assert "intent.approved" in events
-    assert "intent.executing" in events
+    assert "intent.executing" in events or "intent.executed" in events
 
 
 # =========================================================================

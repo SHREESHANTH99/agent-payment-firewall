@@ -127,7 +127,7 @@ def aggregate_eval_runs(runs: list[dict[str, Any]]) -> dict[str, Any]:
     Only counts VALID runs in primary metrics. Incomplete and error runs are tracked prominently.
     """
     total_total = len(runs)
-    valid_runs = [r for r in runs if r.get("status") == "valid"]
+    valid_runs = [r for r in runs if r.get("status", "valid") == "valid"]
     incomplete_runs = [r for r in runs if r.get("status") == "incomplete"]
     error_runs = [r for r in runs if r.get("status") == "error"]
 

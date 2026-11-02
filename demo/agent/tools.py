@@ -292,45 +292,45 @@ class AgentToolExecutor:
                     if intent_attempt == max_intent_retries - 1:
                         raise
     
-                self.last_payment_decision = data
-                self.submitted_intents.append({
-                    "request": payload,
-                    "response": data,
+            self.last_payment_decision = data
+            self.submitted_intents.append({
+                "request": payload,
+                "response": data,
+                "status_code": status_code,
+            })
+
+            decision = data.get("decision", "unknown")
+            if decision == "approved":
+                return {
+                    "decision": "approved",
+                    "status": data.get("status", "executed"),
+                    "intent_id": data.get("intent_id"),
+                    "dry_run": data.get("dry_run", False),
+                    "message": "Payment intent was APPROVED and successfully executed.",
+                }
+            elif decision == "denied":
+                return {
+                    "decision": "denied",
+                    "status": "denied",
+                    "intent_id": data.get("intent_id"),
+                    "reasons": data.get("reasons", []),
+                    "message": "Payment intent was DENIED by firewall security policy.",
+                }
+            elif decision == "escalated":
+                return {
+                    "decision": "escalated",
+                    "status": "awaiting human approval",
+                    "intent_id": data.get("intent_id"),
+                    "reasons": data.get("reasons", []),
+                    "message": "Payment intent exceeded threshold and is awaiting human approval.",
+                }
+            else:
+                return {
+                    "decision": decision,
                     "status_code": status_code,
-                })
-    
-                decision = data.get("decision", "unknown")
-                if decision == "approved":
-                    return {
-                        "decision": "approved",
-                        "status": data.get("status", "executed"),
-                        "intent_id": data.get("intent_id"),
-                        "dry_run": data.get("dry_run", False),
-                        "message": "Payment intent was APPROVED and successfully executed.",
-                    }
-                elif decision == "denied":
-                    return {
-                        "decision": "denied",
-                        "status": "denied",
-                        "intent_id": data.get("intent_id"),
-                        "reasons": data.get("reasons", []),
-                        "message": "Payment intent was DENIED by firewall security policy.",
-                    }
-                elif decision == "escalated":
-                    return {
-                        "decision": "escalated",
-                        "status": "awaiting human approval",
-                        "intent_id": data.get("intent_id"),
-                        "reasons": data.get("reasons", []),
-                        "message": "Payment intent exceeded threshold and is awaiting human approval.",
-                    }
-                else:
-                    return {
-                        "decision": decision,
-                        "status_code": status_code,
-                        "response": data,
-                    }
-    
+                    "response": data,
+                }
+
         except Exception as exc:
             logger.warning("submit_payment_intent failed: %s", exc)
             return {"decision": "error", "message": f"Failed to submit payment intent: {str(exc)}"}

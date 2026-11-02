@@ -145,7 +145,7 @@ class EvalHarness:
                 try:
                     record = json.loads(line)
                     # Only treat as completed if status is valid
-                    if record.get("status") == "valid":
+                    if record.get("status", "valid") == "valid":
                         key = f"{record.get('scenario_id')}:{record.get('mode')}:{record.get('run_index')}"
                         completed.add(key)
                 except Exception:

@@ -4,9 +4,14 @@ import asyncio
 from datetime import datetime, timezone
 import json
 import logging
+import os
 from pathlib import Path
 import sys
 import yaml
+from dotenv import load_dotenv
+
+# Ensure .env is loaded into process environment
+load_dotenv()
 
 from demo.agent.config import agent_settings
 from .harness import EvalHarness
