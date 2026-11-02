@@ -416,4 +416,6 @@ class ReplayEvaluator:
             "consistent_unique_intents": consistent,
             "unique_intents": len(verdicts),
         }
+        # Retain observations so the offline sweep can use stored judge scores only.
+        summary["runs"] = runs
         return summary

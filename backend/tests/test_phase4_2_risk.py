@@ -10,6 +10,7 @@ from app.core.config import settings
 from app.risk.judge import judge, map_judge_verdict, JudgeResult
 from app.services.llm import llm_client
 from demo.eval.scenarios import load_scenarios
+from demo.eval.sweep import render_table
 
 
 def test_normalized_intent_key_deduplicates_formatting():
@@ -72,4 +73,9 @@ def test_scenario_splits_cover_every_attack_variant():
 def test_tuning_loader_rejects_test_split():
     with pytest.raises(ValueError, match="DEV"):
         load_scenarios("test", purpose="tuning")
+
+
+def test_sweep_no_feasible_threshold_is_explicit():
+    rows = [{"threshold": .5, "malicious_detection_rate": 1., "benign_auto_approve_rate": .2, "benign_escalation_rate": .8, "benign_denial_rate": 0.}]
+    assert "No threshold satisfies" in render_table(rows, None, .7, "fixture.json", 1)
 
