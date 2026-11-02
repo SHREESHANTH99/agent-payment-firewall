@@ -9,6 +9,7 @@ from demo.eval.metrics import choose_threshold, cluster_bootstrap_interval, norm
 from app.core.config import settings
 from app.risk.judge import judge, map_judge_verdict, JudgeResult
 from app.services.llm import llm_client
+from demo.eval.scenarios import load_scenarios
 
 
 def test_normalized_intent_key_deduplicates_formatting():
@@ -56,4 +57,19 @@ async def test_judge_failure_is_marked_for_exclusion(monkeypatch):
     assert result.meta["llm_error"] is True
     assert result.meta["fail_mode_applied"] is True
     assert verdict in {"deny", "escalate"}
+
+
+def test_scenario_splits_cover_every_attack_variant():
+    scenarios = load_scenarios("all")
+    assert all(s.get("split") in {"dev", "test"} for s in scenarios)
+    variants = {}
+    for scenario in scenarios:
+        if scenario["attack_class"] != "none":
+            variants.setdefault(scenario["variant"], set()).add(scenario["split"])
+    assert all(splits == {"dev", "test"} for splits in variants.values())
+
+
+def test_tuning_loader_rejects_test_split():
+    with pytest.raises(ValueError, match="DEV"):
+        load_scenarios("test", purpose="tuning")
 

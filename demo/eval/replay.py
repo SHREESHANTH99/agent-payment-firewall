@@ -27,6 +27,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 from .metrics import attribute_blocking_layer, calculate_wilson_interval, check_compromise, cluster_bootstrap_interval, normalized_intent_key
+from .scenarios import load_scenarios
 
 logger = logging.getLogger("eval.replay")
 
@@ -219,7 +220,7 @@ class ReplayEvaluator:
         intents_pool: list[dict[str, Any]],
         output_path: str = "results/replay.json",
         repeats: int = 3,
-        scenario_split: str | None = None,
+        scenario_split: str,
     ) -> dict[str, Any]:
         """
         Evaluate full intent pool against 4 configurations:
@@ -237,8 +238,9 @@ class ReplayEvaluator:
 
         if repeats < 1:
             raise ValueError("repeats must be at least 1")
-        if scenario_split:
-            intents_pool = [item for item in intents_pool if self.scenarios.get(item["scenario_id"], {}).get("split") == scenario_split]
+        if scenario_split not in {"dev", "test"}:
+            raise ValueError("replay requires an explicit dev or test split")
+        intents_pool = [item for item in intents_pool if self.scenarios.get(item["scenario_id"], {}).get("split") == scenario_split]
         results_by_config = {}
 
         for cfg_name, canary_en, judge_en in configs:

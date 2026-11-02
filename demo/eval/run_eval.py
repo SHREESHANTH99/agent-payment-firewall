@@ -17,6 +17,7 @@ from demo.agent.config import agent_settings
 from .harness import EvalHarness
 from .metrics import aggregate_eval_runs
 from .report import write_eval_reports
+from .scenarios import load_scenarios
 
 logging.basicConfig(
     level=logging.INFO,
@@ -29,6 +30,11 @@ def parse_args():
     parser = argparse.ArgumentParser(
         description="Run evaluation harness producing honest, measured firewall defense benchmarks."
     )
+    parser.add_argument(
+        "--split", choices=["dev", "test", "all"], required=True,
+        help="Scenario split. all requires --allow-all-for-debug and is unreportable.",
+    )
+    parser.add_argument("--allow-all-for-debug", action="store_true")
     parser.add_argument(
         "--preset",
         type=str,
@@ -116,9 +122,9 @@ async def main():
         logger.error("Scenarios file not found at %s", args.scenarios_path)
         sys.exit(1)
 
-    with open(scenarios_file, "r", encoding="utf-8") as f:
-        data = yaml.safe_load(f)
-        all_scenarios = data.get("scenarios", [])
+    if args.split == "all" and not args.allow_all_for_debug:
+        parser.error("--split all requires --allow-all-for-debug")
+    all_scenarios = load_scenarios(args.split, path=str(scenarios_file))
 
     if args.only:
         all_scenarios = [s for s in all_scenarios if args.only in s.get("id", "")]
@@ -203,6 +209,8 @@ async def main():
         "agent_mode": args.agent_mode,
         "rpm": args.rpm,
         "total_completed_runs": len(all_completed_records),
+        "split": args.split,
+        "unreportable": args.split == "all",
     }
 
     eval_output = {
