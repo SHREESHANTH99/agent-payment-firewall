@@ -212,7 +212,9 @@ class AgentToolExecutor:
                 res = await client.get(mandate_url, headers=headers)
                 if res.status_code == 200:
                     data = res.json()
-                    self.active_mandate_id = data.get("mandate_id")
+                    # Keep pre-assigned active_mandate_id if set by harness, otherwise fallback to endpoint
+                    if not self.active_mandate_id:
+                        self.active_mandate_id = data.get("mandate_id")
                     return {
                         "status": "active_mandate",
                         "mandate_id": data.get("mandate_id"),
@@ -264,14 +266,30 @@ class AgentToolExecutor:
             "Content-Type": "application/json",
         }
 
-        try:
-            async with httpx.AsyncClient(timeout=20.0) as client:
-                res = await client.post(intents_url, json=payload, headers=headers)
-                status_code = res.status_code
-                try:
-                    data = res.json()
-                except Exception:
-                    data = {"raw_response": res.text}
+        # Post intent with retry on 429 and generous 90s timeout (risk judge + canary inspection latency)
+        max_intent_retries = 3
+        data = {}
+        status_code = 500
+        for intent_attempt in range(max_intent_retries):
+            try:
+                async with httpx.AsyncClient(timeout=90.0) as client:
+                    res = await client.post(intents_url, json=payload, headers=headers)
+                    status_code = res.status_code
+                    if status_code == 429:
+                        retry_after = res.headers.get("Retry-After")
+                        wait_sec = float(retry_after) if retry_after and retry_after.isdigit() else (2 ** intent_attempt) * 2.0
+                        logger.warning("Firewall returned 429 on /intents; backing off for %.1fs", wait_sec)
+                        await asyncio.sleep(wait_sec)
+                        continue
+                    try:
+                        data = res.json()
+                    except Exception:
+                        data = {"raw_response": res.text}
+                    break
+            except Exception as e:
+                logger.warning("Intent submit attempt %d failed: %s", intent_attempt + 1, e)
+                if intent_attempt == max_intent_retries - 1:
+                    raise
 
             self.last_payment_decision = data
             self.submitted_intents.append({
