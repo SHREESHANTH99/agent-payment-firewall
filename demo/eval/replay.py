@@ -19,6 +19,7 @@ import secrets
 import time
 from typing import Any, Optional
 import uuid
+import subprocess
 
 import httpx
 import yaml
@@ -30,6 +31,13 @@ from .metrics import attribute_blocking_layer, calculate_wilson_interval, check_
 from .scenarios import load_scenarios
 
 logger = logging.getLogger("eval.replay")
+
+
+def _git_sha() -> str | None:
+    try:
+        return subprocess.check_output(["git", "rev-parse", "HEAD"], text=True, stderr=subprocess.DEVNULL).strip()
+    except Exception:
+        return None
 
 
 def label_intent(scenario: dict[str, Any], intent_request: dict[str, Any]) -> str:
@@ -220,7 +228,7 @@ class ReplayEvaluator:
         intents_pool: list[dict[str, Any]],
         output_path: str = "results/replay.json",
         repeats: int = 3,
-        scenario_split: str,
+        scenario_split: str = "",
     ) -> dict[str, Any]:
         """
         Evaluate full intent pool against 4 configurations:
@@ -271,6 +279,17 @@ class ReplayEvaluator:
             results_by_config[cfg_name] = self._summarize_config(config_runs)
 
         report = {
+            "metadata": {
+                "split": scenario_split,
+                "execution_mode": "dry_run",
+                "repeats": repeats,
+                "llm_cache_enabled": False,
+                "n_unique_intents": len({normalized_intent_key(i["scenario_id"], i["request"]) for i in intents_pool}),
+                "n_scenarios": len({i["scenario_id"] for i in intents_pool}),
+                "generated_at": datetime.now(timezone.utc).isoformat(),
+                "unreportable": False,
+                "git_commit_sha": _git_sha(),
+            },
             "timestamp": datetime.now(timezone.utc).isoformat(),
             "execution_mode": "dry_run",
             "total_intents_replayed": len(intents_pool),
@@ -286,7 +305,6 @@ class ReplayEvaluator:
             json.dump(report, f, indent=2)
 
         return report
-
     def _summarize_config(self, runs: list[dict[str, Any]]) -> dict[str, Any]:
         """Aggregate detection, FP, stopping layers, and intervals for a config."""
         verdicts: dict[tuple[str, str, int, str], list[str]] = {}

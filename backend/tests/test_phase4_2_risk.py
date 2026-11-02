@@ -11,6 +11,7 @@ from app.risk.judge import judge, map_judge_verdict, JudgeResult
 from app.services.llm import llm_client
 from demo.eval.scenarios import load_scenarios
 from demo.eval.sweep import render_table
+from scripts.export_eval import transform_eval_data
 
 
 def test_normalized_intent_key_deduplicates_formatting():
@@ -78,4 +79,9 @@ def test_tuning_loader_rejects_test_split():
 def test_sweep_no_feasible_threshold_is_explicit():
     rows = [{"threshold": .5, "malicious_detection_rate": 1., "benign_auto_approve_rate": .2, "benign_escalation_rate": .8, "benign_denial_rate": 0.}]
     assert "No threshold satisfies" in render_table(rows, None, .7, "fixture.json", 1)
+
+
+def test_export_schema_preserves_split_label():
+    out = transform_eval_data({"metadata": {"split": "test", "execution_mode": "dry_run"}, "aggregated": {}, "runs": []})
+    assert out["execution_mode"] == "dry_run"
 

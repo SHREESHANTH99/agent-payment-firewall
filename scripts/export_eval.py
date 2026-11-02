@@ -2,6 +2,7 @@
 from datetime import datetime, timezone
 import json
 import os
+import sys
 from pathlib import Path
 from typing import Any, Optional
 
@@ -168,6 +169,7 @@ def transform_eval_data(
 
 
 def main():
+    allow_dev = "--allow-dev" in sys.argv
     root_dir = Path(__file__).resolve().parent.parent
     results_dir = root_dir / "results"
     dashboard_data_dir = root_dir / "dashboard" / "public" / "data"
@@ -193,6 +195,13 @@ def main():
         with open(eval_file, "r", encoding="utf-8") as f:
             eval_data = json.load(f)
 
+    metadata = eval_data.get("metadata", {})
+    split = metadata.get("split")
+    if metadata.get("unreportable") or split not in {"test", "dev"}:
+        raise SystemExit("Refusing export: evaluation metadata must declare reportable split test or dev.")
+    if split == "dev" and not allow_dev:
+        raise SystemExit("Refusing DEV export; pass --allow-dev to publish labeled development data.")
+
     # 2. Locate replay.json
     replay_file = results_dir / "replay.json"
     replay_data = None
@@ -214,6 +223,8 @@ def main():
 
     # 4. Transform eval data
     transformed_eval = transform_eval_data(eval_data, calibration_data, replay_data)
+    transformed_eval["split"] = split
+    transformed_eval["development_data"] = split == "dev"
 
     target_eval_file = dashboard_data_dir / "eval.json"
     with open(target_eval_file, "w", encoding="utf-8") as f:

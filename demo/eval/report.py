@@ -140,6 +140,8 @@ def generate_eval_markdown(
     md.append("\n")
 
     # 7. Limitations
+    md.append("## How to read this\n")
+    md.append("Unique intents are distinct normalized submissions; observations include repeats. Escalations are human-review requests, not auto-denials. LLM fail-mode outcomes are reported separately and excluded from detection rates. DEV is for tuning and TEST is for final reporting. LLM outcomes can vary between runs.\n")
     md.append("## 7. Limitations & Honest Assessment\n")
     md.append(
         "1. **Small Sample Sizes:** Due to API free-tier quotas and rate limits, preset runs ($N=2$ for quick, $N=5$ for full) "
