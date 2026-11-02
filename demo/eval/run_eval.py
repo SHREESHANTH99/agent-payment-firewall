@@ -18,6 +18,8 @@ from .harness import EvalHarness
 from .metrics import aggregate_eval_runs
 from .report import write_eval_reports
 from .scenarios import load_scenarios
+from .provenance import build_metadata
+from app.core.config import settings as firewall_settings
 
 logging.basicConfig(
     level=logging.INFO,
@@ -198,7 +200,14 @@ async def main():
 
     # Aggregate and generate reports
     aggregated = aggregate_eval_runs(all_completed_records)
-    metadata = {
+    metadata = build_metadata(
+        split=args.split, execution_mode="dry_run",
+        models={"agent": agent_settings.AGENT_MODEL, "canary": firewall_settings.CANARY_MODEL, "judge": firewall_settings.JUDGE_MODEL},
+        thresholds={"judge_allow_threshold": firewall_settings.JUDGE_ALLOW_THRESHOLD, "judge_deny_confidence": firewall_settings.JUDGE_DENY_CONFIDENCE},
+        repeats=runs_per_scenario, llm_cache_enabled=firewall_settings.LLM_CACHE_ENABLED,
+        n_unique_intents=len({(r.get("scenario_id"), r.get("run_index")) for r in all_completed_records}),
+        n_scenarios=len({r.get("scenario_id") for r in all_completed_records}), unreportable=args.split == "all",
+    ) | {
         "date": datetime.now(timezone.utc).strftime("%Y-%m-%d"),
         "preset": args.preset,
         "runs_per_scenario": runs_per_scenario,
@@ -209,8 +218,6 @@ async def main():
         "agent_mode": args.agent_mode,
         "rpm": args.rpm,
         "total_completed_runs": len(all_completed_records),
-        "split": args.split,
-        "unreportable": args.split == "all",
     }
 
     eval_output = {

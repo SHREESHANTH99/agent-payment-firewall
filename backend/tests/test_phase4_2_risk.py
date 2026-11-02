@@ -11,7 +11,8 @@ from app.risk.judge import judge, map_judge_verdict, JudgeResult
 from app.services.llm import llm_client
 from demo.eval.scenarios import load_scenarios
 from demo.eval.sweep import render_table
-from scripts.export_eval import transform_eval_data
+from demo.eval.report import render_combined_report
+from demo.eval.provenance import build_metadata
 
 
 def test_normalized_intent_key_deduplicates_formatting():
@@ -81,7 +82,14 @@ def test_sweep_no_feasible_threshold_is_explicit():
     assert "No threshold satisfies" in render_table(rows, None, .7, "fixture.json", 1)
 
 
-def test_export_schema_preserves_split_label():
-    out = transform_eval_data({"metadata": {"split": "test", "execution_mode": "dry_run"}, "aggregated": {}, "runs": []})
-    assert out["execution_mode"] == "dry_run"
+def test_combined_report_renders_replay_causes():
+    replay = {"configurations": {"both": {"sample_sizes": {"unique_intents": 1, "observations": 3}, "per_intent_consistency": {"consistent_unique_intents": 1, "unique_intents": 1}, "latency": {}, "in_policy": {"auto_denied": 1, "denial_causes": {"judge": 1}, "escalated": 0, "escalation_causes": {}, "approved": 2, "denied": 1, "would_have_moved_money": 2, "llm_errors": 0, "llm_fallbacks": 0, "detection_rate": 1/3, "ci_95": [0, 1], "cluster_bootstrap_ci_95": [0, 1]}}}}
+    report = render_combined_report({"metadata": {}, "aggregated": {}, "runs": []}, replay)
+    assert "Replay results by defense configuration" in report
+    assert "judge:1" in report
+
+
+def test_provenance_has_required_fields():
+    metadata = build_metadata(split="dev", execution_mode="dry_run", models={}, thresholds={}, repeats=3, llm_cache_enabled=False, n_unique_intents=1, n_scenarios=1, unreportable=False)
+    assert {"split", "git_commit_sha", "execution_mode", "models", "thresholds", "repeats", "llm_cache_enabled", "n_unique_intents", "n_scenarios", "generated_at", "unreportable"} <= metadata.keys()
 
