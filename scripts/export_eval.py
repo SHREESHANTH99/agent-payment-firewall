@@ -1,4 +1,4 @@
-"""Converts evaluation and calibration results into stable dashboard schemas."""
+"""Converts evaluation, replay, and calibration results into stable dashboard schemas."""
 from datetime import datetime, timezone
 import json
 import os
@@ -6,16 +6,22 @@ from pathlib import Path
 from typing import Any, Optional
 
 
-def transform_eval_data(eval_data: dict[str, Any], calibration_data: Optional[dict[str, Any]] = None) -> dict[str, Any]:
+def transform_eval_data(
+    eval_data: dict[str, Any],
+    calibration_data: Optional[dict[str, Any]] = None,
+    replay_data: Optional[dict[str, Any]] = None,
+) -> dict[str, Any]:
     """
-    Transforms eval_data into stable schema:
+    Transforms eval_data, replay_data, and calibration_data into stable schema:
     {
       generated_at,
+      validity: {total, valid, incomplete, error, incomplete_pct},
       models: {agent, canary, judge},
-      execution_mode,
+      execution_mode: 'dry_run',
       sample_sizes,
       attack_categories: [{name, attack_class, runs, agent_compromised, blocked_by: {rules, canary, judge, human, none}, money_would_have_moved}],
-      benign: {runs, false_positives, escalations},
+      benign: {runs, false_positives, false_positive_rate, fp_ci_95, fp_by_layer, fp_by_reason, escalations, escalation_rate},
+      replay: {configurations, total_intents_replayed},
       layers: {canary_alone, judge_alone, combined},
       avg_added_latency_ms,
       llm_calls
@@ -33,6 +39,22 @@ def transform_eval_data(eval_data: dict[str, Any], calibration_data: Optional[di
     if gen_at:
         out["generated_at"] = gen_at
 
+    # validity block (Phase 4.1 Requirement)
+    if "validity" in aggregated:
+        out["validity"] = aggregated["validity"]
+    else:
+        valid_count = len([r for r in runs if r.get("status") == "valid"])
+        incomplete_count = len([r for r in runs if r.get("status") == "incomplete"])
+        error_count = len([r for r in runs if r.get("status") == "error"])
+        total_runs = len(runs)
+        out["validity"] = {
+            "total": total_runs,
+            "valid": valid_count,
+            "incomplete": incomplete_count,
+            "error": error_count,
+            "incomplete_pct": round(incomplete_count / total_runs * 100, 1) if total_runs > 0 else 0.0,
+        }
+
     # models
     models_dict = {}
     if metadata.get("agent_model"):
@@ -45,12 +67,12 @@ def transform_eval_data(eval_data: dict[str, Any], calibration_data: Optional[di
         out["models"] = models_dict
 
     # execution_mode
-    if metadata.get("execution_mode"):
-        out["execution_mode"] = metadata["execution_mode"]
+    out["execution_mode"] = metadata.get("execution_mode", "dry_run")
 
     # sample_sizes
     if "total_runs" in aggregated:
-        attack_count = len([r for r in runs if r.get("attack_class") != "none"])
+        valid_runs = [r for r in runs if r.get("status", "valid") == "valid"]
+        attack_count = len([r for r in valid_runs if r.get("attack_class") != "none"])
         benign_count = aggregated.get("benign", {}).get("runs", 0)
         out["sample_sizes"] = {
             "total_runs": aggregated["total_runs"],
@@ -69,7 +91,7 @@ def transform_eval_data(eval_data: dict[str, Any], calibration_data: Optional[di
             
             # calculate money_would_have_moved for this variant
             money_moved = sum(
-                1 for r in runs if r.get("variant") == v_name and r.get("would_have_executed")
+                1 for r in runs if r.get("variant") == v_name and r.get("status", "valid") == "valid" and r.get("would_have_executed")
             )
 
             cat_item: dict[str, Any] = {
@@ -77,6 +99,8 @@ def transform_eval_data(eval_data: dict[str, Any], calibration_data: Optional[di
                 "attack_class": v_class,
                 "runs": s.get("runs", 0),
                 "agent_compromised": s.get("compromised", 0),
+                "compromise_rate": s.get("compromise_rate", 0.0),
+                "ci_95": [s.get("ci_lower", 0.0), s.get("ci_upper", 0.0)],
                 "blocked_by": s.get("blocked_by", {}),
                 "money_would_have_moved": money_moved,
             }
@@ -88,8 +112,24 @@ def transform_eval_data(eval_data: dict[str, Any], calibration_data: Optional[di
     if benign_data:
         out["benign"] = {
             "runs": benign_data.get("runs", 0),
+            "intended_positive_runs": benign_data.get("intended_positive_runs", 0),
+            "expected_refusals": benign_data.get("expected_refusals", 0),
             "false_positives": benign_data.get("false_positives", 0),
+            "false_positive_rate": benign_data.get("false_positive_rate", 0.0),
+            "fp_ci_95": benign_data.get("fp_ci_95", [0.0, 0.0]),
+            "fp_by_layer": benign_data.get("fp_by_layer", {}),
+            "fp_by_reason": benign_data.get("fp_by_reason", {}),
             "escalations": benign_data.get("escalations", 0),
+            "escalation_rate": benign_data.get("escalation_rate", 0.0),
+            "esc_ci_95": benign_data.get("esc_ci_95", [0.0, 0.0]),
+        }
+
+    # replay tables if available
+    if replay_data:
+        out["replay"] = {
+            "total_intents_replayed": replay_data.get("total_intents_replayed", 0),
+            "execution_mode": replay_data.get("execution_mode", "dry_run"),
+            "configurations": replay_data.get("configurations", {}),
         }
 
     # layers (detection rates from calibration or eval)
@@ -136,7 +176,6 @@ def main():
     # 1. Locate eval.json
     eval_file = results_dir / "eval.json"
     if not eval_file.exists():
-        print(f"Warning: {eval_file} not found. Creating placeholder eval.json from existing progress if any.")
         progress_file = results_dir / "progress.jsonl"
         runs = []
         if progress_file.exists():
@@ -154,7 +193,14 @@ def main():
         with open(eval_file, "r", encoding="utf-8") as f:
             eval_data = json.load(f)
 
-    # 2. Locate calibration.json
+    # 2. Locate replay.json
+    replay_file = results_dir / "replay.json"
+    replay_data = None
+    if replay_file.exists():
+        with open(replay_file, "r", encoding="utf-8") as f:
+            replay_data = json.load(f)
+
+    # 3. Locate calibration.json
     cal_file = results_dir / "calibration.json"
     if not cal_file.exists():
         backend_cal = root_dir / "backend" / "results" / "calibration.json"
@@ -166,15 +212,15 @@ def main():
         with open(cal_file, "r", encoding="utf-8") as f:
             calibration_data = json.load(f)
 
-    # 3. Transform eval data
-    transformed_eval = transform_eval_data(eval_data, calibration_data)
+    # 4. Transform eval data
+    transformed_eval = transform_eval_data(eval_data, calibration_data, replay_data)
 
     target_eval_file = dashboard_data_dir / "eval.json"
     with open(target_eval_file, "w", encoding="utf-8") as f:
         json.dump(transformed_eval, f, indent=2)
     print(f"Exported eval data to {target_eval_file}")
 
-    # 4. Copy calibration data if present
+    # 5. Copy calibration data if present
     if calibration_data:
         target_cal_file = dashboard_data_dir / "calibration.json"
         with open(target_cal_file, "w", encoding="utf-8") as f:
