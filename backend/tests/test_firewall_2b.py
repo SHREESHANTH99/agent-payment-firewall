@@ -184,6 +184,28 @@ async def test_in_policy_intent_executes(client, mandate, db_session):
     assert "intent.executing" in events
 
 
+@pytest.mark.asyncio
+async def test_dry_run_execution_audits_without_paypal(client, mandate, db_session, monkeypatch):
+    """Dry-run is explicit and skips network payout execution."""
+    monkeypatch.setattr(settings, "EXECUTION_MODE", "dry_run")
+    with respx.mock:
+        response = await client.post("/intents", json={
+            "idempotency_key": str(uuid.uuid4()),
+            "mandate_id": mandate.mandate_id,
+            "amount": "5.00",
+            "currency": "USD",
+            "merchant": "vendor@paypal.com",
+        }, headers=agent_headers())
+    assert response.status_code == 200
+    assert response.json()["dry_run"] is True
+    rows = (await db_session.execute(select(AuditLog).order_by(AuditLog.created_at))).scalars().all()
+    events = [row.event for row in rows]
+    assert "intent.executing" not in events
+    assert {"intent.created", "budget.reserved", "intent.approved", "intent.executed"} <= set(events)
+    executed = next(row for row in rows if row.event == "intent.executed")
+    assert executed.payload["dry_run"] is True
+
+
 # =========================================================================
 # 2. Over cap -> denied, no payout, budget unchanged
 # =========================================================================
