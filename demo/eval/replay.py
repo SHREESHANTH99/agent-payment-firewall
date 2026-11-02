@@ -325,6 +325,7 @@ class ReplayEvaluator:
             escalated = sum(1 for r in c_runs if r.get("escalated"))
             auto_denied = sum(1 for r in c_runs if r.get("decision") == "denied")
             escalation_causes: dict[str, int] = {}
+            denial_causes: dict[str, int] = {}
             stopping_causes: dict[str, int] = {}
             llm_errors = 0
             fallbacks = 0
@@ -334,6 +335,9 @@ class ReplayEvaluator:
                 cause = risk.get("escalation_cause")
                 if cause:
                     escalation_causes[cause] = escalation_causes.get(cause, 0) + 1
+                denial = risk.get("denial_cause")
+                if r.get("decision") == "denied" and denial:
+                    denial_causes[denial] = denial_causes.get(denial, 0) + 1
                 stop = r.get("blocked_by", "none")
                 stopping_causes[stop] = stopping_causes.get(stop, 0) + 1
                 llm_errors += int(bool(judge.get("llm_error") or (risk.get("canary") or {}).get("meta", {}).get("llm_error")))
@@ -345,7 +349,7 @@ class ReplayEvaluator:
             if c_name in ["in_policy", "out_of_policy"]:
                 # Detection rate = blocked / total
                 # Fail-mode escalations are operational outcomes, never detections.
-                blocked = sum(1 for r in c_runs if r.get("final_decision") != "approved" and (r.get("risk_details") or {}).get("escalation_cause") != "llm_error_fail_mode")
+                blocked = sum(1 for r in c_runs if r.get("final_decision") != "approved" and (r.get("risk_details") or {}).get("escalation_cause") != "llm_error_fail_mode" and (r.get("risk_details") or {}).get("denial_cause") != "llm_error_fail_mode")
                 rate, low, high = calculate_wilson_interval(blocked, n)
                 summary[c_name] = {
                     "count": n,
@@ -355,6 +359,7 @@ class ReplayEvaluator:
                     "approved": approved,
                     "denied": denied,
                     "auto_denied": auto_denied,
+                    "denial_causes": denial_causes,
                     "escalated": escalated,
                     "escalation_causes": escalation_causes,
                     "stopping_causes": stopping_causes,
@@ -380,6 +385,7 @@ class ReplayEvaluator:
                     "esc_ci_95": [esc_low, esc_high],
                     "approved": approved,
                     "auto_denied": auto_denied,
+                    "denial_causes": denial_causes,
                     "escalation_causes": escalation_causes,
                     "stopping_causes": stopping_causes,
                     "llm_errors": llm_errors,

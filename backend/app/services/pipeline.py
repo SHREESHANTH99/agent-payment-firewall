@@ -33,6 +33,12 @@ class RiskResult:
     details: dict[str, Any] = field(default_factory=dict)
 
 
+def _denial_payload(risk_details: dict[str, Any], cause: str) -> dict[str, Any]:
+    """Attach machine-readable denial attribution before persisting/auditing it."""
+    risk_details["denial_cause"] = cause
+    return risk_details
+
+
 # Risk check hook registry
 RiskCheck = Callable[[PaymentIntent, Mandate], Coroutine[Any, Any, RiskResult]]
 RISK_CHECKS: list[RiskCheck] = []
@@ -143,7 +149,8 @@ async def process_intent(
             intent.status = PaymentIntentStatus.DENIED
             intent.decision_reasons = [{"code": "MANDATE_NOT_FOUND", "message": f"Mandate '{mandate_id}' not found"}]
             await session.commit()
-            await append_event(session, intent.id, "intent.denied", {"reasons": intent.decision_reasons})
+            intent.risk_details = _denial_payload({}, "rules")
+            await append_event(session, intent.id, "intent.denied", {"reasons": intent.decision_reasons, "denial_cause": "rules"})
             await event_publisher.publish("intent_status_changed", {
                 "intent_id": intent.id, "old_status": "pending", "new_status": "denied",
                 "amount": amount_cents, "merchant": merchant,
@@ -165,7 +172,8 @@ async def process_intent(
                 "message": f"Mandate belongs to agent '{mandate.agent_id}', not '{agent_id}'",
             }]
             await session.commit()
-            await append_event(session, intent.id, "intent.denied", {"reasons": intent.decision_reasons})
+            intent.risk_details = _denial_payload({}, "rules")
+            await append_event(session, intent.id, "intent.denied", {"reasons": intent.decision_reasons, "denial_cause": "rules"})
             await event_publisher.publish("intent_status_changed", {
                 "intent_id": intent.id, "old_status": "pending", "new_status": "denied",
                 "amount": amount_cents, "merchant": merchant,
@@ -192,7 +200,8 @@ async def process_intent(
             intent.status = PaymentIntentStatus.DENIED
             intent.decision_reasons = rule_result.failures
             await session.commit()
-            await append_event(session, intent.id, "intent.denied", {"reasons": rule_result.failures})
+            intent.risk_details = _denial_payload({}, "rules")
+            await append_event(session, intent.id, "intent.denied", {"reasons": rule_result.failures, "denial_cause": "rules"})
             await event_publisher.publish("intent_status_changed", {
                 "intent_id": intent.id, "old_status": "pending", "new_status": "denied",
                 "amount": amount_cents, "merchant": merchant,
@@ -224,7 +233,8 @@ async def process_intent(
             intent.status = PaymentIntentStatus.DENIED
             intent.decision_reasons = [{"code": "BUDGET_EXCEEDED", "message": "Insufficient mandate budget"}]
             await session.commit()
-            await append_event(session, intent.id, "intent.denied", {"reasons": intent.decision_reasons})
+            intent.risk_details = _denial_payload({}, "budget")
+            await append_event(session, intent.id, "intent.denied", {"reasons": intent.decision_reasons, "denial_cause": "budget"})
             await event_publisher.publish("intent_status_changed", {
                 "intent_id": intent.id, "old_status": "pending", "new_status": "denied",
                 "amount": amount_cents, "merchant": merchant,
@@ -285,11 +295,11 @@ async def process_intent(
                 reservation_made = False
 
                 intent.status = PaymentIntentStatus.DENIED
-                intent.risk_details = risk_details
+                intent.risk_details = _denial_payload(risk_details, "llm_error_fail_mode" if (canary_res.meta or {}).get("llm_error") else "canary")
                 # Agent-facing reason is strictly generic
                 intent.decision_reasons = [{"code": "RISK_POLICY_VIOLATION", "message": "blocked by risk policy"}]
                 await session.commit()
-                await append_event(session, intent.id, "intent.denied", {"risk": risk_details})
+                await append_event(session, intent.id, "intent.denied", {"risk": intent.risk_details, "denial_cause": intent.risk_details["denial_cause"]})
                 await event_publisher.publish("intent_status_changed", {
                     "intent_id": intent.id, "old_status": "pending", "new_status": "denied",
                     "amount": amount_cents, "merchant": merchant,
@@ -357,10 +367,11 @@ async def process_intent(
                 reservation_made = False
 
                 intent.status = PaymentIntentStatus.DENIED
-                intent.risk_details = risk_details
+                denial_cause = "llm_error_fail_mode" if risk_details["judge"].get("fail_mode_applied") else "judge"
+                intent.risk_details = _denial_payload(risk_details, denial_cause)
                 intent.decision_reasons = [{"code": "RISK_POLICY_VIOLATION", "message": "blocked by risk policy"}]
                 await session.commit()
-                await append_event(session, intent.id, "intent.denied", {"risk": risk_details})
+                await append_event(session, intent.id, "intent.denied", {"risk": intent.risk_details, "denial_cause": denial_cause})
                 await event_publisher.publish("intent_status_changed", {
                     "intent_id": intent.id, "old_status": "pending", "new_status": "denied",
                     "amount": amount_cents, "merchant": merchant,

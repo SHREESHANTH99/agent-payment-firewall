@@ -1,4 +1,9 @@
+import sys
+from pathlib import Path
+
 import pytest
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from demo.eval.metrics import choose_threshold, cluster_bootstrap_interval, normalized_intent_key, threshold_sweep
 from app.core.config import settings
@@ -51,3 +56,4 @@ async def test_judge_failure_is_marked_for_exclusion(monkeypatch):
     assert result.meta["llm_error"] is True
     assert result.meta["fail_mode_applied"] is True
     assert verdict in {"deny", "escalate"}
+
