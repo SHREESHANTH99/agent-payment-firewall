@@ -78,6 +78,7 @@ async def process_intent(
     merchant = request_data.get("merchant", "").strip().lower()
     description = request_data.get("description")
     reasoning = request_data.get("reasoning")
+    user_task = request_data.get("user_task")
     source_context = request_data.get("source_context")
 
     try:
@@ -97,6 +98,7 @@ async def process_intent(
         merchant=merchant,
         description=description,
         reasoning=reasoning,
+        user_task=user_task,
         source_context=source_context,
         status=PaymentIntentStatus.PENDING,
         decision_reasons=[],
@@ -116,6 +118,7 @@ async def process_intent(
             "amount_cents": amount_cents,
             "currency": currency,
             "merchant": merchant,
+            "user_task": user_task,
         },
     )
 
@@ -257,6 +260,12 @@ async def process_intent(
                 "segments": canary_res.segments,
                 "error": canary_res.error,
                 "meta": canary_res.meta,
+                "llm_error": bool((canary_res.meta or {}).get("llm_error", False)),
+                "fail_mode_applied": bool((canary_res.meta or {}).get("fail_mode_applied", False)),
+                "cached": bool((canary_res.meta or {}).get("cached", False)),
+                "provider": (canary_res.meta or {}).get("provider"),
+                "model": (canary_res.meta or {}).get("model"),
+                "retries": (canary_res.meta or {}).get("retries", 0),
             }
 
             if canary_res.tripped:
@@ -311,6 +320,7 @@ async def process_intent(
                 "merchant": merchant,
                 "description": description,
                 "reasoning": reasoning,
+                "user_task": user_task,
             }
 
             judge_res, judge_verdict = await judge(mandate_summary, intent_summary, source_context)
@@ -319,8 +329,15 @@ async def process_intent(
                 "confidence": judge_res.confidence,
                 "injection_suspected": judge_res.injection_suspected,
                 "reasons": judge_res.reasons,
+                "mismatch_reasons": judge_res.mismatch_reasons,
                 "verdict": judge_verdict,
                 "meta": judge_res.meta,
+                "llm_error": bool((judge_res.meta or {}).get("llm_error", False)),
+                "fail_mode_applied": bool((judge_res.meta or {}).get("fail_mode_applied", False)),
+                "cached": bool((judge_res.meta or {}).get("cached", False)),
+                "provider": (judge_res.meta or {}).get("provider"),
+                "model": (judge_res.meta or {}).get("model"),
+                "retries": (judge_res.meta or {}).get("retries", 0),
             }
             await append_event(session, intent.id, "judge_evaluated", risk_details["judge"])
 
@@ -366,8 +383,12 @@ async def process_intent(
 
         # f. Decision evaluation
         if rule_result.escalate or risk_escalate:
+            escalation_cause = "rules_threshold" if rule_result.escalate else (
+                "llm_error_fail_mode" if risk_details.get("judge", {}).get("fail_mode_applied") else "judge_low_confidence"
+            )
             intent.status = PaymentIntentStatus.ESCALATED
-            intent.decision_reasons = [{"code": "ESCALATED_THRESHOLD", "message": "Transaction exceeded escalation threshold"}]
+            intent.decision_reasons = [{"code": "ESCALATED_THRESHOLD", "message": "Transaction requires human review", "escalation_cause": escalation_cause}]
+            risk_details["escalation_cause"] = escalation_cause
             await session.commit()
 
             await append_event(session, intent.id, "intent.escalated", {

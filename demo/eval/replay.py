@@ -26,7 +26,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-from .metrics import attribute_blocking_layer, calculate_wilson_interval, check_compromise
+from .metrics import attribute_blocking_layer, calculate_wilson_interval, check_compromise, cluster_bootstrap_interval, normalized_intent_key
 
 logger = logging.getLogger("eval.replay")
 
@@ -109,13 +109,13 @@ class ReplayEvaluator:
             except Exception as exc:
                 logger.warning("Replay mandate cleanup error for %s: %s", mandate_id, exc)
 
-    async def set_risk_config(self, canary: bool, judge: bool):
+    async def set_risk_config(self, canary: bool, judge: bool, llm_cache_enabled: bool = False):
         url = f"{self.firewall_base_url}/admin/risk-config"
         headers = {
             "Authorization": f"Bearer {self.operator_token}",
             "Content-Type": "application/json",
         }
-        payload = {"canary_enabled": canary, "judge_enabled": judge}
+        payload = {"canary_enabled": canary, "judge_enabled": judge, "llm_cache_enabled": llm_cache_enabled}
         async with httpx.AsyncClient(timeout=10.0) as client:
             res = await client.post(url, json=payload, headers=headers)
             res.raise_for_status()
@@ -218,6 +218,8 @@ class ReplayEvaluator:
         self,
         intents_pool: list[dict[str, Any]],
         output_path: str = "results/replay.json",
+        repeats: int = 3,
+        scenario_split: str | None = None,
     ) -> dict[str, Any]:
         """
         Evaluate full intent pool against 4 configurations:
@@ -233,6 +235,10 @@ class ReplayEvaluator:
             ("both", True, True),
         ]
 
+        if repeats < 1:
+            raise ValueError("repeats must be at least 1")
+        if scenario_split:
+            intents_pool = [item for item in intents_pool if self.scenarios.get(item["scenario_id"], {}).get("split") == scenario_split]
         results_by_config = {}
 
         for cfg_name, canary_en, judge_en in configs:
@@ -248,14 +254,16 @@ class ReplayEvaluator:
                 escalation_policy = scenario.get("escalation_policy", "auto_reject")
                 intent_label = item.get("intent_label") or label_intent(scenario, intent_req)
 
-                res = await self.replay_single_intent(intent_req, escalation_policy)
-                config_runs.append({
-                    "scenario_id": scenario_id,
-                    "attack_class": attack_class,
-                    "intent_label": intent_label,
-                    "intent_request": intent_req,
-                    **res,
-                })
+                for repeat_index in range(repeats):
+                    res = await self.replay_single_intent(intent_req, escalation_policy)
+                    config_runs.append({
+                        "scenario_id": scenario_id,
+                        "attack_class": attack_class,
+                        "intent_label": intent_label,
+                        "intent_request": intent_req,
+                        "repeat_index": repeat_index,
+                        **res,
+                    })
 
             # Summarize by class
             results_by_config[cfg_name] = self._summarize_config(config_runs)
@@ -264,6 +272,9 @@ class ReplayEvaluator:
             "timestamp": datetime.now(timezone.utc).isoformat(),
             "execution_mode": "dry_run",
             "total_intents_replayed": len(intents_pool),
+            "total_observations": len(intents_pool) * repeats,
+            "repeats": repeats,
+            "scenario_split": scenario_split,
             "configurations": results_by_config,
         }
 
@@ -276,6 +287,11 @@ class ReplayEvaluator:
 
     def _summarize_config(self, runs: list[dict[str, Any]]) -> dict[str, Any]:
         """Aggregate detection, FP, stopping layers, and intervals for a config."""
+        verdicts: dict[tuple[str, str, int, str], list[str]] = {}
+        for run in runs:
+            key = normalized_intent_key(run.get("scenario_id", ""), run.get("intent_request") or {})
+            verdicts.setdefault(key, []).append(str(run.get("decision")))
+        consistent = sum(1 for values in verdicts.values() if len(set(values)) == 1)
         by_class: dict[str, list[dict]] = {
             "in_policy": [],
             "out_of_policy": [],
@@ -298,7 +314,7 @@ class ReplayEvaluator:
                 summary[c_name] = {"count": 0}
                 continue
 
-            # Layer breakdown
+            # Layer breakdown; an escalation is retained separately from the harness resolution.
             layers = {"rules": 0, "canary": 0, "judge": 0, "human": 0, "none": 0}
             for r in c_runs:
                 l = r.get("blocked_by", "none")
@@ -307,13 +323,29 @@ class ReplayEvaluator:
             approved = sum(1 for r in c_runs if r.get("final_decision") == "approved")
             denied = sum(1 for r in c_runs if r.get("final_decision") == "denied")
             escalated = sum(1 for r in c_runs if r.get("escalated"))
+            auto_denied = sum(1 for r in c_runs if r.get("decision") == "denied")
+            escalation_causes: dict[str, int] = {}
+            stopping_causes: dict[str, int] = {}
+            llm_errors = 0
+            fallbacks = 0
+            for r in c_runs:
+                risk = r.get("risk_details") or {}
+                judge = risk.get("judge") or {}
+                cause = risk.get("escalation_cause")
+                if cause:
+                    escalation_causes[cause] = escalation_causes.get(cause, 0) + 1
+                stop = r.get("blocked_by", "none")
+                stopping_causes[stop] = stopping_causes.get(stop, 0) + 1
+                llm_errors += int(bool(judge.get("llm_error") or (risk.get("canary") or {}).get("meta", {}).get("llm_error")))
+                fallbacks += int(bool((judge.get("meta") or {}).get("fallback_used")))
             money_moved = sum(1 for r in c_runs if r.get("would_have_executed"))
             frozen = sum(1 for r in c_runs if r.get("mandate_frozen"))
 
             # Metrics
             if c_name in ["in_policy", "out_of_policy"]:
                 # Detection rate = blocked / total
-                blocked = n - approved
+                # Fail-mode escalations are operational outcomes, never detections.
+                blocked = sum(1 for r in c_runs if r.get("final_decision") != "approved" and (r.get("risk_details") or {}).get("escalation_cause") != "llm_error_fail_mode")
                 rate, low, high = calculate_wilson_interval(blocked, n)
                 summary[c_name] = {
                     "count": n,
@@ -322,7 +354,13 @@ class ReplayEvaluator:
                     "ci_95": [low, high],
                     "approved": approved,
                     "denied": denied,
+                    "auto_denied": auto_denied,
                     "escalated": escalated,
+                    "escalation_causes": escalation_causes,
+                    "stopping_causes": stopping_causes,
+                    "llm_errors": llm_errors,
+                    "llm_fallbacks": fallbacks,
+                    "cluster_bootstrap_ci_95": list(cluster_bootstrap_interval(c_runs, "escalated")),
                     "mandate_frozen": frozen,
                     "would_have_moved_money": money_moved,
                     "blocked_by": layers,
@@ -341,6 +379,11 @@ class ReplayEvaluator:
                     "escalation_rate": esc_rate,
                     "esc_ci_95": [esc_low, esc_high],
                     "approved": approved,
+                    "auto_denied": auto_denied,
+                    "escalation_causes": escalation_causes,
+                    "stopping_causes": stopping_causes,
+                    "llm_errors": llm_errors,
+                    "llm_fallbacks": fallbacks,
                     "would_have_moved_money": money_moved,
                     "blocked_by": layers,
                 }
@@ -356,4 +399,13 @@ class ReplayEvaluator:
             "avg_total_ms": round(sum(total_lats) / len(total_lats), 1) if total_lats else 0.0,
         }
 
+        summary["sample_sizes"] = {
+            "observations": len(runs),
+            "unique_intents": len(verdicts),
+            "unique_source_scenarios": len({r.get("scenario_id") for r in runs}),
+        }
+        summary["per_intent_consistency"] = {
+            "consistent_unique_intents": consistent,
+            "unique_intents": len(verdicts),
+        }
         return summary

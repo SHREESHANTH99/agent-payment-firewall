@@ -27,6 +27,9 @@ class Settings(BaseSettings):
     JUDGE_MODEL: str = "gpt-4o-mini"
     LLM_TIMEOUT_SECONDS: int = 15
     JUDGE_FAIL_MODE: str = "escalate"  # escalate | deny
+    JUDGE_ALLOW_THRESHOLD: float = 0.8
+    # Existing behavior denied every safe=False result; 0.0 preserves that default.
+    JUDGE_DENY_CONFIDENCE: float = 0.0
     CANARY_ENABLED: bool = True
     JUDGE_ENABLED: bool = True
     LLM_CACHE_ENABLED: bool = True

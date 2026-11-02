@@ -27,6 +27,7 @@ class IntentCreateRequest(BaseModel):
     merchant: str
     description: Optional[str] = None
     reasoning: Optional[str] = Field(default=None, max_length=4000)
+    user_task: Optional[str] = Field(default=None, max_length=2000)
     source_context: Optional[str] = Field(default=None, max_length=50000)
 
 
@@ -64,6 +65,7 @@ class IntentDetailResponse(BaseModel):
     merchant: str
     description: Optional[str] = None
     reasoning: Optional[str] = None
+    user_task: Optional[str] = None
     status: str
     decision_reasons: Optional[list[Any]] = None
     risk_details: Optional[dict[str, Any]] = None
@@ -282,6 +284,7 @@ async def get_intent(
         "merchant": intent.merchant,
         "description": intent.description,
         "reasoning": intent.reasoning,
+        "user_task": intent.user_task,
         "status": intent.status.value if hasattr(intent.status, "value") else str(intent.status),
         "decision_reasons": intent.decision_reasons,
         "risk_details": intent.risk_details,

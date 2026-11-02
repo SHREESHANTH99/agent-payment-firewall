@@ -97,6 +97,9 @@ class PaymentIntent(Base):
     merchant = Column(String(255), nullable=False)  # PayPal recipient email
     description = Column(Text, nullable=True)
     reasoning = Column(Text, nullable=True)
+    # This is supplied by the agent harness, not by an authenticated principal.
+    # Preserve it for review, but do not treat it as an authorization boundary.
+    user_task = Column(Text, nullable=True)
     source_context = Column(JSONType, nullable=True)
     status = Column(
         SQLEnum(PaymentIntentStatus, native_enum=False, values_callable=lambda obj: [e.value for e in obj]),

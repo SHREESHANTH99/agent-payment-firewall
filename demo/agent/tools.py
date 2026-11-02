@@ -113,6 +113,7 @@ class AgentToolExecutor:
         
         # State tracking
         self.last_browsed_text: str = ""
+        self.user_task: str = ""
         self.active_mandate_id: Optional[str] = None
         self.last_payment_decision: Optional[dict[str, Any]] = None
         self.submitted_intents: list[dict[str, Any]] = []
@@ -257,6 +258,7 @@ class AgentToolExecutor:
             "merchant": merchant.strip(),
             "description": description.strip(),
             "reasoning": reasoning.strip(),
+            "user_task": self.user_task or None,
             "source_context": self.last_browsed_text[:40000] if self.last_browsed_text else None,
         }
 

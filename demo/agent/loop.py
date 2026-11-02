@@ -109,6 +109,7 @@ async def run_agent_loop(
             settings=settings,
             variant=variant,
         )
+    tool_executor.user_task = task
 
     # Initialize messages
     system_prompt = get_system_prompt(mode)

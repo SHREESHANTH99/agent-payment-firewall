@@ -132,7 +132,7 @@ async def canary_scan(source_context: Optional[str]) -> CanaryResult:
     - Any LLMError trips the canary (fail-closed).
     """
     if not source_context:
-        return CanaryResult(tripped=False, honeypot_calls=[], segments=0, error=None)
+        return CanaryResult(tripped=False, honeypot_calls=[], segments=0, error=None, meta={"llm_error": False, "fail_mode_applied": False, "cached": False, "retries": 0})
 
     if len(source_context) > MAX_SOURCE_CONTEXT_LENGTH:
         logger.warning("Canary scan tripped: source_context length %d exceeds max %d", len(source_context), MAX_SOURCE_CONTEXT_LENGTH)
@@ -141,6 +141,7 @@ async def canary_scan(source_context: Optional[str]) -> CanaryResult:
             honeypot_calls=[],
             segments=0,
             error="oversized_context",
+            meta={"llm_error": False, "fail_mode_applied": True, "cached": False, "retries": 0},
         )
 
     segments = split_segments(source_context)
@@ -165,6 +166,8 @@ async def canary_scan(source_context: Optional[str]) -> CanaryResult:
                     "cached": meta.cached,
                     "retries": meta.retries,
                     "fallback_used": meta.fallback_used,
+                    "llm_error": False,
+                    "fail_mode_applied": False,
                 }
             else:
                 calls = res
@@ -186,7 +189,7 @@ async def canary_scan(source_context: Optional[str]) -> CanaryResult:
                 honeypot_calls=[],
                 segments=len(segments),
                 error=f"llm_error: {exc}",
-                meta=last_meta,
+                meta={**(last_meta or {}), "llm_error": True, "fail_mode_applied": True},
             )
         except Exception as exc:
             logger.exception("Unexpected error in canary_scan (failing closed): %s", exc)
@@ -195,7 +198,7 @@ async def canary_scan(source_context: Optional[str]) -> CanaryResult:
                 honeypot_calls=[],
                 segments=len(segments),
                 error=f"unexpected_error: {exc}",
-                meta=last_meta,
+                meta={**(last_meta or {}), "llm_error": True, "fail_mode_applied": True},
             )
 
     return CanaryResult(

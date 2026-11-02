@@ -15,6 +15,7 @@ router = APIRouter(prefix="/admin", tags=["admin"])
 class RiskConfigUpdateRequest(BaseModel):
     canary_enabled: bool
     judge_enabled: bool
+    llm_cache_enabled: bool | None = None
 
 
 @router.get("/risk-config", response_model=RiskConfig)
@@ -33,6 +34,7 @@ async def update_risk_config(
     new_cfg = risk_config_state.set_config(
         canary_enabled=body.canary_enabled,
         judge_enabled=body.judge_enabled,
+        llm_cache_enabled=body.llm_cache_enabled,
     )
 
     await append_event(
@@ -42,6 +44,7 @@ async def update_risk_config(
         payload={
             "canary_enabled": new_cfg.canary_enabled,
             "judge_enabled": new_cfg.judge_enabled,
+            "llm_cache_enabled": new_cfg.llm_cache_enabled,
         },
     )
 
