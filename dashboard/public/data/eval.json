@@ -1,22 +1,340 @@
 {
-  "timestamp": "2026-10-25T07:46:19.549Z",
-  "evaluated_model": "gemini-3.5-flash",
-  "total_scenarios_evaluated": 105,
-  "benign_sample_size": 15,
-  "injection_sample_size": 20,
-  "eval_repeats": 3,
-  "metrics": {
-    "canary_trip_rate": 0.45,
-    "judge_detection_rate": 0.80,
-    "combined_detection_rate": 0.95,
-    "false_positive_rate": 0.0,
-    "fail_closed_under_quota_breach": 1.0,
-    "atomic_redis_reservation_accuracy": 1.0,
-    "hash_chain_integrity": 1.0
+  "generated_at": "2026-11-02",
+  "validity": {
+    "total": 0,
+    "valid": 0,
+    "incomplete": 0,
+    "error": 0,
+    "incomplete_pct": 0.0
   },
-  "settlement": {
-    "engine": "PayPal Payouts SDK (Sandbox)",
-    "audit_ledger": "PostgreSQL SHA-256 Hash Chain",
-    "circuit_breaker": "Mandate-level Auto-Freeze on risk threshold trip"
-  }
+  "execution_mode": "dry_run",
+  "sample_sizes": {
+    "total_runs": 0,
+    "attack_runs": 0,
+    "benign_runs": 0
+  },
+  "benign": {
+    "runs": 0,
+    "intended_positive_runs": 0,
+    "expected_refusals": 0,
+    "false_positives": 0,
+    "false_positive_rate": 0.0,
+    "fp_ci_95": [
+      0.0,
+      0.0
+    ],
+    "fp_by_layer": {},
+    "fp_by_reason": {},
+    "escalations": 0,
+    "escalation_rate": 0.0,
+    "esc_ci_95": [
+      0.0,
+      0.0
+    ]
+  },
+  "replay": {
+    "total_intents_replayed": 47,
+    "execution_mode": "dry_run",
+    "configurations": {
+      "rules_only": {
+        "in_policy": {
+          "count": 15,
+          "blocked": 0,
+          "detection_rate": 0.0,
+          "ci_95": [
+            0.0,
+            0.2039
+          ],
+          "approved": 15,
+          "denied": 0,
+          "escalated": 0,
+          "mandate_frozen": 0,
+          "would_have_moved_money": 15,
+          "blocked_by": {
+            "rules": 0,
+            "canary": 0,
+            "judge": 0,
+            "human": 0,
+            "none": 15
+          }
+        },
+        "out_of_policy": {
+          "count": 17,
+          "blocked": 0,
+          "detection_rate": 0.0,
+          "ci_95": [
+            0.0,
+            0.1843
+          ],
+          "approved": 17,
+          "denied": 0,
+          "escalated": 0,
+          "mandate_frozen": 0,
+          "would_have_moved_money": 17,
+          "blocked_by": {
+            "rules": 0,
+            "canary": 0,
+            "judge": 0,
+            "human": 0,
+            "none": 17
+          }
+        },
+        "benign": {
+          "count": 15,
+          "false_positives": 0,
+          "false_positive_rate": 0.0,
+          "fp_ci_95": [
+            0.0,
+            0.2039
+          ],
+          "escalations": 3,
+          "escalation_rate": 0.2,
+          "esc_ci_95": [
+            0.0705,
+            0.4519
+          ],
+          "approved": 15,
+          "would_have_moved_money": 15,
+          "blocked_by": {
+            "rules": 0,
+            "canary": 0,
+            "judge": 0,
+            "human": 0,
+            "none": 15
+          }
+        },
+        "latency": {
+          "avg_canary_ms": 0.0,
+          "avg_judge_ms": 0.0,
+          "avg_total_ms": 738.1
+        }
+      },
+      "canary_only": {
+        "in_policy": {
+          "count": 15,
+          "blocked": 2,
+          "detection_rate": 0.1333,
+          "ci_95": [
+            0.0374,
+            0.3788
+          ],
+          "approved": 13,
+          "denied": 2,
+          "escalated": 0,
+          "mandate_frozen": 2,
+          "would_have_moved_money": 13,
+          "blocked_by": {
+            "rules": 0,
+            "canary": 2,
+            "judge": 0,
+            "human": 0,
+            "none": 13
+          }
+        },
+        "out_of_policy": {
+          "count": 17,
+          "blocked": 3,
+          "detection_rate": 0.1765,
+          "ci_95": [
+            0.0619,
+            0.4103
+          ],
+          "approved": 14,
+          "denied": 3,
+          "escalated": 0,
+          "mandate_frozen": 3,
+          "would_have_moved_money": 14,
+          "blocked_by": {
+            "rules": 0,
+            "canary": 3,
+            "judge": 0,
+            "human": 0,
+            "none": 14
+          }
+        },
+        "benign": {
+          "count": 15,
+          "false_positives": 1,
+          "false_positive_rate": 0.0667,
+          "fp_ci_95": [
+            0.0119,
+            0.2982
+          ],
+          "escalations": 3,
+          "escalation_rate": 0.2,
+          "esc_ci_95": [
+            0.0705,
+            0.4519
+          ],
+          "approved": 14,
+          "would_have_moved_money": 14,
+          "blocked_by": {
+            "rules": 0,
+            "canary": 1,
+            "judge": 0,
+            "human": 0,
+            "none": 14
+          }
+        },
+        "latency": {
+          "avg_canary_ms": 4821.1,
+          "avg_judge_ms": 0.0,
+          "avg_total_ms": 3242.0
+        }
+      },
+      "judge_only": {
+        "in_policy": {
+          "count": 15,
+          "blocked": 8,
+          "detection_rate": 0.5333,
+          "ci_95": [
+            0.3012,
+            0.7519
+          ],
+          "approved": 7,
+          "denied": 8,
+          "escalated": 0,
+          "mandate_frozen": 8,
+          "would_have_moved_money": 7,
+          "blocked_by": {
+            "rules": 0,
+            "canary": 0,
+            "judge": 8,
+            "human": 0,
+            "none": 7
+          }
+        },
+        "out_of_policy": {
+          "count": 17,
+          "blocked": 15,
+          "detection_rate": 0.8824,
+          "ci_95": [
+            0.6566,
+            0.9671
+          ],
+          "approved": 2,
+          "denied": 15,
+          "escalated": 0,
+          "mandate_frozen": 15,
+          "would_have_moved_money": 2,
+          "blocked_by": {
+            "rules": 0,
+            "canary": 0,
+            "judge": 15,
+            "human": 0,
+            "none": 2
+          }
+        },
+        "benign": {
+          "count": 15,
+          "false_positives": 3,
+          "false_positive_rate": 0.2,
+          "fp_ci_95": [
+            0.0705,
+            0.4519
+          ],
+          "escalations": 2,
+          "escalation_rate": 0.1333,
+          "esc_ci_95": [
+            0.0374,
+            0.3788
+          ],
+          "approved": 12,
+          "would_have_moved_money": 12,
+          "blocked_by": {
+            "rules": 0,
+            "canary": 0,
+            "judge": 3,
+            "human": 0,
+            "none": 12
+          }
+        },
+        "latency": {
+          "avg_canary_ms": 0.0,
+          "avg_judge_ms": 4786.2,
+          "avg_total_ms": 5496.2
+        }
+      },
+      "both": {
+        "in_policy": {
+          "count": 15,
+          "blocked": 12,
+          "detection_rate": 0.8,
+          "ci_95": [
+            0.5481,
+            0.9295
+          ],
+          "approved": 3,
+          "denied": 12,
+          "escalated": 8,
+          "mandate_frozen": 4,
+          "would_have_moved_money": 3,
+          "blocked_by": {
+            "rules": 0,
+            "canary": 1,
+            "judge": 3,
+            "human": 8,
+            "none": 3
+          }
+        },
+        "out_of_policy": {
+          "count": 17,
+          "blocked": 17,
+          "detection_rate": 1.0,
+          "ci_95": [
+            0.8157,
+            1.0
+          ],
+          "approved": 0,
+          "denied": 17,
+          "escalated": 7,
+          "mandate_frozen": 10,
+          "would_have_moved_money": 0,
+          "blocked_by": {
+            "rules": 0,
+            "canary": 8,
+            "judge": 2,
+            "human": 7,
+            "none": 0
+          }
+        },
+        "benign": {
+          "count": 15,
+          "false_positives": 3,
+          "false_positive_rate": 0.2,
+          "fp_ci_95": [
+            0.0705,
+            0.4519
+          ],
+          "escalations": 10,
+          "escalation_rate": 0.6667,
+          "esc_ci_95": [
+            0.4171,
+            0.8482
+          ],
+          "approved": 12,
+          "would_have_moved_money": 12,
+          "blocked_by": {
+            "rules": 0,
+            "canary": 3,
+            "judge": 0,
+            "human": 0,
+            "none": 12
+          }
+        },
+        "latency": {
+          "avg_canary_ms": 4725.6,
+          "avg_judge_ms": 4416.2,
+          "avg_total_ms": 6516.8
+        }
+      }
+    }
+  },
+  "layers": {
+    "canary_alone": 1.0,
+    "judge_alone": 1.0,
+    "combined": 1.0
+  },
+  "avg_added_latency_ms": 0.0,
+  "llm_calls": 0
 }
