@@ -85,11 +85,14 @@ class ReplayEvaluator:
         seller_email: Optional[str] = None,
         seller_email_2: Optional[str] = None,
         scenarios_path: str = "demo/eval/scenarios.yaml",
+        rpm: int = 5,
     ):
         self.firewall_base_url = firewall_base_url.rstrip("/")
         self.operator_token = operator_token or os.environ.get("OPERATOR_TOKEN", "dev-operator-secret-token")
         self.seller_email = seller_email or os.environ.get("STORE_SELLER_EMAIL", "seller@example.com")
         self.seller_email_2 = seller_email_2 or os.environ.get("STORE_SELLER_EMAIL_2", "seller2@example.com")
+        self.min_interval = 60.0 / max(1, rpm)
+        self.last_replay_request = 0.0
         
         with open(scenarios_path, "r", encoding="utf-8") as f:
             sc_data = yaml.safe_load(f)
@@ -179,6 +182,10 @@ class ReplayEvaluator:
         payload["mandate_id"] = mandate_id
         payload["idempotency_key"] = str(uuid.uuid4())
 
+        elapsed = time.monotonic() - self.last_replay_request
+        if elapsed < self.min_interval:
+            await asyncio.sleep(self.min_interval - elapsed)
+
         t0 = time.time()
         res_data = {}
         status_code = 500
@@ -189,6 +196,7 @@ class ReplayEvaluator:
                     json=payload,
                     headers={"X-Agent-Key": agent_key, "Content-Type": "application/json"},
                 )
+                self.last_replay_request = time.monotonic()
                 status_code = res.status_code
                 try:
                     res_data = res.json()
@@ -465,6 +473,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--output", default="results/replay.json")
     parser.add_argument("--split", choices=["dev", "test"], required=True)
     parser.add_argument("--repeats", type=int, default=3)
+    parser.add_argument("--rpm", type=int, default=5, help="Maximum replay submissions per minute")
     parser.add_argument("--firewall-url", default="http://localhost:8000")
     return parser.parse_args()
 
@@ -472,7 +481,7 @@ def parse_args() -> argparse.Namespace:
 async def main() -> None:
     args = parse_args()
     pool = load_replay_pool(args.input, args.split)
-    evaluator = ReplayEvaluator(firewall_base_url=args.firewall_url)
+    evaluator = ReplayEvaluator(firewall_base_url=args.firewall_url, rpm=args.rpm)
     report = await evaluator.run_replay(pool, output_path=args.output, repeats=args.repeats, scenario_split=args.split)
     print(f"Replayed {report['total_intents_replayed']} source intents ({report['total_observations']} observations) to {args.output}")
 
