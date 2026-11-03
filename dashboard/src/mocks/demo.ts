@@ -9,20 +9,19 @@ import type {
   MandateView,
   Session,
 } from '../lib/demoApi.types'
-
-/*
- * Dependency-free MSW-shaped fixtures. The `method`, `path`, and `response`
- * fields map directly to MSW v2 `http.*` handlers when the demo UI installs a
- * browser or server worker. Keeping fixtures here also lets component tests
- * consume the same contract without requiring a running backend.
- */
-export interface DemoMockHandler<T = unknown> {
-  method: 'GET' | 'POST' | 'PATCH'
-  path: string
-  response: T
-}
+import { http, HttpResponse } from 'msw'
 
 const now = '2026-11-03T11:06:00Z'
+const sessionSecret = 'ds_demo_secret_only_for_mock'
+
+const errorResponse = (status: number, code: string, message: string, fallback = false) =>
+  HttpResponse.json({ code, message, fallback }, { status })
+
+const isAuthorized = ({ request, params }: { request: Request; params: { id?: string } }) =>
+  request.headers.get('X-Demo-Session-Id') === params.id &&
+  request.headers.get('X-Demo-Session-Secret') === sessionSecret
+
+const clone = <T>(value: T): T => JSON.parse(JSON.stringify(value)) as T
 
 const activeMandate: MandateView = {
   mandate_id: 'mnd-demo-a',
@@ -144,7 +143,7 @@ export const demoSession: Session = {
 
 export const createSessionResponse: CreateSessionResponse = {
   session: demoSession,
-  session_secret: 'ds_demo_secret_only_for_mock',
+  session_secret: sessionSecret,
 }
 
 export const demoState: DemoState = {
@@ -180,20 +179,85 @@ export const agentRunEvents: AgentRunEvent[] = [
   { type: 'done', sequence: 4, ts: now, message: 'Run complete', data: {} },
 ]
 
-export const demoHandlers: DemoMockHandler[] = [
-  { method: 'POST', path: '/demo/sessions', response: createSessionResponse },
-  { method: 'GET', path: '/demo/sessions/:id/state', response: demoState },
-  { method: 'PATCH', path: '/demo/sessions/:id/config', response: { config: demoSession.config } },
-  { method: 'POST', path: '/demo/sessions/:id/intents', response: approvedIntent },
-  { method: 'GET', path: '/demo/sessions/:id/escalations', response: { items: demoState.session.escalations, total: 1 } },
-  { method: 'POST', path: '/demo/sessions/:id/escalations/:intent_id/approve', response: { ...approvedIntent, intent_id: escalatedIntent.intent_id } },
-  { method: 'POST', path: '/demo/sessions/:id/escalations/:intent_id/reject', response: { ...judgeDeniedIntent, intent_id: escalatedIntent.intent_id, decision: 'rejected', status: 'rejected' } },
-  { method: 'POST', path: '/demo/sessions/:id/mandates/:agent/freeze', response: { mandate: frozenMandate } },
-  { method: 'POST', path: '/demo/sessions/:id/mandates/:agent/unfreeze', response: { mandate: activeMandate } },
-  { method: 'GET', path: '/demo/attacks', response: { items: attackPresets } },
-  { method: 'POST', path: '/demo/sessions/:id/agent-runs', response: { run_id: 'run-demo-001', status: 'running', dry_run: true } },
-  { method: 'GET', path: '/demo/sessions/:id/agent-runs/:run_id/events', response: agentRunEvents },
-  { method: 'POST', path: '/demo/sessions/:id/intents?quota=exhausted', response: quotaExhausted },
+export const demoHandlers = [
+  http.post('*/demo/sessions', () => HttpResponse.json(clone(createSessionResponse), { status: 201 })),
+  http.get('*/demo/sessions/:id/state', ({ request, params }) => {
+    if (!isAuthorized({ request, params })) return errorResponse(401, 'invalid_demo_auth', 'Valid demo session headers are required.')
+    if (params.id !== demoSession.id) return errorResponse(404, 'demo_session_not_found', 'Demo session not found.')
+    return HttpResponse.json(clone(demoState))
+  }),
+  http.patch('*/demo/sessions/:id/config', async ({ request, params }) => {
+    if (!isAuthorized({ request, params })) return errorResponse(401, 'invalid_demo_auth', 'Valid demo session headers are required.')
+    if (params.id !== demoSession.id) return errorResponse(404, 'demo_session_not_found', 'Demo session not found.')
+    const body = await request.json() as Partial<Session['config']>
+    if (typeof body.canary_enabled === 'boolean') demoSession.config.canary_enabled = body.canary_enabled
+    if (typeof body.judge_enabled === 'boolean') demoSession.config.judge_enabled = body.judge_enabled
+    return HttpResponse.json({ config: clone(demoSession.config) })
+  }),
+  http.post('*/demo/sessions/:id/intents', async ({ request, params }) => {
+    if (!isAuthorized({ request, params })) return errorResponse(401, 'invalid_demo_auth', 'Valid demo session headers are required.')
+    if (params.id !== demoSession.id) return errorResponse(404, 'demo_session_not_found', 'Demo session not found.')
+    const body = await request.json() as { merchant?: string; source_context?: string; target_mandate?: string }
+    if (body.source_context?.toLowerCase().includes('quota')) return errorResponse(429, quotaExhausted.code, quotaExhausted.message, true)
+    if (body.target_mandate === 'other' || body.merchant?.includes('attacker')) return HttpResponse.json(clone(judgeDeniedIntent))
+    if (body.source_context?.toLowerCase().includes('escalate')) return HttpResponse.json(clone(escalatedIntent))
+    return HttpResponse.json(clone(approvedIntent))
+  }),
+  http.get('*/demo/sessions/:id/escalations', ({ request, params }) => {
+    if (!isAuthorized({ request, params })) return errorResponse(401, 'invalid_demo_auth', 'Valid demo session headers are required.')
+    if (params.id !== demoSession.id) return errorResponse(404, 'demo_session_not_found', 'Demo session not found.')
+    return HttpResponse.json({ items: clone(demoState.session.escalations), total: demoState.session.escalations.length })
+  }),
+  http.post('*/demo/sessions/:id/escalations/:intent_id/approve', ({ request, params }) => {
+    if (!isAuthorized({ request, params })) return errorResponse(401, 'invalid_demo_auth', 'Valid demo session headers are required.')
+    if (params.id !== demoSession.id) return errorResponse(404, 'demo_session_not_found', 'Demo session not found.')
+    if (params.intent_id !== escalatedIntent.intent_id) return errorResponse(404, 'demo_intent_not_found', 'Demo intent not found.')
+    return HttpResponse.json({ ...clone(approvedIntent), intent_id: params.intent_id })
+  }),
+  http.post('*/demo/sessions/:id/escalations/:intent_id/reject', async ({ request, params }) => {
+    if (!isAuthorized({ request, params })) return errorResponse(401, 'invalid_demo_auth', 'Valid demo session headers are required.')
+    if (params.id !== demoSession.id) return errorResponse(404, 'demo_session_not_found', 'Demo session not found.')
+    if (params.intent_id !== escalatedIntent.intent_id) return errorResponse(404, 'demo_intent_not_found', 'Demo intent not found.')
+    const body = await request.json().catch(() => ({})) as { reason?: string }
+    return HttpResponse.json({
+      ...clone(judgeDeniedIntent),
+      intent_id: params.intent_id,
+      decision: 'rejected',
+      status: 'rejected',
+      reasons: [{ code: 'OPERATOR_REJECTED', message: body.reason || 'Operator rejected transaction.' }],
+    })
+  }),
+  http.post('*/demo/sessions/:id/mandates/:agent/freeze', async ({ request, params }) => {
+    if (!isAuthorized({ request, params })) return errorResponse(401, 'invalid_demo_auth', 'Valid demo session headers are required.')
+    if (params.id !== demoSession.id || params.agent !== 'B') return errorResponse(404, 'demo_mandate_not_found', 'Demo mandate not found.')
+    const body = await request.json().catch(() => ({})) as { reason?: string }
+    return HttpResponse.json({ mandate: { ...clone(frozenMandate), freeze_reason: body.reason || frozenMandate.freeze_reason } })
+  }),
+  http.post('*/demo/sessions/:id/mandates/:agent/unfreeze', ({ request, params }) => {
+    if (!isAuthorized({ request, params })) return errorResponse(401, 'invalid_demo_auth', 'Valid demo session headers are required.')
+    if (params.id !== demoSession.id || params.agent !== 'B') return errorResponse(404, 'demo_mandate_not_found', 'Demo mandate not found.')
+    return HttpResponse.json({ mandate: clone(activeMandate) })
+  }),
+  http.get('*/demo/attacks', () => HttpResponse.json({ items: clone(attackPresets) })),
+  http.post('*/demo/sessions/:id/agent-runs', ({ request, params }) => {
+    if (!isAuthorized({ request, params })) return errorResponse(401, 'invalid_demo_auth', 'Valid demo session headers are required.')
+    if (params.id !== demoSession.id) return errorResponse(404, 'demo_session_not_found', 'Demo session not found.')
+    return HttpResponse.json({ run_id: 'run-demo-001', status: 'running', dry_run: true }, { status: 202 })
+  }),
+  http.get('*/demo/sessions/:id/agent-runs/:run_id/events', ({ request, params }) => {
+    if (!isAuthorized({ request, params })) return errorResponse(401, 'invalid_demo_auth', 'Valid demo session headers are required.')
+    if (params.id !== demoSession.id || params.run_id !== 'run-demo-001') return errorResponse(404, 'demo_run_not_found', 'Demo run not found.')
+    const stream = new ReadableStream({
+      start(controller) {
+        const encoder = new TextEncoder()
+        for (const event of agentRunEvents) {
+          controller.enqueue(encoder.encode(`event: ${event.type}\ndata: ${JSON.stringify(event)}\n\n`))
+        }
+        controller.close()
+      },
+    })
+    return new HttpResponse(stream, { headers: { 'Content-Type': 'text/event-stream' } })
+  }),
 ]
 
 export const sampleEscalation: Escalation = demoState.session.escalations[0]
