@@ -40,10 +40,14 @@ const activeMandate: MandateView = {
   status: 'active',
 }
 
-export const frozenMandate: MandateView = {
+const activeMandateB: MandateView = {
   ...activeMandate,
   mandate_id: 'mnd-demo-b',
   agent_id: 'agent-b',
+}
+
+export const frozenMandate: MandateView = {
+  ...activeMandateB,
   status: 'frozen',
   freeze_reason: 'Canary trip: untrusted page attempted tool redirection.',
   spent_cents: 0,
@@ -53,9 +57,9 @@ export const frozenMandate: MandateView = {
 
 const operatorView = (
   risk: IntentResult['risk'],
-  balances: IntentResult['operator_view']['balances'],
+  balances: IntentResult['operatorView']['balances'],
   event: string,
-): IntentResult['operator_view'] => ({
+): IntentResult['operatorView'] => ({
   risk: { canary: risk.canary, judge: risk.judge },
   denial_cause: risk.denial_cause ?? null,
   escalation_cause: risk.escalation_cause ?? null,
@@ -73,7 +77,7 @@ export const approvedIntent: IntentResult = {
     judge: { safe: true, confidence: 0.99, injection_suspected: false, mismatch_reasons: [], verdict: 'allow' },
   },
   dry_run: true,
-  operator_view: operatorView(
+  operatorView: operatorView(
     { canary: { tripped: false }, judge: { safe: true, mismatch_reasons: [], verdict: 'allow' } },
     { spent_cents: 5000, reserved_cents: 0, remaining_cents: 95000 },
     'intent.executed',
@@ -98,8 +102,22 @@ export const judgeDeniedIntent: IntentResult = {
     denial_cause: 'judge',
   },
   dry_run: true,
-  operator_view: operatorView(
+  operatorView: operatorView(
     { canary: { tripped: false }, judge: { safe: false, mismatch_reasons: ['Recipient differs from the user task'], verdict: 'deny' }, denial_cause: 'judge' },
+    { spent_cents: 2500, reserved_cents: 0, remaining_cents: 97500 },
+    'intent.denied',
+  ),
+}
+
+export const mandateNotFoundIntent: IntentResult = {
+  intent_id: 'int-denied-mandate-001',
+  decision: 'denied',
+  status: 'denied',
+  reasons: [{ code: 'MANDATE_NOT_FOUND', message: 'Mandate not found' }],
+  risk: {},
+  dry_run: true,
+  operatorView: operatorView(
+    {},
     { spent_cents: 2500, reserved_cents: 0, remaining_cents: 97500 },
     'intent.denied',
   ),
@@ -116,7 +134,7 @@ export const escalatedIntent: IntentResult = {
     escalation_cause: 'judge_low_confidence',
   },
   dry_run: true,
-  operator_view: operatorView(
+  operatorView: operatorView(
     { canary: { tripped: false }, judge: { safe: true, mismatch_reasons: ['Merchant is not in the task context'], verdict: 'escalate' }, escalation_cause: 'judge_low_confidence' },
     { spent_cents: 2500, reserved_cents: 12000, remaining_cents: 85500 },
     'intent.escalated',
@@ -197,9 +215,13 @@ export const demoHandlers = [
   http.post('*/demo/sessions/:id/intents', async ({ request, params }) => {
     if (!isAuthorized({ request, params })) return errorResponse(401, 'invalid_demo_auth', 'Valid demo session headers are required.')
     if (params.id !== demoSession.id) return errorResponse(404, 'demo_session_not_found', 'Demo session not found.')
-    const body = await request.json() as { merchant?: string; source_context?: string; target_mandate?: string }
+    const body = await request.json() as { agent_id?: string; mandate_id?: string; merchant?: string; source_context?: string }
     if (body.source_context?.toLowerCase().includes('quota')) return errorResponse(429, quotaExhausted.code, quotaExhausted.message, true)
-    if (body.target_mandate === 'other' || body.merchant?.includes('attacker')) return HttpResponse.json(clone(judgeDeniedIntent))
+    const mandateBelongsToAgent =
+      (body.agent_id === 'agent-a' && body.mandate_id === activeMandate.mandate_id) ||
+      (body.agent_id === 'agent-b' && body.mandate_id === activeMandateB.mandate_id)
+    if (body.mandate_id && !mandateBelongsToAgent) return HttpResponse.json(clone(mandateNotFoundIntent))
+    if (body.merchant?.includes('attacker')) return HttpResponse.json(clone(judgeDeniedIntent))
     if (body.source_context?.toLowerCase().includes('escalate')) return HttpResponse.json(clone(escalatedIntent))
     return HttpResponse.json(clone(approvedIntent))
   }),
@@ -219,24 +241,30 @@ export const demoHandlers = [
     if (params.id !== demoSession.id) return errorResponse(404, 'demo_session_not_found', 'Demo session not found.')
     if (params.intent_id !== escalatedIntent.intent_id) return errorResponse(404, 'demo_intent_not_found', 'Demo intent not found.')
     const body = await request.json().catch(() => ({})) as { reason?: string }
+    const reason = body.reason || 'Operator rejected transaction.'
     return HttpResponse.json({
-      ...clone(judgeDeniedIntent),
+      ...clone(escalatedIntent),
       intent_id: params.intent_id,
       decision: 'rejected',
       status: 'rejected',
-      reasons: [{ code: 'OPERATOR_REJECTED', message: body.reason || 'Operator rejected transaction.' }],
+      reasons: [{ code: 'OPERATOR_REJECTED', message: reason }],
+      operatorView: operatorView(
+        escalatedIntent.risk,
+        escalatedIntent.operatorView.balances,
+        'intent.rejected',
+      ),
     })
   }),
   http.post('*/demo/sessions/:id/mandates/:agent/freeze', async ({ request, params }) => {
     if (!isAuthorized({ request, params })) return errorResponse(401, 'invalid_demo_auth', 'Valid demo session headers are required.')
-    if (params.id !== demoSession.id || params.agent !== 'B') return errorResponse(404, 'demo_mandate_not_found', 'Demo mandate not found.')
+    if (params.id !== demoSession.id || params.agent !== 'agent-b') return errorResponse(404, 'demo_mandate_not_found', 'Demo mandate not found.')
     const body = await request.json().catch(() => ({})) as { reason?: string }
     return HttpResponse.json({ mandate: { ...clone(frozenMandate), freeze_reason: body.reason || frozenMandate.freeze_reason } })
   }),
   http.post('*/demo/sessions/:id/mandates/:agent/unfreeze', ({ request, params }) => {
     if (!isAuthorized({ request, params })) return errorResponse(401, 'invalid_demo_auth', 'Valid demo session headers are required.')
-    if (params.id !== demoSession.id || params.agent !== 'B') return errorResponse(404, 'demo_mandate_not_found', 'Demo mandate not found.')
-    return HttpResponse.json({ mandate: clone(activeMandate) })
+    if (params.id !== demoSession.id || params.agent !== 'agent-b') return errorResponse(404, 'demo_mandate_not_found', 'Demo mandate not found.')
+    return HttpResponse.json({ mandate: clone(activeMandateB) })
   }),
   http.get('*/demo/attacks', () => HttpResponse.json({ items: clone(attackPresets) })),
   http.post('*/demo/sessions/:id/agent-runs', ({ request, params }) => {

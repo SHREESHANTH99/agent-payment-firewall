@@ -8,7 +8,7 @@ pipeline layer, and review or reject escalations without access to
 
 ## Contract-wide rules
 
-- Every `/demo` request after session creation authenticates with both headers:
+- Every session-scoped `/demo` request after session creation authenticates with both headers:
   `X-Demo-Session-Id: <session id>` and
   `X-Demo-Session-Secret: <session secret>`.
 - The session secret is returned only by `POST /demo/sessions`. It must not be
@@ -75,7 +75,7 @@ An `AgentInfo` includes `id` (64 characters maximum), `name` (100 maximum),
 
 An `IntentResult` follows the real pipeline response and includes
 `intent_id`, `decision` (`approved`, `denied`, or `escalated`), `status`,
-`reasons`, `risk`, and `dry_run: true`. Its demo-only `operator_view` adds
+`reasons`, `risk`, and `dry_run: true`. Its demo-only `operatorView` adds
 `risk.canary`, `risk.judge` (including `mismatch_reasons`), `denial_cause`,
 `escalation_cause`, current `balances`, and `new_audit_entries`.
 
@@ -255,7 +255,7 @@ Success `200` (approved):
   "reasons": [],
   "risk": {"canary": {"tripped": false}, "judge": {"safe": true, "verdict": "allow"}},
   "dry_run": true,
-  "operator_view": {
+  "operatorView": {
     "risk": {"canary": {"tripped": false}, "judge": {"safe": true, "mismatch_reasons": []}},
     "denial_cause": null,
     "escalation_cause": null,

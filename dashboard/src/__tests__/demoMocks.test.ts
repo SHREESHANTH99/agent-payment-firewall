@@ -32,6 +32,39 @@ describe('Judge Playground MSW handlers', () => {
     expect(body).toMatchObject({ code: 'demo_quota', fallback: true })
   })
 
+  it('does not reveal risk details for a cross-agent mandate probe', async () => {
+    const response = await fetch('http://localhost/demo/sessions/demo_01JZ7Q7K4E/intents', {
+      method: 'POST',
+      headers: sessionHeaders,
+      body: JSON.stringify({ agent_id: 'agent-a', mandate_id: 'mnd-demo-b' }),
+    })
+    const body = await response.json()
+
+    expect(body.decision).toBe('denied')
+    expect(body.reasons).toEqual([{ code: 'MANDATE_NOT_FOUND', message: 'Mandate not found' }])
+    expect(body.risk).toEqual({})
+    expect(body.operatorView.risk).toEqual({})
+  })
+
+  it('uses the same agent identifier for mandate freeze and unfreeze', async () => {
+    const freezeResponse = await fetch('http://localhost/demo/sessions/demo_01JZ7Q7K4E/mandates/agent-b/freeze', {
+      method: 'POST',
+      headers: sessionHeaders,
+      body: JSON.stringify({ reason: 'test freeze' }),
+    })
+    const frozen = await freezeResponse.json()
+    const unfreezeResponse = await fetch('http://localhost/demo/sessions/demo_01JZ7Q7K4E/mandates/agent-b/unfreeze', {
+      method: 'POST',
+      headers: sessionHeaders,
+    })
+    const unfrozen = await unfreezeResponse.json()
+
+    expect(frozen.mandate.agent_id).toBe('agent-b')
+    expect(frozen.mandate.status).toBe('frozen')
+    expect(unfrozen.mandate.agent_id).toBe('agent-b')
+    expect(unfrozen.mandate.status).toBe('active')
+  })
+
   it('streams agent events as SSE', async () => {
     const response = await fetch('http://localhost/demo/sessions/demo_01JZ7Q7K4E/agent-runs/run-demo-001/events', {
       headers: sessionHeaders,

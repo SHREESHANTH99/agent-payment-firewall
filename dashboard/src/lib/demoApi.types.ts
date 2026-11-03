@@ -150,7 +150,7 @@ export interface IntentResult {
     [key: string]: unknown
   }
   dry_run: true
-  operator_view: OperatorView
+  operatorView: OperatorView
 }
 
 export interface Escalation {
