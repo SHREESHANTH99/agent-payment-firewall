@@ -36,7 +36,7 @@ describe('Judge Playground MSW handlers', () => {
     const response = await fetch('http://localhost/demo/sessions/demo_01JZ7Q7K4E/intents', {
       method: 'POST',
       headers: sessionHeaders,
-      body: JSON.stringify({ agent_id: 'agent-a', mandate_id: 'mnd-demo-b' }),
+      body: JSON.stringify({ agent_id: 'A', mandate_id: 'mnd-demo-b' }),
     })
     const body = await response.json()
 
@@ -47,21 +47,21 @@ describe('Judge Playground MSW handlers', () => {
   })
 
   it('uses the same agent identifier for mandate freeze and unfreeze', async () => {
-    const freezeResponse = await fetch('http://localhost/demo/sessions/demo_01JZ7Q7K4E/mandates/agent-b/freeze', {
+    const freezeResponse = await fetch('http://localhost/demo/sessions/demo_01JZ7Q7K4E/mandates/B/freeze', {
       method: 'POST',
       headers: sessionHeaders,
       body: JSON.stringify({ reason: 'test freeze' }),
     })
     const frozen = await freezeResponse.json()
-    const unfreezeResponse = await fetch('http://localhost/demo/sessions/demo_01JZ7Q7K4E/mandates/agent-b/unfreeze', {
+    const unfreezeResponse = await fetch('http://localhost/demo/sessions/demo_01JZ7Q7K4E/mandates/B/unfreeze', {
       method: 'POST',
       headers: sessionHeaders,
     })
     const unfrozen = await unfreezeResponse.json()
 
-    expect(frozen.mandate.agent_id).toBe('agent-b')
+    expect(frozen.mandate.agent_id).toBe('B')
     expect(frozen.mandate.status).toBe('frozen')
-    expect(unfrozen.mandate.agent_id).toBe('agent-b')
+    expect(unfrozen.mandate.agent_id).toBe('B')
     expect(unfrozen.mandate.status).toBe('active')
   })
 

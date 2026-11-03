@@ -1,4 +1,5 @@
 export type DemoDecision = 'approved' | 'denied' | 'escalated' | 'rejected'
+export type DemoAgentId = 'A' | 'B'
 export type DemoIntentStatus =
   | 'pending'
   | 'denied'
@@ -52,7 +53,7 @@ export interface CreateSessionResponse {
 
 export interface MandateView {
   mandate_id: string
-  agent_id: string
+  agent_id: DemoAgentId
   budget_total_cents: number
   per_transaction_cap_cents: number
   allowlist_merchants: string[]
@@ -69,17 +70,17 @@ export interface MandateView {
 }
 
 export interface AgentInfo {
-  id: string
+  id: DemoAgentId
   name: string
   description: string
   mandate: MandateView
 }
 
 export interface IntentRequest {
-  agent_id: string
+  agent_id: DemoAgentId
   idempotency_key: string
   mandate_id: string
-  amount: string | number
+  amount: string
   currency: string
   merchant: string
   description?: string
@@ -168,10 +169,16 @@ export interface Escalation {
 
 export interface AttackPreset {
   id: string
+  category: string
   name: string
+  title: string
   description: string
-  default_agent_id: string
-  default_intent: Partial<IntentRequest>
+  explanation: string
+  default_agent_id: DemoAgentId
+  default_intent: Partial<IntentRequest> & {
+    user_task: string
+    source_context: string
+  }
 }
 
 export interface AgentRunEvent {
