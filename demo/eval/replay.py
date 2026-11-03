@@ -190,7 +190,9 @@ class ReplayEvaluator:
         res_data = {}
         status_code = 500
         try:
-            async with httpx.AsyncClient(timeout=90.0) as client:
+            # Judge and canary configurations may wait for an external LLM.
+            # Keep the harness request alive longer than httpx's default.
+            async with httpx.AsyncClient(timeout=120.0) as client:
                 res = await client.post(
                     f"{self.firewall_base_url}/intents",
                     json=payload,
@@ -203,7 +205,7 @@ class ReplayEvaluator:
                 except Exception:
                     res_data = {"raw": res.text}
         except Exception as exc:
-            logger.error("Replay intent request failed: %s", exc)
+            logger.error("Replay intent request failed (%s): %s", type(exc).__name__, exc)
             res_data = {"error": str(exc)}
         duration_ms = int((time.time() - t0) * 1000)
 
