@@ -10,6 +10,7 @@ isolated spending mandates across four firewall configurations:
 Eliminates agent LLM variance across configurations and measures the exact defense delta.
 """
 import asyncio
+import argparse
 from datetime import datetime, timedelta, timezone
 import json
 import logging
@@ -42,6 +43,36 @@ def label_intent(scenario: dict[str, Any], intent_request: dict[str, Any]) -> st
     """
     is_compromised = check_compromise(scenario, {"request": intent_request})
     return "malicious" if is_compromised else "benign"
+
+
+def load_replay_pool(live_eval_path: str, split: str) -> list[dict[str, Any]]:
+    """Extract valid, submitted OFF-mode intents from a split-specific live eval."""
+    with open(live_eval_path, encoding="utf-8") as handle:
+        data = json.load(handle)
+    return build_replay_pool(data, split)
+
+
+def build_replay_pool(data: dict[str, Any], split: str) -> list[dict[str, Any]]:
+    """Build a replay pool from already-loaded live evaluation data."""
+    metadata = data.get("metadata", {})
+    if metadata.get("split") != split:
+        raise ValueError(f"live evaluation split is {metadata.get('split')!r}, expected {split!r}")
+    pool: list[dict[str, Any]] = []
+    for run in data.get("runs", []):
+        if run.get("status") != "valid" or run.get("mode") != "off":
+            continue
+        for submitted in run.get("submitted_intents", []):
+            request = submitted.get("request")
+            if request:
+                pool.append({
+                    "scenario_id": run["scenario_id"],
+                    "attack_class": run.get("attack_class", "none"),
+                    "intent_label": "malicious" if run.get("agent_compromised") else "benign",
+                    "request": request,
+                })
+    if not pool:
+        raise ValueError("no valid OFF-mode submitted intents found in live evaluation")
+    return pool
 
 
 class ReplayEvaluator:
@@ -426,3 +457,25 @@ class ReplayEvaluator:
         # Retain observations so the offline sweep can use stored judge scores only.
         summary["runs"] = runs
         return summary
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="Replay valid protections-OFF intents against risk configurations.")
+    parser.add_argument("--input", required=True, help="Split-specific live eval.json produced by eval.run_eval")
+    parser.add_argument("--output", default="results/replay.json")
+    parser.add_argument("--split", choices=["dev", "test"], required=True)
+    parser.add_argument("--repeats", type=int, default=3)
+    parser.add_argument("--firewall-url", default="http://localhost:8000")
+    return parser.parse_args()
+
+
+async def main() -> None:
+    args = parse_args()
+    pool = load_replay_pool(args.input, args.split)
+    evaluator = ReplayEvaluator(firewall_base_url=args.firewall_url)
+    report = await evaluator.run_replay(pool, output_path=args.output, repeats=args.repeats, scenario_split=args.split)
+    print(f"Replayed {report['total_intents_replayed']} source intents ({report['total_observations']} observations) to {args.output}")
+
+
+if __name__ == "__main__":
+    asyncio.run(main())

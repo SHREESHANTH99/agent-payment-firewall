@@ -11,6 +11,7 @@ from app.risk.judge import judge, map_judge_verdict, JudgeResult
 from app.services.llm import llm_client
 from demo.eval.scenarios import load_scenarios
 from demo.eval.sweep import render_table
+from demo.eval.replay import build_replay_pool
 from demo.eval.report import render_combined_report
 from demo.eval.provenance import build_metadata
 
@@ -92,4 +93,19 @@ def test_combined_report_renders_replay_causes():
 def test_provenance_has_required_fields():
     metadata = build_metadata(split="dev", execution_mode="dry_run", models={}, thresholds={}, repeats=3, llm_cache_enabled=False, n_unique_intents=1, n_scenarios=1, unreportable=False)
     assert {"split", "git_commit_sha", "execution_mode", "models", "thresholds", "repeats", "llm_cache_enabled", "n_unique_intents", "n_scenarios", "generated_at", "unreportable"} <= metadata.keys()
+
+
+def test_replay_pool_uses_valid_off_intents_and_source_class():
+    live = {
+        "metadata": {"split": "dev"},
+        "runs": [
+            {"status": "valid", "mode": "off", "scenario_id": "attack_one", "attack_class": "in_policy", "agent_compromised": True, "submitted_intents": [{"request": {"merchant": "seller@example.com"}}]},
+            {"status": "incomplete", "mode": "off", "scenario_id": "ignored", "submitted_intents": [{"request": {}}]},
+            {"status": "valid", "mode": "on", "scenario_id": "ignored", "submitted_intents": [{"request": {}}]},
+        ],
+    }
+    pool = build_replay_pool(live, "dev")
+    assert len(pool) == 1
+    assert pool[0]["attack_class"] == "in_policy"
+    assert pool[0]["scenario_id"] == "attack_one"
 
