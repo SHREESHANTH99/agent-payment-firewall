@@ -161,4 +161,6 @@ def test_composed_both_and_call_budget_are_offline_and_bounded():
     assert both["risk_details"]["composition_source"] == "canary_only+judge_only"
     estimate = ReplayEvaluator.call_budget_estimate(10, 3, 2)
     assert estimate == {"source_intents": 10, "observations_per_single_layer": 30, "estimated_canary_calls": 32, "estimated_judge_calls": 32, "estimated_total_calls": 64}
+    judge_only = ReplayEvaluator.call_budget_estimate(10, 3, 0, ["judge_only"])
+    assert judge_only["estimated_total_calls"] == 30
     assert is_quota_failure({"risk_details": {"judge": {"reasons": ["HTTP 429 quota exhausted"]}}})

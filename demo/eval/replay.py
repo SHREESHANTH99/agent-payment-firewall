@@ -322,15 +322,26 @@ class ReplayEvaluator:
             handle.write(json.dumps({"config": config, "run": run}) + "\n")
 
     @staticmethod
-    def call_budget_estimate(intent_count: int, repeats: int, validate_composition: int) -> dict[str, int]:
+    def call_budget_estimate(intent_count: int, repeats: int, validate_composition: int, configurations: Optional[list[str]] = None) -> dict[str, int]:
         """Conservative estimate: one canary and/or judge call per replayed intent."""
         observations = intent_count * repeats
+        configurations = configurations or ["rules_only", "canary_only", "judge_only", "both"]
+        canary_calls = observations if "canary_only" in configurations else 0
+        judge_calls = observations if "judge_only" in configurations else 0
+        if "both" in configurations:
+            # Both is composed when both single-layer inputs are selected.
+            if "canary_only" not in configurations:
+                canary_calls += observations
+            if "judge_only" not in configurations:
+                judge_calls += observations
+        canary_calls += validate_composition if "both" in configurations else 0
+        judge_calls += validate_composition if "both" in configurations else 0
         return {
             "source_intents": intent_count,
             "observations_per_single_layer": observations,
-            "estimated_canary_calls": observations + validate_composition,
-            "estimated_judge_calls": observations + validate_composition,
-            "estimated_total_calls": observations * 2 + validate_composition * 2,
+            "estimated_canary_calls": canary_calls,
+            "estimated_judge_calls": judge_calls,
+            "estimated_total_calls": canary_calls + judge_calls,
         }
 
     async def run_replay(
@@ -341,6 +352,7 @@ class ReplayEvaluator:
         scenario_split: str = "",
         resume: bool = False,
         validate_composition: int = 0,
+        configurations: Optional[list[str]] = None,
     ) -> dict[str, Any]:
         """
         Evaluate full intent pool against 4 configurations:
@@ -349,11 +361,16 @@ class ReplayEvaluator:
         - judge_only: canary=False, judge=True
         - both: canary=True, judge=True
         """
-        configs = [
+        all_configs = [
             ("rules_only", False, False),
             ("canary_only", True, False),
             ("judge_only", False, True),
         ]
+        selected = configurations or ["rules_only", "canary_only", "judge_only", "both"]
+        unknown = set(selected) - {"rules_only", "canary_only", "judge_only", "both"}
+        if unknown:
+            raise ValueError(f"unknown replay configurations: {sorted(unknown)}")
+        configs = [config for config in all_configs if config[0] in selected]
 
         if repeats < 1:
             raise ValueError("repeats must be at least 1")
@@ -366,7 +383,7 @@ class ReplayEvaluator:
         checkpoint = self._load_checkpoint(checkpoint_path) if resume else {}
         results_by_config: dict[str, dict[str, Any]] = {}
         consecutive_quota_errors = 0
-        budget = self.call_budget_estimate(len(intents_pool), repeats, validate_composition)
+        budget = self.call_budget_estimate(len(intents_pool), repeats, validate_composition, selected)
         logger.info("Replay call budget estimate: %s", budget)
 
         for cfg_name, canary_en, judge_en in configs:
@@ -413,13 +430,29 @@ class ReplayEvaluator:
 
         # Both is composed from identical single-layer observations, avoiding
         # duplicate model calls.  Optional validation is explicitly bounded.
-        canary_runs = results_by_config["canary_only"]["runs"]
-        judge_runs = results_by_config["judge_only"]["runs"]
-        judge_by_key = {replay_observation_key("judge_only", run)[1:]: run for run in judge_runs}
-        composed_runs = [compose_both_observation(run, judge_by_key[replay_observation_key("canary_only", run)[1:]]) for run in canary_runs if replay_observation_key("canary_only", run)[1:] in judge_by_key]
-        results_by_config["both"] = self._summarize_config(composed_runs)
-        results_by_config["both"]["composition"] = {"source": "canary_only+judge_only", "validated": 0, "requested_validation": validate_composition}
-        if validate_composition:
+        if "both" in selected:
+            if "canary_only" in results_by_config and "judge_only" in results_by_config:
+                canary_runs = results_by_config["canary_only"]["runs"]
+                judge_runs = results_by_config["judge_only"]["runs"]
+                judge_by_key = {replay_observation_key("judge_only", run)[1:]: run for run in judge_runs}
+                composed_runs = [compose_both_observation(run, judge_by_key[replay_observation_key("canary_only", run)[1:]]) for run in canary_runs if replay_observation_key("canary_only", run)[1:] in judge_by_key]
+                source_label = "canary_only+judge_only"
+            else:
+                # Explicit both-only runs are allowed when a user requests a
+                # direct validation; they are not labelled as composed.
+                await self.set_risk_config(True, True)
+                composed_runs = []
+                for item in intents_pool:
+                    scenario = self.scenarios.get(item["scenario_id"], {})
+                    for repeat_index in range(repeats):
+                        result = await self.replay_single_intent(item["request"], scenario.get("escalation_policy", "auto_reject"))
+                        composed_runs.append({"scenario_id": item["scenario_id"], "attack_class": item.get("attack_class", "none"), "intent_label": item.get("intent_label"), "intent_request": item["request"], "repeat_index": repeat_index, **result})
+                source_label = "direct_both"
+            results_by_config["both"] = self._summarize_config(composed_runs)
+            results_by_config["both"]["composition"] = {"source": source_label, "validated": 0, "requested_validation": validate_composition}
+        else:
+            composed_runs = []
+        if validate_composition and "both" in selected:
             await self.set_risk_config(True, True)
             validation = []
             for source in composed_runs[:validate_composition]:
@@ -610,6 +643,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--firewall-url", default="http://localhost:8000")
     parser.add_argument("--resume", action="store_true", help="Resume completed observations from OUTPUT.progress.jsonl")
     parser.add_argument("--validate-composition", type=int, default=0, help="Run at most N live both-layer checks against composed decisions")
+    parser.add_argument("--configs", nargs="+", choices=["rules_only", "canary_only", "judge_only", "both"], help="Configurations to run; use judge_only for a quota-saving DEV diagnostic")
     return parser.parse_args()
 
 
@@ -618,7 +652,7 @@ async def main() -> None:
     pool = load_replay_pool(args.input, args.split)
     evaluator = ReplayEvaluator(firewall_base_url=args.firewall_url, rpm=args.rpm)
     try:
-        report = await evaluator.run_replay(pool, output_path=args.output, repeats=args.repeats, scenario_split=args.split, resume=args.resume, validate_composition=args.validate_composition)
+        report = await evaluator.run_replay(pool, output_path=args.output, repeats=args.repeats, scenario_split=args.split, resume=args.resume, validate_composition=args.validate_composition, configurations=args.configs)
     except ReplayQuotaExhausted as exc:
         logger.error("%s", exc)
         raise SystemExit(QUOTA_EXIT_CODE) from exc
