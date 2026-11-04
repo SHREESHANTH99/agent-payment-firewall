@@ -76,6 +76,7 @@ app.include_router(intents_router)
 app.include_router(audit_router)
 app.include_router(admin_router)
 app.include_router(websocket_router)
+__import__("app.api.demo", fromlist=["register_demo"]).register_demo(app)
 
 
 @app.get("/health")
