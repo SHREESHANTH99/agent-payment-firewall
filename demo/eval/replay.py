@@ -27,7 +27,14 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-from .metrics import attribute_blocking_layer, calculate_wilson_interval, check_compromise, cluster_bootstrap_interval, normalized_intent_key
+from .metrics import (
+    attribute_blocking_layer,
+    check_compromise,
+    exclusion_counts,
+    is_valid_observation,
+    normalized_intent_key,
+    valid_observation_summary,
+)
 from .provenance import build_metadata
 
 logger = logging.getLogger("eval.replay")
@@ -338,7 +345,8 @@ class ReplayEvaluator:
     def _summarize_config(self, runs: list[dict[str, Any]]) -> dict[str, Any]:
         """Aggregate detection, FP, stopping layers, and intervals for a config."""
         verdicts: dict[tuple[str, str, int, str], list[str]] = {}
-        for run in runs:
+        valid_runs = [run for run in runs if is_valid_observation(run)]
+        for run in valid_runs:
             key = normalized_intent_key(run.get("scenario_id", ""), run.get("intent_request") or {})
             verdicts.setdefault(key, []).append(str(run.get("decision")))
         consistent = sum(1 for values in verdicts.values() if len(set(values)) == 1)
@@ -361,7 +369,12 @@ class ReplayEvaluator:
         for c_name, c_runs in by_class.items():
             n = len(c_runs)
             if n == 0:
-                summary[c_name] = {"count": 0}
+                summary[c_name] = {
+                    "count": 0, "n_total": 0, "n_valid": 0, "n_excluded": 0,
+                    "exclusion_reasons": {}, "numerator": 0, "denominator": 0,
+                    "detection_rate": 0.0, "ci_95": [0.0, 0.0],
+                    "cluster_bootstrap_ci_95": [0.0, 0.0],
+                }
                 continue
 
             # Layer breakdown; an escalation is retained separately from the harness resolution.
@@ -395,17 +408,15 @@ class ReplayEvaluator:
             money_moved = sum(1 for r in c_runs if r.get("would_have_executed"))
             frozen = sum(1 for r in c_runs if r.get("mandate_frozen"))
 
-            # Metrics
+            # Rates, intervals, and consistency use the same valid-observation
+            # population. Operational fail-closed outcomes remain visible above.
             if c_name in ["in_policy", "out_of_policy"]:
-                # Detection rate = blocked / total
-                # Fail-mode escalations are operational outcomes, never detections.
-                blocked = sum(1 for r in c_runs if r.get("final_decision") != "approved" and (r.get("risk_details") or {}).get("escalation_cause") != "llm_error_fail_mode" and (r.get("risk_details") or {}).get("denial_cause") != "llm_error_fail_mode")
-                rate, low, high = calculate_wilson_interval(blocked, n)
+                metric = valid_observation_summary(c_runs)
+                blocked = metric["numerator"]
                 summary[c_name] = {
                     "count": n,
                     "blocked": blocked,
-                    "detection_rate": rate,
-                    "ci_95": [low, high],
+                    **metric,
                     "approved": approved,
                     "denied": denied,
                     "auto_denied": auto_denied,
@@ -415,24 +426,29 @@ class ReplayEvaluator:
                     "stopping_causes": stopping_causes,
                     "llm_errors": llm_errors,
                     "llm_fallbacks": fallbacks,
-                    "cluster_bootstrap_ci_95": list(cluster_bootstrap_interval(c_runs, "escalated")),
                     "mandate_frozen": frozen,
                     "would_have_moved_money": money_moved,
                     "blocked_by": layers,
                 }
             else:
-                # Benign: False positive rate = denied / total
-                fp_count = denied
-                fp_rate, fp_low, fp_high = calculate_wilson_interval(fp_count, n)
-                esc_rate, esc_low, esc_high = calculate_wilson_interval(escalated, n)
+                # Benign false-positive and escalation rates use valid observations only.
+                fp_metric = valid_observation_summary(c_runs, lambda r: r.get("decision") == "denied")
+                escalation_metric = valid_observation_summary(c_runs, lambda r: r.get("decision") == "escalated")
+                fp_count = fp_metric["numerator"]
                 summary[c_name] = {
                     "count": n,
+                    "n_total": fp_metric["n_total"],
+                    "n_valid": fp_metric["n_valid"],
+                    "n_excluded": fp_metric["n_excluded"],
+                    "exclusion_reasons": fp_metric["exclusion_reasons"],
                     "false_positives": fp_count,
-                    "false_positive_rate": fp_rate,
-                    "fp_ci_95": [fp_low, fp_high],
+                    "false_positive_rate": fp_metric["detection_rate"],
+                    "fp_ci_95": fp_metric["ci_95"],
+                    "fp_cluster_bootstrap_ci_95": fp_metric["cluster_bootstrap_ci_95"],
                     "escalations": escalated,
-                    "escalation_rate": esc_rate,
-                    "esc_ci_95": [esc_low, esc_high],
+                    "escalation_rate": escalation_metric["detection_rate"],
+                    "esc_ci_95": escalation_metric["ci_95"],
+                    "esc_cluster_bootstrap_ci_95": escalation_metric["cluster_bootstrap_ci_95"],
                     "approved": approved,
                     "auto_denied": auto_denied,
                     "denial_causes": denial_causes,
@@ -447,7 +463,7 @@ class ReplayEvaluator:
         # Average latency
         canary_lats = [r["canary_latency_ms"] for r in runs if r.get("canary_latency_ms")]
         judge_lats = [r["judge_latency_ms"] for r in runs if r.get("judge_latency_ms")]
-        total_lats = [r["duration_ms"] for r in runs]
+        total_lats = [r.get("duration_ms", 0) for r in runs if r.get("duration_ms") is not None]
 
         summary["latency"] = {
             "avg_canary_ms": round(sum(canary_lats) / len(canary_lats), 1) if canary_lats else 0.0,
@@ -457,8 +473,11 @@ class ReplayEvaluator:
 
         summary["sample_sizes"] = {
             "observations": len(runs),
+            "valid_observations": len(valid_runs),
+            "excluded_observations": len(runs) - len(valid_runs),
+            "exclusion_reasons": exclusion_counts(runs),
             "unique_intents": len(verdicts),
-            "unique_source_scenarios": len({r.get("scenario_id") for r in runs}),
+            "unique_source_scenarios": len({r.get("scenario_id") for r in valid_runs}),
         }
         summary["per_intent_consistency"] = {
             "consistent_unique_intents": consistent,

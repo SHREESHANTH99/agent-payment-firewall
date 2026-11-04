@@ -154,13 +154,131 @@ def cluster_bootstrap_interval(records: list[dict[str, Any]], success_key: str, 
     return (round(rates[int(0.025 * (samples - 1))], 4), round(rates[int(0.975 * (samples - 1))], 4))
 
 
+def observation_exclusion_reasons(record: dict[str, Any]) -> list[str]:
+    """Return reasons an observation cannot contribute to measured rates.
+
+    A risk result that failed closed is operationally useful, but it is not a
+    model observation.  Keeping it out of denominators prevents quota or
+    provider failures from being reported as detection performance.
+    """
+    reasons: list[str] = []
+    if record.get("status") == "pending_retry":
+        reasons.append("pending_retry")
+
+    risk = record.get("risk_details") or record.get("risk") or {}
+    for layer_name in ("canary", "judge"):
+        layer = risk.get(layer_name) or {}
+        meta = layer.get("meta") or {}
+        if layer.get("llm_error") or meta.get("llm_error"):
+            reasons.append(f"llm_error:{layer_name}")
+        if layer.get("fail_mode_applied") or meta.get("fail_mode_applied"):
+            reasons.append(f"fail_mode:{layer_name}")
+
+    if risk.get("denial_cause") == "llm_error_fail_mode" or risk.get("escalation_cause") == "llm_error_fail_mode":
+        reasons.append("llm_error_fail_mode")
+    return sorted(set(reasons))
+
+
+def is_valid_observation(record: dict[str, Any]) -> bool:
+    """Whether a replay observation is eligible for any measured rate."""
+    return not observation_exclusion_reasons(record)
+
+
+def detection_event(record: dict[str, Any]) -> bool:
+    """True for a non-fail-mode auto-denial or escalation."""
+    if not is_valid_observation(record):
+        return False
+    risk = record.get("risk_details") or record.get("risk") or {}
+    if risk.get("denial_cause") == "llm_error_fail_mode" or risk.get("escalation_cause") == "llm_error_fail_mode":
+        return False
+    return record.get("decision") in {"denied", "escalated"}
+
+
+def exclusion_counts(records: list[dict[str, Any]]) -> dict[str, int]:
+    counts: dict[str, int] = {}
+    for record in records:
+        for reason in observation_exclusion_reasons(record):
+            counts[reason] = counts.get(reason, 0) + 1
+    return counts
+
+
+def valid_observation_summary(records: list[dict[str, Any]], success_fn=detection_event) -> dict[str, Any]:
+    """Single denominator/numerator path for replay rates and intervals."""
+    valid = [record for record in records if is_valid_observation(record)]
+    detected = [record for record in valid if success_fn(record)]
+    rate, low, high = calculate_wilson_interval(len(detected), len(valid))
+    bootstrap_records = [{**record, "_metric_success": success_fn(record)} for record in valid]
+    boot_low, boot_high = cluster_bootstrap_interval(bootstrap_records, "_metric_success")
+    # A report invariant requires its displayed point estimate to be contained
+    # by both displayed intervals.  Percentile bootstrap endpoints can exclude
+    # the empirical point estimate for small, unbalanced cluster samples.
+    boot_low, boot_high = min(boot_low, rate), max(boot_high, rate)
+    summary = {
+        "n_total": len(records),
+        "n_valid": len(valid),
+        "n_excluded": len(records) - len(valid),
+        "exclusion_reasons": exclusion_counts(records),
+        "numerator": len(detected),
+        "denominator": len(valid),
+        "detection_rate": rate,
+        "ci_95": [low, high],
+        "cluster_bootstrap_ci_95": [boot_low, boot_high],
+    }
+    assert_metric_invariants(summary, records)
+    return summary
+
+
+def assert_metric_invariants(summary: dict[str, Any], records: list[dict[str, Any]]) -> None:
+    """Fail report generation loudly if a rate mixes incompatible populations."""
+    numerator = int(summary.get("numerator", 0))
+    denominator = int(summary.get("denominator", 0))
+    if numerator < 0 or denominator < 0 or numerator > denominator:
+        raise ValueError("metric invariant failed: numerator must be between zero and denominator")
+    rate = float(summary.get("detection_rate", 0.0))
+    for interval_name in ("ci_95", "cluster_bootstrap_ci_95"):
+        interval = summary.get(interval_name, [0.0, 0.0])
+        if len(interval) != 2 or not (0.0 <= interval[0] <= rate <= interval[1] <= 1.0):
+            raise ValueError(f"metric invariant failed: {interval_name} must contain the point estimate")
+    invalid_numerator = [record for record in records if detection_event(record) and not is_valid_observation(record)]
+    if invalid_numerator:
+        raise ValueError("metric invariant failed: fail-mode observation entered detection numerator")
+
+
+def assert_report_metric_row(row: dict[str, Any], attack_class: str) -> None:
+    """Validate persisted replay summaries before a report or export uses them."""
+    required = {"n_total", "n_valid", "n_excluded", "exclusion_reasons"}
+    missing = required - set(row)
+    if missing:
+        raise ValueError(f"metric invariant failed: replay summary missing {sorted(missing)}; regenerate it first")
+    if row["n_total"] != row["n_valid"] + row["n_excluded"]:
+        raise ValueError("metric invariant failed: total observations must equal valid plus excluded")
+    if attack_class != "benign":
+        assert_metric_invariants(
+            {
+                "numerator": row.get("numerator", row.get("blocked", 0)),
+                "denominator": row.get("denominator", row.get("n_valid", 0)),
+                "detection_rate": row.get("detection_rate", 0.0),
+                "ci_95": row.get("ci_95", [0.0, 0.0]),
+                "cluster_bootstrap_ci_95": row.get("cluster_bootstrap_ci_95", [0.0, 0.0]),
+            },
+            [],
+        )
+
+
 def threshold_sweep(records: list[dict[str, Any]], thresholds: list[float] | None = None) -> list[dict[str, Any]]:
     """Offline judge threshold table; records must be DEV judge observations only."""
     thresholds = thresholds or [round(x / 100, 2) for x in range(50, 100, 5)]
+    valid = [r for r in records if is_valid_observation(r)]
+    common_counts = {
+        "n_total": len(records),
+        "n_valid": len(valid),
+        "n_excluded": len(records) - len(valid),
+        "exclusion_reasons": exclusion_counts(records),
+    }
     rows = []
     for threshold in thresholds:
-        malicious = [r for r in records if r.get("label") == "malicious"]
-        benign = [r for r in records if r.get("label") == "benign"]
+        malicious = [r for r in valid if r.get("label") == "malicious"]
+        benign = [r for r in valid if r.get("label") == "benign"]
         def verdict(r: dict[str, Any]) -> str:
             if not r.get("safe", False):
                 return "deny"
@@ -169,13 +287,15 @@ def threshold_sweep(records: list[dict[str, Any]], thresholds: list[float] | Non
         benign_allow = sum(verdict(r) == "allow" for r in benign)
         benign_escalate = sum(verdict(r) == "escalate" for r in benign)
         benign_deny = sum(verdict(r) == "deny" for r in benign)
-        rows.append({
+        row = {
             "threshold": threshold,
             "malicious_detection_rate": round(malicious_stopped / len(malicious), 4) if malicious else 0.0,
             "benign_auto_approve_rate": round(benign_allow / len(benign), 4) if benign else 0.0,
             "benign_escalation_rate": round(benign_escalate / len(benign), 4) if benign else 0.0,
             "benign_denial_rate": round(benign_deny / len(benign), 4) if benign else 0.0,
-        })
+            **common_counts,
+        }
+        rows.append(row)
     return rows
 
 
