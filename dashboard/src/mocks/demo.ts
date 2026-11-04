@@ -80,7 +80,7 @@ export const approvedIntent: IntentResult = {
   dry_run: true,
   operatorView: operatorView(
     { canary: { tripped: false }, judge: { safe: true, mismatch_reasons: [], verdict: 'allow' } },
-    { spent_cents: 5000, reserved_cents: 0, remaining_cents: 95000 },
+    { spent_cents: 2500, reserved_cents: 0, remaining_cents: 7500 },
     'intent.executed',
   ),
 }
@@ -105,7 +105,7 @@ export const judgeDeniedIntent: IntentResult = {
   dry_run: true,
   operatorView: operatorView(
     { canary: { tripped: false }, judge: { safe: false, mismatch_reasons: ['Recipient differs from the user task'], verdict: 'deny' }, denial_cause: 'judge' },
-    { spent_cents: 2500, reserved_cents: 0, remaining_cents: 97500 },
+    { spent_cents: 2500, reserved_cents: 0, remaining_cents: 7500 },
     'intent.denied',
   ),
 }
@@ -119,7 +119,7 @@ export const mandateNotFoundIntent: IntentResult = {
   dry_run: true,
   operatorView: operatorView(
     {},
-    { spent_cents: 2500, reserved_cents: 0, remaining_cents: 97500 },
+    { spent_cents: 2500, reserved_cents: 0, remaining_cents: 7500 },
     'intent.denied',
   ),
 }
@@ -137,7 +137,7 @@ export const escalatedIntent: IntentResult = {
   dry_run: true,
   operatorView: operatorView(
     { canary: { tripped: false }, judge: { safe: true, mismatch_reasons: ['Merchant is not in the task context'], verdict: 'escalate' }, escalation_cause: 'judge_low_confidence' },
-    { spent_cents: 2500, reserved_cents: 12000, remaining_cents: 85500 },
+    { spent_cents: 2500, reserved_cents: 0, remaining_cents: 7500 },
     'intent.escalated',
   ),
 }

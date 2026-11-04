@@ -18,6 +18,7 @@ describe('Judge Playground MSW handlers', () => {
     expect(body.session.id).toBe('demo_01JZ7Q7K4E')
     expect(body.session_secret).toBeTruthy()
     expect(body.OPERATOR_TOKEN).toBeUndefined()
+    expect(body.session.agents[0].mandate).toMatchObject({ spent_cents: 2500, reserved_cents: 0, remaining_cents: 7500 })
   })
 
   it('returns a quota fallback response for quota-triggering intent traffic', async () => {
@@ -44,6 +45,7 @@ describe('Judge Playground MSW handlers', () => {
     expect(body.reasons).toEqual([{ code: 'MANDATE_NOT_FOUND', message: 'Mandate not found' }])
     expect(body.risk).toEqual({})
     expect(body.operatorView.risk).toEqual({})
+    expect(body.operatorView.balances).toMatchObject({ spent_cents: 2500, reserved_cents: 0, remaining_cents: 7500 })
   })
 
   it('uses the same agent identifier for mandate freeze and unfreeze', async () => {
