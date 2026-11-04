@@ -8,6 +8,7 @@ from demo.eval.metrics import (
     valid_observation_summary,
 )
 from demo.eval.replay import ReplayEvaluator
+from demo.eval.regen import regenerate
 
 
 def observation(*, scenario="s1", decision="approved", llm_error=False, fail_mode=False):
@@ -95,3 +96,16 @@ def test_metric_invariant_rejects_impossible_rate_interval():
             {"numerator": 1, "denominator": 2, "detection_rate": 0.5, "ci_95": [0.0, 0.4], "cluster_bootstrap_ci_95": [0.0, 1.0]},
             [],
         )
+
+
+def test_regeneration_preserves_raw_runs_and_adds_provenance():
+    source_run = {**observation(decision="denied"), "attack_class": "in_policy", "blocked_by": "judge"}
+    replay = {
+        "metadata": {"split": "dev", "execution_mode": "dry_run"},
+        "configurations": {"judge_only": {"runs": [source_run]}},
+    }
+    regenerated = regenerate(replay, "results/source.json")
+    assert replay["metadata"].get("regen_provenance") is None
+    assert regenerated["configurations"]["judge_only"]["runs"] == [source_run]
+    assert regenerated["configurations"]["judge_only"]["in_policy"]["n_valid"] == 1
+    assert regenerated["metadata"]["regen_provenance"]["source_replay"] == "results/source.json"
