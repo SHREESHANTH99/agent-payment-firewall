@@ -9,7 +9,10 @@ def load_scenarios(split: str, purpose: str = "evaluation", path: str = "demo/ev
         raise ValueError("split must be dev, test, or all")
     if purpose == "tuning" and split != "dev":
         raise ValueError("tuning may load DEV scenarios only")
-    with open(Path(path), encoding="utf-8") as handle:
+    scenario_path = Path(path)
+    if not scenario_path.exists() and not scenario_path.is_absolute():
+        scenario_path = Path(__file__).with_name("scenarios.yaml")
+    with open(scenario_path, encoding="utf-8") as handle:
         scenarios = yaml.safe_load(handle).get("scenarios", [])
     if any(s.get("split") not in {"dev", "test"} for s in scenarios):
         raise ValueError("every scenario must declare split: dev or test")

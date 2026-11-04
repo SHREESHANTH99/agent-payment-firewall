@@ -7,7 +7,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from demo.eval.metrics import choose_threshold, cluster_bootstrap_interval, normalized_intent_key, threshold_sweep
 from app.core.config import settings
-from app.risk.judge import judge, map_judge_verdict, JudgeResult
+from app.risk.judge import judge, map_judge_verdict, JudgeResult, _judge_client
+from app.risk.canary import _canary_client
 from app.services.llm import llm_client
 from demo.eval.scenarios import load_scenarios
 from demo.eval.sweep import render_table
@@ -63,6 +64,21 @@ async def test_judge_failure_is_marked_for_exclusion(monkeypatch):
     assert verdict in {"deny", "escalate"}
 
 
+def test_per_layer_provider_settings_override_shared_client(monkeypatch):
+    monkeypatch.setattr(settings, "JUDGE_LLM_BASE_URL", "https://judge.invalid/v1")
+    monkeypatch.setattr(settings, "JUDGE_LLM_API_KEY", "test-only")
+    monkeypatch.setattr(settings, "JUDGE_LLM_MODEL", "judge-test")
+    judge_client, judge_model = _judge_client()
+    assert judge_client.base_url == "https://judge.invalid/v1"
+    assert judge_model == "judge-test"
+    monkeypatch.setattr(settings, "CANARY_LLM_BASE_URL", "https://canary.invalid/v1")
+    monkeypatch.setattr(settings, "CANARY_LLM_API_KEY", "test-only")
+    monkeypatch.setattr(settings, "CANARY_LLM_MODEL", "canary-test")
+    canary_client, canary_model = _canary_client()
+    assert canary_client.base_url == "https://canary.invalid/v1"
+    assert canary_model == "canary-test"
+
+
 def test_scenario_splits_cover_every_attack_variant():
     scenarios = load_scenarios("all")
     assert all(s.get("split") in {"dev", "test"} for s in scenarios)
@@ -85,9 +101,8 @@ def test_sweep_no_feasible_threshold_is_explicit():
 
 def test_combined_report_renders_replay_causes():
     replay = {"configurations": {"both": {"sample_sizes": {"unique_intents": 1, "observations": 3}, "per_intent_consistency": {"consistent_unique_intents": 1, "unique_intents": 1}, "latency": {}, "in_policy": {"auto_denied": 1, "denial_causes": {"judge": 1}, "escalated": 0, "escalation_causes": {}, "approved": 2, "denied": 1, "would_have_moved_money": 2, "llm_errors": 0, "llm_fallbacks": 0, "detection_rate": 1/3, "ci_95": [0, 1], "cluster_bootstrap_ci_95": [0, 1]}}}}
-    report = render_combined_report({"metadata": {}, "aggregated": {}, "runs": []}, replay)
-    assert "Replay results by defense configuration" in report
-    assert "judge:1" in report
+    with pytest.raises(ValueError, match="regenerate"):
+        render_combined_report({"metadata": {}, "aggregated": {}, "runs": []}, replay)
 
 
 def test_provenance_has_required_fields():

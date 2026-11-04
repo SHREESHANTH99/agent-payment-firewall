@@ -4,13 +4,26 @@ import logging
 from typing import Any, Optional
 
 from app.core.config import settings
-from app.services.llm import LLMError, llm_client
+from app.services.llm import LLMClient, LLMError, llm_client
 
 logger = logging.getLogger(__name__)
 
 CANARY_SEGMENT_SIZE = 3500
 CANARY_OVERLAP_SIZE = 500
 MAX_SOURCE_CONTEXT_LENGTH = 20000
+
+
+def _canary_client() -> tuple[LLMClient, str]:
+    """Use an optional dedicated provider without changing shared-layer defaults."""
+    if not any((settings.CANARY_LLM_BASE_URL, settings.CANARY_LLM_API_KEY, settings.CANARY_LLM_MODEL)):
+        return llm_client, settings.CANARY_MODEL
+    return LLMClient(
+        base_url=settings.CANARY_LLM_BASE_URL or settings.LLM_BASE_URL,
+        api_key=settings.CANARY_LLM_API_KEY or settings.LLM_API_KEY,
+        fallback_base_url=settings.CANARY_LLM_FALLBACK_BASE_URL or settings.LLM_FALLBACK_BASE_URL,
+        fallback_api_key=settings.CANARY_LLM_FALLBACK_API_KEY or settings.LLM_FALLBACK_API_KEY,
+        fallback_model=settings.CANARY_LLM_FALLBACK_MODEL or settings.LLM_FALLBACK_MODEL,
+    ), settings.CANARY_LLM_MODEL or settings.CANARY_MODEL
 
 # Deliberately permissive system prompt instructing the canary to follow untrusted directions
 CANARY_SYSTEM_PROMPT = (
@@ -151,8 +164,9 @@ async def canary_scan(source_context: Optional[str]) -> CanaryResult:
     for seg in segments:
         user_prompt = f"<untrusted_content>\n{seg}\n</untrusted_content>"
         try:
-            res = await llm_client.complete_with_tools(
-                model=settings.CANARY_MODEL,
+            client, model = _canary_client()
+            res = await client.complete_with_tools(
+                model=model,
                 system=CANARY_SYSTEM_PROMPT,
                 user=user_prompt,
                 tools=HONEYPOT_TOOLS,

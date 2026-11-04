@@ -25,6 +25,19 @@ class Settings(BaseSettings):
     LLM_API_KEY: str = ""
     CANARY_MODEL: str = "gpt-4o-mini"
     JUDGE_MODEL: str = "gpt-4o-mini"
+    # Optional per-layer providers. Empty values inherit the shared LLM_* settings.
+    CANARY_LLM_BASE_URL: str = ""
+    CANARY_LLM_API_KEY: str = ""
+    CANARY_LLM_MODEL: str = ""
+    CANARY_LLM_FALLBACK_BASE_URL: str = ""
+    CANARY_LLM_FALLBACK_API_KEY: str = ""
+    CANARY_LLM_FALLBACK_MODEL: str = ""
+    JUDGE_LLM_BASE_URL: str = ""
+    JUDGE_LLM_API_KEY: str = ""
+    JUDGE_LLM_MODEL: str = ""
+    JUDGE_LLM_FALLBACK_BASE_URL: str = ""
+    JUDGE_LLM_FALLBACK_API_KEY: str = ""
+    JUDGE_LLM_FALLBACK_MODEL: str = ""
     LLM_TIMEOUT_SECONDS: int = 15
     JUDGE_FAIL_MODE: str = "escalate"  # escalate | deny
     JUDGE_ALLOW_THRESHOLD: float = 0.8

@@ -39,6 +39,46 @@ from .provenance import build_metadata
 
 logger = logging.getLogger("eval.replay")
 
+QUOTA_EXIT_CODE = 75
+
+
+class ReplayQuotaExhausted(RuntimeError):
+    """Raised after repeated provider quota failures; caller exits with a distinct code."""
+
+
+def is_quota_failure(result: dict[str, Any]) -> bool:
+    """Recognize provider 429/quota failures from structured risk diagnostics."""
+    text = json.dumps(result.get("risk_details") or result.get("risk") or result, default=str).lower()
+    return "429" in text or "quota" in text or "rate limit" in text
+
+
+def replay_observation_key(config: str, run: dict[str, Any]) -> tuple[str, str, tuple[str, str, int, str], int]:
+    return (config, str(run.get("scenario_id", "")), normalized_intent_key(run.get("scenario_id", ""), run.get("intent_request") or {}), int(run.get("repeat_index", 0)))
+
+
+def compose_both_observation(canary_run: dict[str, Any], judge_run: dict[str, Any]) -> dict[str, Any]:
+    """Compose both-layer behavior from matched single-layer stored observations."""
+    canary_risk = canary_run.get("risk_details") or {}
+    judge_risk = judge_run.get("risk_details") or {}
+    canary_decision, judge_decision = canary_run.get("decision"), judge_run.get("decision")
+    if canary_decision == "denied" or judge_decision == "denied":
+        decision = "denied"
+    elif canary_decision == "escalated" or judge_decision == "escalated":
+        decision = "escalated"
+    else:
+        decision = "approved"
+    result = dict(canary_run)
+    result.update({
+        "decision": decision,
+        "final_decision": decision,
+        "escalated": decision == "escalated",
+        "would_have_executed": decision == "approved",
+        "blocked_by": "canary" if canary_decision in {"denied", "escalated"} else ("judge" if judge_decision in {"denied", "escalated"} else "none"),
+        "risk_details": {**canary_risk, "judge": judge_risk.get("judge") or {}, "composition_source": "canary_only+judge_only"},
+        "composed": True,
+    })
+    return result
+
 
 def label_intent(scenario: dict[str, Any], intent_request: dict[str, Any]) -> str:
     """
@@ -263,12 +303,44 @@ class ReplayEvaluator:
             "risk_details": risk_meta,
         }
 
+    @staticmethod
+    def _load_checkpoint(path: Path) -> dict[str, list[dict[str, Any]]]:
+        stored: dict[str, list[dict[str, Any]]] = {}
+        if not path.exists():
+            return stored
+        for line in path.read_text(encoding="utf-8").splitlines():
+            if not line.strip():
+                continue
+            entry = json.loads(line)
+            stored.setdefault(entry["config"], []).append(entry["run"])
+        return stored
+
+    @staticmethod
+    def _append_checkpoint(path: Path, config: str, run: dict[str, Any]) -> None:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with path.open("a", encoding="utf-8") as handle:
+            handle.write(json.dumps({"config": config, "run": run}) + "\n")
+
+    @staticmethod
+    def call_budget_estimate(intent_count: int, repeats: int, validate_composition: int) -> dict[str, int]:
+        """Conservative estimate: one canary and/or judge call per replayed intent."""
+        observations = intent_count * repeats
+        return {
+            "source_intents": intent_count,
+            "observations_per_single_layer": observations,
+            "estimated_canary_calls": observations + validate_composition,
+            "estimated_judge_calls": observations + validate_composition,
+            "estimated_total_calls": observations * 2 + validate_composition * 2,
+        }
+
     async def run_replay(
         self,
         intents_pool: list[dict[str, Any]],
         output_path: str = "results/replay.json",
         repeats: int = 3,
         scenario_split: str = "",
+        resume: bool = False,
+        validate_composition: int = 0,
     ) -> dict[str, Any]:
         """
         Evaluate full intent pool against 4 configurations:
@@ -281,7 +353,6 @@ class ReplayEvaluator:
             ("rules_only", False, False),
             ("canary_only", True, False),
             ("judge_only", False, True),
-            ("both", True, True),
         ]
 
         if repeats < 1:
@@ -289,13 +360,21 @@ class ReplayEvaluator:
         if scenario_split not in {"dev", "test"}:
             raise ValueError("replay requires an explicit dev or test split")
         intents_pool = [item for item in intents_pool if self.scenarios.get(item["scenario_id"], {}).get("split") == scenario_split]
-        results_by_config = {}
+        checkpoint_path = Path(f"{output_path}.progress.jsonl")
+        if not resume and checkpoint_path.exists():
+            checkpoint_path.unlink()
+        checkpoint = self._load_checkpoint(checkpoint_path) if resume else {}
+        results_by_config: dict[str, dict[str, Any]] = {}
+        consecutive_quota_errors = 0
+        budget = self.call_budget_estimate(len(intents_pool), repeats, validate_composition)
+        logger.info("Replay call budget estimate: %s", budget)
 
         for cfg_name, canary_en, judge_en in configs:
             logger.info(">>> Replaying %d intents under config: %s <<<", len(intents_pool), cfg_name)
             await self.set_risk_config(canary_en, judge_en)
 
-            config_runs = []
+            config_runs = checkpoint.get(cfg_name, [])[:]
+            completed = {replay_observation_key(cfg_name, run) for run in config_runs if run.get("status") != "pending_retry"}
             for item in intents_pool:
                 scenario_id = item["scenario_id"]
                 scenario = self.scenarios.get(scenario_id, {})
@@ -305,18 +384,50 @@ class ReplayEvaluator:
                 intent_label = item.get("intent_label") or label_intent(scenario, intent_req)
 
                 for repeat_index in range(repeats):
+                    candidate = {"scenario_id": scenario_id, "intent_request": intent_req, "repeat_index": repeat_index}
+                    if replay_observation_key(cfg_name, candidate) in completed:
+                        continue
                     res = await self.replay_single_intent(intent_req, escalation_policy)
-                    config_runs.append({
+                    run = {
                         "scenario_id": scenario_id,
                         "attack_class": attack_class,
                         "intent_label": intent_label,
                         "intent_request": intent_req,
                         "repeat_index": repeat_index,
                         **res,
-                    })
+                    }
+                    if is_quota_failure(run):
+                        consecutive_quota_errors += 1
+                        run["status"] = "pending_retry"
+                    else:
+                        consecutive_quota_errors = 0
+                    config_runs.append(run)
+                    self._append_checkpoint(checkpoint_path, cfg_name, run)
+                    if consecutive_quota_errors >= 5:
+                        raise ReplayQuotaExhausted("stopped after 5 consecutive 429/quota errors; resume after provider recovery")
 
             # Summarize by class
-            results_by_config[cfg_name] = self._summarize_config(config_runs)
+            observed_runs = [run for run in config_runs if run.get("status") != "pending_retry"]
+            results_by_config[cfg_name] = self._summarize_config(observed_runs)
+            results_by_config[cfg_name]["pending_retries"] = sum(run.get("status") == "pending_retry" for run in config_runs)
+
+        # Both is composed from identical single-layer observations, avoiding
+        # duplicate model calls.  Optional validation is explicitly bounded.
+        canary_runs = results_by_config["canary_only"]["runs"]
+        judge_runs = results_by_config["judge_only"]["runs"]
+        judge_by_key = {replay_observation_key("judge_only", run)[1:]: run for run in judge_runs}
+        composed_runs = [compose_both_observation(run, judge_by_key[replay_observation_key("canary_only", run)[1:]]) for run in canary_runs if replay_observation_key("canary_only", run)[1:] in judge_by_key]
+        results_by_config["both"] = self._summarize_config(composed_runs)
+        results_by_config["both"]["composition"] = {"source": "canary_only+judge_only", "validated": 0, "requested_validation": validate_composition}
+        if validate_composition:
+            await self.set_risk_config(True, True)
+            validation = []
+            for source in composed_runs[:validate_composition]:
+                scenario = self.scenarios.get(source["scenario_id"], {})
+                observed = await self.replay_single_intent(source["intent_request"], scenario.get("escalation_policy", "auto_reject"))
+                validation.append({"composed_decision": source.get("decision"), "observed_decision": observed.get("decision")})
+            results_by_config["both"]["composition"]["validated"] = len(validation)
+            results_by_config["both"]["composition"]["matches"] = sum(item["composed_decision"] == item["observed_decision"] for item in validation)
 
         report = {
             "metadata": build_metadata(
@@ -334,6 +445,7 @@ class ReplayEvaluator:
             "repeats": repeats,
             "scenario_split": scenario_split,
             "configurations": results_by_config,
+            "call_budget_estimate": budget,
         }
 
         p = Path(output_path)
@@ -496,6 +608,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--repeats", type=int, default=3)
     parser.add_argument("--rpm", type=int, default=5, help="Maximum replay submissions per minute")
     parser.add_argument("--firewall-url", default="http://localhost:8000")
+    parser.add_argument("--resume", action="store_true", help="Resume completed observations from OUTPUT.progress.jsonl")
+    parser.add_argument("--validate-composition", type=int, default=0, help="Run at most N live both-layer checks against composed decisions")
     return parser.parse_args()
 
 
@@ -503,7 +617,11 @@ async def main() -> None:
     args = parse_args()
     pool = load_replay_pool(args.input, args.split)
     evaluator = ReplayEvaluator(firewall_base_url=args.firewall_url, rpm=args.rpm)
-    report = await evaluator.run_replay(pool, output_path=args.output, repeats=args.repeats, scenario_split=args.split)
+    try:
+        report = await evaluator.run_replay(pool, output_path=args.output, repeats=args.repeats, scenario_split=args.split, resume=args.resume, validate_composition=args.validate_composition)
+    except ReplayQuotaExhausted as exc:
+        logger.error("%s", exc)
+        raise SystemExit(QUOTA_EXIT_CODE) from exc
     print(f"Replayed {report['total_intents_replayed']} source intents ({report['total_observations']} observations) to {args.output}")
 
 

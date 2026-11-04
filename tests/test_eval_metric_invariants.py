@@ -8,7 +8,7 @@ from demo.eval.metrics import (
     threshold_sweep,
     valid_observation_summary,
 )
-from demo.eval.replay import ReplayEvaluator
+from demo.eval.replay import ReplayEvaluator, compose_both_observation, is_quota_failure
 from demo.eval.regen import regenerate
 from demo.eval.inspect_misses import inspect_misses, source_context_excerpt
 
@@ -150,3 +150,15 @@ async def test_replay_post_preserves_user_task_from_source_request(tmp_path):
     with patch.object(evaluator, "register_agent_key", AsyncMock()), patch.object(evaluator, "create_fresh_mandate", AsyncMock(return_value="mandate")), patch.object(evaluator, "cleanup_mandate", AsyncMock()), patch("httpx.AsyncClient.post", new=fake_post), patch("httpx.AsyncClient.get", new=fake_get):
         await evaluator.replay_single_intent({"merchant": "seller@example.com", "amount": "1.00", "user_task": "Buy paper"}, "auto_reject")
     assert captured["payload"]["user_task"] == "Buy paper"
+
+
+def test_composed_both_and_call_budget_are_offline_and_bounded():
+    canary = {**observation(decision="denied"), "blocked_by": "canary"}
+    judge = {**observation(), "blocked_by": "none", "risk_details": {"judge": {"safe": True}}}
+    both = compose_both_observation(canary, judge)
+    assert both["decision"] == "denied"
+    assert both["blocked_by"] == "canary"
+    assert both["risk_details"]["composition_source"] == "canary_only+judge_only"
+    estimate = ReplayEvaluator.call_budget_estimate(10, 3, 2)
+    assert estimate == {"source_intents": 10, "observations_per_single_layer": 30, "estimated_canary_calls": 32, "estimated_judge_calls": 32, "estimated_total_calls": 64}
+    assert is_quota_failure({"risk_details": {"judge": {"reasons": ["HTTP 429 quota exhausted"]}}})
