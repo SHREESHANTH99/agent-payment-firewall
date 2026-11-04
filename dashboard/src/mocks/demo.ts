@@ -36,7 +36,7 @@ const activeMandate: MandateView = {
   valid_until: '2026-11-04T11:00:00Z',
   escalation_threshold_cents: 4000,
   spent_cents: 2500,
-  reserved_cents: 12000,
+  reserved_cents: 0,
   remaining_cents: 7500,
   status: 'active',
 }
