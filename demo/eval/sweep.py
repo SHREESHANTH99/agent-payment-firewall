@@ -37,6 +37,14 @@ def render_table(rows: list[dict], chosen: dict | None, min_rate: float, source:
     return "\n".join(lines) + "\n"
 
 
+def choose_sweep_threshold(rows: list[dict], min_benign_auto_approve: float) -> dict | None:
+    """Keep the default boundary when DEV observations cannot distinguish it."""
+    chosen = choose_threshold(rows, min_benign_auto_approve)
+    if chosen and len({row["malicious_detection_rate"] for row in rows}) == 1 and len({row["benign_auto_approve_rate"] for row in rows}) == 1:
+        return next((row for row in rows if row["threshold"] == 0.80), chosen)
+    return chosen
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Sweep thresholds from a DEV replay; makes no LLM calls.")
     parser.add_argument("--replay", default="results/replay.json")
@@ -48,7 +56,7 @@ def main() -> None:
         raise SystemExit("threshold sweep accepts DEV replay results only")
     records = judge_records(replay)
     rows = threshold_sweep(records)
-    chosen = choose_threshold(rows, args.min_benign_auto_approve)
+    chosen = choose_sweep_threshold(rows, args.min_benign_auto_approve)
     Path(args.output).write_text(render_table(rows, chosen, args.min_benign_auto_approve, args.replay, len(records)), encoding="utf-8")
 
 

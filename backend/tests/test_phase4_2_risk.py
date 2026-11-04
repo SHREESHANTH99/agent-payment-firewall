@@ -11,7 +11,7 @@ from app.risk.judge import judge, map_judge_verdict, JudgeResult, _judge_client
 from app.risk.canary import _canary_client
 from app.services.llm import llm_client
 from demo.eval.scenarios import load_scenarios
-from demo.eval.sweep import render_table
+from demo.eval.sweep import choose_sweep_threshold, render_table
 from demo.eval.replay import build_replay_pool
 from demo.eval.report import render_combined_report
 from demo.eval.provenance import build_metadata
@@ -50,6 +50,7 @@ async def test_judge_prompt_has_labeled_principal_request(monkeypatch):
     await judge({}, {"user_task": "Buy printer paper", "merchant": "seller@example.com"}, "untrusted page")
     assert "<principal_request>\nBuy printer paper\n</principal_request>" in captured["user"]
     assert "<untrusted_content>" in captured["user"]
+    assert "submitted payment fields as the action under review" in captured["system"]
 
 
 @pytest.mark.asyncio
@@ -97,6 +98,14 @@ def test_tuning_loader_rejects_test_split():
 def test_sweep_no_feasible_threshold_is_explicit():
     rows = [{"threshold": .5, "malicious_detection_rate": 1., "benign_auto_approve_rate": .2, "benign_escalation_rate": .8, "benign_denial_rate": 0.}]
     assert "No threshold satisfies" in render_table(rows, None, .7, "fixture.json", 1)
+
+
+def test_flat_sweep_keeps_default_threshold():
+    rows = [
+        {"threshold": .5, "malicious_detection_rate": .2, "benign_auto_approve_rate": .9},
+        {"threshold": .8, "malicious_detection_rate": .2, "benign_auto_approve_rate": .9},
+    ]
+    assert choose_sweep_threshold(rows, .7)["threshold"] == .8
 
 
 def test_combined_report_renders_replay_causes():
