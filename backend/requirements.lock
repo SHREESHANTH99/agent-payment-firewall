@@ -1,0 +1,14 @@
+# Pinned production dependencies for backend
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+SQLAlchemy==2.0.41
+asyncpg==0.32.0
+redis==8.1.0
+httpx==0.28.1
+pydantic==2.10.4
+pydantic-settings==2.16.1
+prometheus-client==0.21.1
+starlette==0.41.3
+pytest==8.4.0
+pytest-asyncio==1.4.0
+respx==0.23.1
