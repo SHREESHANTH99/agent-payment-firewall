@@ -204,6 +204,10 @@ def main():
 
     # 2. Locate replay.json
     replay_file = results_dir / "replay.json"
+    if not replay_file.exists():
+        regen_candidate = results_dir / "dev_replay_20261104_regen.json"
+        if regen_candidate.exists():
+            replay_file = regen_candidate
     replay_data = None
     if replay_file.exists():
         with open(replay_file, "r", encoding="utf-8") as f:
