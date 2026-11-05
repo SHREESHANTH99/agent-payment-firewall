@@ -29,6 +29,11 @@ export function ConsoleSidebar({ escalationCount = 0 }: { escalationCount?: numb
   const [protectionsOff, setProtectionsOff] = useState(false)
   const [pendingCount, setPendingCount] = useState(escalationCount)
 
+  // Never render sidebar on login screens
+  if (pathname === '/login' || pathname === '/console/login' || pathname?.endsWith('/login')) {
+    return null
+  }
+
   useEffect(() => {
     checkStatus()
   }, [pathname])

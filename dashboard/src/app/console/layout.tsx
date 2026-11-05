@@ -6,7 +6,7 @@ import { ConsoleHeader } from '@/components/ConsoleHeader'
 
 export default function ConsoleLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
-  const isLoginPage = pathname === '/console/login'
+  const isLoginPage = pathname === '/console/login' || pathname === '/login' || pathname?.endsWith('/login')
 
   if (isLoginPage) {
     return <>{children}</>

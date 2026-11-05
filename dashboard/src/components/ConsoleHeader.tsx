@@ -24,6 +24,11 @@ export function ConsoleHeader() {
   const [demo, setDemo] = useState(false)
   const [mounted, setMounted] = useState(false)
 
+  // Never render header on login screens
+  if (pathname === '/login' || pathname === '/console/login' || pathname?.endsWith('/login')) {
+    return null
+  }
+
   useEffect(() => {
     setMounted(true)
     setDemo(isDemoMode())
