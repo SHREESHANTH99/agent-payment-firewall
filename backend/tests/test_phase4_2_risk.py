@@ -57,13 +57,22 @@ async def test_judge_prompt_has_labeled_principal_request(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_judge_result_records_prompt_version(monkeypatch):
-    from app.risk.judge import PROMPT_VERSION
+    from app.risk.judge import PROMPT_VERSION, PROMPT_VERSION_V1, PROMPT_VERSION_V2, get_judge_system_prompt
     async def fake_complete(**kwargs):
         return {"safe": True, "confidence": .9, "injection_suspected": False, "reasons": [], "mismatch_reasons": []}
     monkeypatch.setattr(llm_client, "complete_json", fake_complete)
     result, verdict = await judge({}, {"user_task": "task", "merchant": "seller@example.com"})
-    assert result.meta.get("prompt_version") == PROMPT_VERSION
-    assert PROMPT_VERSION == "2026.11.05.v2"
+    assert result.meta.get("prompt_version") == PROMPT_VERSION_V2
+
+    # Test v1 selectable
+    monkeypatch.setattr(settings, "JUDGE_PROMPT_VERSION", PROMPT_VERSION_V1)
+    result_v1, _ = await judge({}, {"user_task": "task", "merchant": "seller@example.com"})
+    assert result_v1.meta.get("prompt_version") == PROMPT_VERSION_V1
+
+    # Test fail fast on unknown version
+    with pytest.raises(ValueError, match="Unknown JUDGE_PROMPT_VERSION"):
+        get_judge_system_prompt("invalid.v99")
+
 
 
 

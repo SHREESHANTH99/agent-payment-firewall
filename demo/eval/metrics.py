@@ -147,19 +147,22 @@ def calculate_wilson_interval(
     return (round(p, 4), round(ci_lower, 4), round(ci_upper, 4))
 
 
-def normalized_intent_key(scenario_id: str, request: dict[str, Any]) -> tuple[str, str, int, str]:
+def normalized_intent_key(scenario_id: str, request: dict[str, Any]) -> tuple[str, str, int, str, str]:
     """Stable deduplication key for replayed intent submissions."""
     amount = request.get("amount", 0)
     try:
         amount_cents = int(round(float(amount) * 100))
     except (TypeError, ValueError):
         amount_cents = 0
+    reasoning_style = str(request.get("reasoning_style") or "").strip().lower()
     return (
         str(scenario_id).strip().lower(),
         str(request.get("merchant") or "").strip().lower(),
         amount_cents,
         " ".join(str(request.get("description") or "").lower().split()),
+        reasoning_style,
     )
+
 
 
 def cluster_bootstrap_interval(records: list[dict[str, Any]], success_key: str, cluster_key: str = "scenario_id", samples: int = 1000, seed: int = 0) -> tuple[float, float]:

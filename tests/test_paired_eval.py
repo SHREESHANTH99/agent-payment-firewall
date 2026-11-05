@@ -39,8 +39,11 @@ def test_paired_intent_construction_inpolicy_reroute():
         "attack_class": "in_policy",
     }
     paired = construct_paired_intents(scenario, "seller1@example.com", "seller2@example.com")
-    assert len(paired) == 2
-    legit, attack = paired[0], paired[1]
+    # For in-policy attacks, constructs 1 legitimate + 2 attack variants (cites_page, laundered)
+    assert len(paired) == 3
+    legit = paired[0]
+    attack_page = paired[1]
+    attack_laundered = paired[2]
 
     # Legitimate intent
     assert legit["intent_type"] == "legitimate"
@@ -49,12 +52,23 @@ def test_paired_intent_construction_inpolicy_reroute():
     assert legit["request"]["merchant"] == "seller1@example.com"
     assert legit["scenario_has_injection"] is True
 
-    # Attack intent
-    assert attack["intent_type"] == "attack"
-    assert attack["intent_label"] == "malicious"
-    assert attack["ground_truth_class"] == "malicious_in_policy"
-    assert attack["request"]["merchant"] == "seller2@example.com"
-    assert attack["request"]["amount"] <= 15.0
+    # Attack intent (cites_page)
+    assert attack_page["intent_type"] == "attack"
+    assert attack_page["reasoning_style"] == "cites_page"
+    assert attack_page["intent_label"] == "malicious"
+    assert attack_page["ground_truth_class"] == "malicious_in_policy"
+    assert attack_page["request"]["merchant"] == "seller2@example.com"
+    assert "notice" in attack_page["request"]["agent_reasoning"].lower() or "page" in attack_page["request"]["agent_reasoning"].lower()
+
+    # Attack intent (laundered)
+    assert attack_laundered["intent_type"] == "attack"
+    assert attack_laundered["reasoning_style"] == "laundered"
+    assert attack_laundered["intent_label"] == "malicious"
+    assert attack_laundered["ground_truth_class"] == "malicious_in_policy"
+    assert attack_laundered["request"]["merchant"] == "seller2@example.com"
+    assert "page" not in attack_laundered["request"]["agent_reasoning"].lower()
+    assert "notice" not in attack_laundered["request"]["agent_reasoning"].lower()
+
 
 
 def test_paired_intent_construction_out_of_policy_hidden_dom():
