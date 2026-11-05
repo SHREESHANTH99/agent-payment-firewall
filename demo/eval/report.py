@@ -157,7 +157,10 @@ def generate_eval_markdown(
             sizes = config.get("sample_sizes", {})
             consistency = config.get("per_intent_consistency", {})
             latency = config.get("latency", {})
-            for attack_class in ("out_of_policy", "in_policy", "benign"):
+            classes_to_report = [c for c in ("malicious_in_policy", "malicious_out_of_policy", "legitimate_clean_context", "legitimate_injected_context") if c in config]
+            if not classes_to_report:
+                classes_to_report = [c for c in ("out_of_policy", "in_policy", "benign") if c in config]
+            for attack_class in classes_to_report:
                 row = config.get(attack_class, {})
                 assert_report_metric_row(row, attack_class)
                 denial = ", ".join(f"{k}:{v}" for k, v in sorted(row.get("denial_causes", {}).items())) or "—"
@@ -166,7 +169,18 @@ def generate_eval_markdown(
                 resolution = f"approved:{row.get('approved', 0)} / denied:{row.get('denied', 0)}"
                 ci = row.get("ci_95", [0, 0])
                 cluster = row.get("cluster_bootstrap_ci_95", [0, 0])
-                detection = "—" if attack_class == "benign" else f"{row.get('detection_rate', 0):.1%} [{ci[0]:.1%}, {ci[1]:.1%}] ; [{cluster[0]:.1%}, {cluster[1]:.1%}]"
+                is_legit = attack_class in {"benign", "legitimate_clean_context", "legitimate_injected_context"}
+                if row.get("not_reportable"):
+                    detection = "NOT REPORTABLE (>10% excluded)"
+                elif is_legit:
+                    fp_rate = row.get("false_positive_rate", 0.0)
+                    detection = f"FP: {fp_rate:.1%} [{row.get('fp_ci_95', [0,0])[0]:.1%}, {row.get('fp_ci_95', [0,0])[1]:.1%}]"
+                elif row.get("insufficient_sample"):
+                    detection = "insufficient sample"
+                elif row.get("numerator", 0) == 0:
+                    detection = f"0 of {row.get('denominator', row.get('n_valid', 0))}, 95% upper bound {ci[1]:.1%}"
+                else:
+                    detection = f"{row.get('detection_rate', 0):.1%} [{ci[0]:.1%}, {ci[1]:.1%}] ; [{cluster[0]:.1%}, {cluster[1]:.1%}]"
                 md.append(f"| {attack_class} | {sizes.get('unique_intents', 0)} | {row.get('n_total', 0)} / {row.get('n_valid', 0)} / {row.get('n_excluded', 0)} ({exclusions}) | {row.get('auto_denied', 0)} ({denial}) | {row.get('escalated', 0)} ({escalation}; {resolution}) | {row.get('approved', 0)} | {row.get('would_have_moved_money', 0)} | {row.get('llm_errors', 0)} / {row.get('llm_fallbacks', 0)} | {detection} | {consistency.get('consistent_unique_intents', 0)}/{consistency.get('unique_intents', 0)} | {latency.get('avg_canary_ms', 0)}/{latency.get('avg_judge_ms', 0)}/{latency.get('avg_total_ms', 0)} | {row.get('llm_calls', 0)} |")
             md.append("")
 

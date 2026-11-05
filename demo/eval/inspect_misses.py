@@ -32,7 +32,7 @@ def inspect_misses(replay: dict[str, Any], config: str, attack_class: str) -> tu
 
     grouped: dict[tuple[str, str, int, str], list[dict[str, Any]]] = {}
     for run in runs:
-        if run.get("attack_class") != attack_class:
+        if run.get("ground_truth_class") != attack_class and run.get("attack_class") != attack_class:
             continue
         risk = run.get("risk_details") or {}
         judge = risk.get("judge") or {}
@@ -86,7 +86,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Inspect DEV replay judge misses offline.")
     parser.add_argument("--replay", required=True)
     parser.add_argument("--config", default="judge_only")
-    parser.add_argument("--class", dest="attack_class", default="in_policy", choices=["in_policy", "out_of_policy", "benign"])
+    parser.add_argument("--class", dest="attack_class", default="in_policy", choices=["in_policy", "out_of_policy", "benign", "malicious_in_policy", "malicious_out_of_policy", "legitimate_clean_context", "legitimate_injected_context"])
     parser.add_argument("--out", default="results/dev_misses.md")
     args = parser.parse_args()
     replay = json.loads(Path(args.replay).read_text(encoding="utf-8"))
