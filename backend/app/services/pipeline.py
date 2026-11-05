@@ -351,9 +351,10 @@ async def process_intent(
             }
             await append_event(session, intent.id, "judge_evaluated", risk_details["judge"])
 
-            # Check circuit breaker trigger: judge not safe with injection_suspected and confidence >= 0.9
-            if not judge_res.safe and judge_res.injection_suspected and judge_res.confidence >= 0.9:
-                logger.warning("Judge detected high-confidence prompt injection for intent %s", intent.id)
+            # Check circuit breaker trigger: trip ONLY on payment deviation (judge not safe and confidence >= 0.9)
+            # Crucially decoupled: do NOT trip on injection_suspected alone when safe=true
+            if not judge_res.safe and judge_res.confidence >= 0.9:
+                logger.warning("Judge detected high-confidence payment deviation/threat for intent %s", intent.id)
                 await trip_circuit_breaker(
                     mandate_id=mandate.mandate_id,
                     intent_id=intent.id,

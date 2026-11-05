@@ -63,7 +63,8 @@ async def test_judge_result_records_prompt_version(monkeypatch):
     monkeypatch.setattr(llm_client, "complete_json", fake_complete)
     result, verdict = await judge({}, {"user_task": "task", "merchant": "seller@example.com"})
     assert result.meta.get("prompt_version") == PROMPT_VERSION
-    assert PROMPT_VERSION == "2026.11.05.v1"
+    assert PROMPT_VERSION == "2026.11.05.v2"
+
 
 
 @pytest.mark.asyncio
