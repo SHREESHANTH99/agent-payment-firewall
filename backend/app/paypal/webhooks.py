@@ -8,6 +8,7 @@ import httpx
 
 from app.core.config import settings
 from app.paypal.auth import get_access_token
+from app.paypal.constants import PAYPAL_VERIFY_SIGNATURE_URL
 
 logger = logging.getLogger(__name__)
 
@@ -21,10 +22,8 @@ REQUIRED_HEADERS = (
 
 
 def get_verify_signature_url() -> str:
-    """Return the PayPal verify-webhook-signature endpoint URL."""
-    if settings.PAYPAL_MODE.lower() == "live":
-        return "https://api-m.paypal.com/v1/notifications/verify-webhook-signature"
-    return "https://api-m.sandbox.paypal.com/v1/notifications/verify-webhook-signature"
+    """Return the fixed PayPal sandbox verify-webhook-signature endpoint URL."""
+    return PAYPAL_VERIFY_SIGNATURE_URL
 
 
 async def verify_webhook(

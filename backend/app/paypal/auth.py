@@ -7,6 +7,7 @@ from typing import Optional
 import httpx
 
 from app.core.config import settings
+from app.paypal.constants import PAYPAL_OAUTH_URL
 from app.paypal.exceptions import PayPalAuthError
 from app.paypal.models import OAuthTokenResponse
 
@@ -19,10 +20,8 @@ _cache_lock = asyncio.Lock()
 
 
 def get_oauth_url() -> str:
-    """Return the PayPal OAuth2 token endpoint URL based on environment settings."""
-    if settings.PAYPAL_MODE.lower() == "live":
-        return "https://api-m.paypal.com/v1/oauth2/token"
-    return "https://api-m.sandbox.paypal.com/v1/oauth2/token"
+    """Return the fixed PayPal sandbox OAuth2 token endpoint URL."""
+    return PAYPAL_OAUTH_URL
 
 
 def clear_token_cache() -> None:

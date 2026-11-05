@@ -9,6 +9,8 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
+from app.core.rate_limit import check_rate_limit
+from app.core.config import settings
 from app.core.security import agent_auth, operator_auth
 from app.models.models import AuditLog, Mandate, MandateStatus, PaymentIntent, PaymentIntentStatus
 from app.services.audit import append_event
@@ -102,6 +104,11 @@ async def create_intent(
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, Any]:
     """Submit a payment intent for processing (Agent-authenticated)."""
+    await check_rate_limit(
+        key=f"agent:{agent_id}:intents",
+        limit=settings.INTENTS_RATE_LIMIT_PER_MINUTE,
+        window_seconds=60,
+    )
     request_data = body.model_dump()
     return await process_intent(agent_id=agent_id, request_data=request_data, session=db)
 

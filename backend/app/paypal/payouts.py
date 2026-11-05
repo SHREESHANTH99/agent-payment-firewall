@@ -7,6 +7,7 @@ import httpx
 
 from app.core.config import settings
 from app.paypal.auth import get_access_token
+from app.paypal.constants import PAYPAL_PAYOUTS_URL
 from app.paypal.exceptions import PayPalAPIError
 from app.paypal.models import (
     CreatePayoutRequest,
@@ -22,10 +23,8 @@ logger = logging.getLogger(__name__)
 
 
 def get_payouts_base_url() -> str:
-    """Return the PayPal Payouts API base URL according to mode."""
-    if settings.PAYPAL_MODE.lower() == "live":
-        return "https://api-m.paypal.com/v1/payments/payouts"
-    return "https://api-m.sandbox.paypal.com/v1/payments/payouts"
+    """Return the fixed PayPal sandbox Payouts API base URL."""
+    return PAYPAL_PAYOUTS_URL
 
 
 def _format_amount(amount: Union[str, float, int, Decimal]) -> str:

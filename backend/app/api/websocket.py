@@ -13,6 +13,8 @@ from pydantic import BaseModel
 
 from app.core.config import settings
 from app.core.security import operator_auth
+from app.core.rate_limit import check_rate_limit
+from fastapi import Request
 
 logger = logging.getLogger(__name__)
 
@@ -84,8 +86,17 @@ def _ensure_subscriber() -> None:
 
 
 @router.post("/ws/ticket", response_model=TicketResponse, status_code=201)
-async def create_ws_ticket(_: bool = Depends(operator_auth)) -> TicketResponse:
+async def create_ws_ticket(
+    request: Request,
+    _: bool = Depends(operator_auth),
+) -> TicketResponse:
     """Issue a single-use 60-second WebSocket connection ticket (Operator-only)."""
+    client_ip = request.client.host if request.client else "unknown"
+    await check_rate_limit(
+        key=f"ip:{client_ip}:ws_ticket",
+        limit=settings.WS_TICKET_RATE_LIMIT_PER_MINUTE,
+        window_seconds=60,
+    )
     ticket = secrets.token_hex(32)
     redis = await _get_redis()
     try:

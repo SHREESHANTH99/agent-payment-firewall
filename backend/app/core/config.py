@@ -19,6 +19,11 @@ class Settings(BaseSettings):
     OPERATOR_TOKEN: str = "dev-operator-secret-token"
     AGENT_API_KEYS: dict[str, str] = {}
     EXECUTION_MODE: str = "paypal"  # paypal | dry_run
+    ENV: str = "development"  # development | production | test
+    ENABLE_DOCS: bool = False
+    INTENTS_RATE_LIMIT_PER_MINUTE: int = 60
+    WS_TICKET_RATE_LIMIT_PER_MINUTE: int = 30
+    MAX_REQUEST_BODY_BYTES: int = 256 * 1024  # 256 KB default
 
     # LLM & AI Risk Layer Configuration
     LLM_BASE_URL: str = "https://api.openai.com/v1"
@@ -54,6 +59,18 @@ class Settings(BaseSettings):
     LLM_FALLBACK_API_KEY: str = ""
     LLM_FALLBACK_MODEL: str = ""
     DASHBOARD_ORIGIN: str = "http://localhost:3000"
+
+    @field_validator("DATABASE_URL", mode="before")
+    @classmethod
+    def normalize_database_url(cls, v: Any) -> str:
+        if isinstance(v, str):
+            v = v.strip()
+            if v.startswith("postgres://"):
+                return "postgresql+asyncpg://" + v[len("postgres://"):]
+            if v.startswith("postgresql://"):
+                return "postgresql+asyncpg://" + v[len("postgresql://"):]
+            return v
+        return str(v)
 
     @field_validator("AGENT_API_KEYS", mode="before")
     @classmethod
