@@ -2,8 +2,10 @@
 import asyncio
 from contextlib import asynccontextmanager
 import logging
+from typing import Any
 
 from fastapi import FastAPI
+
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.admin import router as admin_router
@@ -17,6 +19,9 @@ from app.core.config import settings
 from app.core.database import AsyncSessionLocal, Base, engine
 from app.services.budget import budget_service
 from app.services.scheduler import escalation_expiry_loop, payout_polling_loop
+from sqlalchemy import text
+
+
 
 logger = logging.getLogger(__name__)
 
@@ -80,5 +85,43 @@ app.include_router(websocket_router)
 
 @app.get("/health")
 async def health_check() -> dict[str, str]:
-    """Health check endpoint to verify backend service availability."""
+    """Health check endpoint to verify backend service liveness."""
     return {"status": "OK"}
+
+
+@app.get("/ready")
+async def readiness_check() -> dict[str, Any]:
+    """Readiness probe checking database and redis connectivity."""
+    checks: dict[str, Any] = {"database": "unknown", "redis": "unknown"}
+    all_ready = True
+
+    # 1. Database check
+    try:
+        async with AsyncSessionLocal() as session:
+            await session.execute(text("SELECT 1"))
+        checks["database"] = "healthy"
+    except Exception as exc:
+        logger.error("Readiness check database error: %s", exc)
+        checks["database"] = f"unhealthy: {type(exc).__name__}"
+        all_ready = False
+
+    # 2. Redis check
+    try:
+        r = await budget_service.get_redis()
+        pong = await r.ping()
+        checks["redis"] = "healthy" if pong else "unhealthy"
+        if not pong:
+            all_ready = False
+    except Exception as exc:
+        logger.error("Readiness check redis error: %s", exc)
+        checks["redis"] = f"unhealthy: {type(exc).__name__}"
+        all_ready = False
+
+
+    status_code = 200 if all_ready else 503
+    from fastapi.responses import JSONResponse
+    return JSONResponse(
+        status_code=status_code,
+        content={"status": "ready" if all_ready else "not_ready", "checks": checks},
+    )
+
