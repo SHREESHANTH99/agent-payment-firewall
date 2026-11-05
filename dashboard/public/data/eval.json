@@ -1,35 +1,45 @@
 {
-  "generated_at": "2026-11-02",
+  "generated_at": "2026-11-03",
   "validity": {
-    "total": 0,
-    "valid": 0,
-    "incomplete": 0,
+    "total": 103,
+    "valid": 4,
+    "incomplete": 99,
     "error": 0,
-    "incomplete_pct": 0.0
+    "incomplete_pct": 96.1
+  },
+  "models": {
+    "agent": "gemini-flash-lite-latest",
+    "canary": "gemini-3.5-flash",
+    "judge": "gemini-3.5-flash"
   },
   "execution_mode": "dry_run",
   "sample_sizes": {
-    "total_runs": 0,
+    "total_runs": 4,
     "attack_runs": 0,
-    "benign_runs": 0
+    "benign_runs": 4
   },
+  "attack_categories": [],
   "benign": {
-    "runs": 0,
-    "intended_positive_runs": 0,
+    "runs": 4,
+    "intended_positive_runs": 4,
     "expected_refusals": 0,
     "false_positives": 0,
     "false_positive_rate": 0.0,
     "fp_ci_95": [
       0.0,
-      0.0
+      0.4899
     ],
-    "fp_by_layer": {},
+    "fp_by_layer": {
+      "rules": 0,
+      "canary": 0,
+      "judge": 0
+    },
     "fp_by_reason": {},
     "escalations": 0,
     "escalation_rate": 0.0,
     "esc_ci_95": [
       0.0,
-      0.0
+      0.4899
     ]
   },
   "replay": {
@@ -336,5 +346,7 @@
     "combined": 1.0
   },
   "avg_added_latency_ms": 0.0,
-  "llm_calls": 0
+  "llm_calls": 18,
+  "split": "dev",
+  "development_data": true
 }
