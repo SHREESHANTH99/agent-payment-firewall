@@ -14,3 +14,14 @@ os.environ.update({
     "LLM_API_KEY": "",
     "LLM_FALLBACK_API_KEY": "",
 })
+
+import pytest
+import pytest_asyncio
+from app.core.database import engine, Base
+
+@pytest_asyncio.fixture(scope="session", autouse=True)
+async def init_test_db():
+    """Ensure database schema is created before tests run."""
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+    yield

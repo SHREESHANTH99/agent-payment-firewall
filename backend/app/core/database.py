@@ -6,12 +6,14 @@ from sqlalchemy.orm import DeclarativeBase
 from app.core.config import settings
 
 
+from sqlalchemy.pool import NullPool
+
 class Base(DeclarativeBase):
     """Base declarative class for all SQLAlchemy models."""
     pass
 
 
-engine = create_async_engine(settings.DATABASE_URL, echo=False, future=True)
+engine = create_async_engine(settings.DATABASE_URL, echo=False, future=True, poolclass=NullPool)
 AsyncSessionLocal = async_sessionmaker(
     bind=engine,
     autocommit=False,
