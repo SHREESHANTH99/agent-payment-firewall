@@ -50,11 +50,6 @@
         "in_policy": {
           "count": 15,
           "blocked": 0,
-          "detection_rate": 0.0,
-          "ci_95": [
-            0.0,
-            0.2039
-          ],
           "approved": 15,
           "denied": 0,
           "escalated": 0,
@@ -66,16 +61,13 @@
             "judge": 0,
             "human": 0,
             "none": 15
-          }
+          },
+          "sample_status": "insufficient sample",
+          "insufficient_sample": true
         },
         "out_of_policy": {
           "count": 17,
           "blocked": 0,
-          "detection_rate": 0.0,
-          "ci_95": [
-            0.0,
-            0.1843
-          ],
           "approved": 17,
           "denied": 0,
           "escalated": 0,
@@ -87,18 +79,18 @@
             "judge": 0,
             "human": 0,
             "none": 17
-          }
+          },
+          "sample_status": "insufficient sample",
+          "insufficient_sample": true
         },
         "benign": {
           "count": 15,
           "false_positives": 0,
-          "false_positive_rate": 0.0,
           "fp_ci_95": [
             0.0,
             0.2039
           ],
           "escalations": 3,
-          "escalation_rate": 0.2,
           "esc_ci_95": [
             0.0705,
             0.4519
@@ -111,23 +103,22 @@
             "judge": 0,
             "human": 0,
             "none": 15
-          }
+          },
+          "sample_status": "insufficient sample",
+          "insufficient_sample": true
         },
         "latency": {
           "avg_canary_ms": 0.0,
           "avg_judge_ms": 0.0,
-          "avg_total_ms": 738.1
+          "avg_total_ms": 738.1,
+          "sample_status": "insufficient sample",
+          "insufficient_sample": true
         }
       },
       "canary_only": {
         "in_policy": {
           "count": 15,
           "blocked": 2,
-          "detection_rate": 0.1333,
-          "ci_95": [
-            0.0374,
-            0.3788
-          ],
           "approved": 13,
           "denied": 2,
           "escalated": 0,
@@ -139,16 +130,13 @@
             "judge": 0,
             "human": 0,
             "none": 13
-          }
+          },
+          "sample_status": "insufficient sample",
+          "insufficient_sample": true
         },
         "out_of_policy": {
           "count": 17,
           "blocked": 3,
-          "detection_rate": 0.1765,
-          "ci_95": [
-            0.0619,
-            0.4103
-          ],
           "approved": 14,
           "denied": 3,
           "escalated": 0,
@@ -160,18 +148,18 @@
             "judge": 0,
             "human": 0,
             "none": 14
-          }
+          },
+          "sample_status": "insufficient sample",
+          "insufficient_sample": true
         },
         "benign": {
           "count": 15,
           "false_positives": 1,
-          "false_positive_rate": 0.0667,
           "fp_ci_95": [
             0.0119,
             0.2982
           ],
           "escalations": 3,
-          "escalation_rate": 0.2,
           "esc_ci_95": [
             0.0705,
             0.4519
@@ -184,23 +172,22 @@
             "judge": 0,
             "human": 0,
             "none": 14
-          }
+          },
+          "sample_status": "insufficient sample",
+          "insufficient_sample": true
         },
         "latency": {
           "avg_canary_ms": 4821.1,
           "avg_judge_ms": 0.0,
-          "avg_total_ms": 3242.0
+          "avg_total_ms": 3242.0,
+          "sample_status": "insufficient sample",
+          "insufficient_sample": true
         }
       },
       "judge_only": {
         "in_policy": {
           "count": 15,
           "blocked": 8,
-          "detection_rate": 0.5333,
-          "ci_95": [
-            0.3012,
-            0.7519
-          ],
           "approved": 7,
           "denied": 8,
           "escalated": 0,
@@ -212,16 +199,13 @@
             "judge": 8,
             "human": 0,
             "none": 7
-          }
+          },
+          "sample_status": "insufficient sample",
+          "insufficient_sample": true
         },
         "out_of_policy": {
           "count": 17,
           "blocked": 15,
-          "detection_rate": 0.8824,
-          "ci_95": [
-            0.6566,
-            0.9671
-          ],
           "approved": 2,
           "denied": 15,
           "escalated": 0,
@@ -233,18 +217,18 @@
             "judge": 15,
             "human": 0,
             "none": 2
-          }
+          },
+          "sample_status": "insufficient sample",
+          "insufficient_sample": true
         },
         "benign": {
           "count": 15,
           "false_positives": 3,
-          "false_positive_rate": 0.2,
           "fp_ci_95": [
             0.0705,
             0.4519
           ],
           "escalations": 2,
-          "escalation_rate": 0.1333,
           "esc_ci_95": [
             0.0374,
             0.3788
@@ -257,23 +241,22 @@
             "judge": 3,
             "human": 0,
             "none": 12
-          }
+          },
+          "sample_status": "insufficient sample",
+          "insufficient_sample": true
         },
         "latency": {
           "avg_canary_ms": 0.0,
           "avg_judge_ms": 4786.2,
-          "avg_total_ms": 5496.2
+          "avg_total_ms": 5496.2,
+          "sample_status": "insufficient sample",
+          "insufficient_sample": true
         }
       },
       "both": {
         "in_policy": {
           "count": 15,
           "blocked": 12,
-          "detection_rate": 0.8,
-          "ci_95": [
-            0.5481,
-            0.9295
-          ],
           "approved": 3,
           "denied": 12,
           "escalated": 8,
@@ -285,16 +268,13 @@
             "judge": 3,
             "human": 8,
             "none": 3
-          }
+          },
+          "sample_status": "insufficient sample",
+          "insufficient_sample": true
         },
         "out_of_policy": {
           "count": 17,
           "blocked": 17,
-          "detection_rate": 1.0,
-          "ci_95": [
-            0.8157,
-            1.0
-          ],
           "approved": 0,
           "denied": 17,
           "escalated": 7,
@@ -306,18 +286,18 @@
             "judge": 2,
             "human": 7,
             "none": 0
-          }
+          },
+          "sample_status": "insufficient sample",
+          "insufficient_sample": true
         },
         "benign": {
           "count": 15,
           "false_positives": 3,
-          "false_positive_rate": 0.2,
           "fp_ci_95": [
             0.0705,
             0.4519
           ],
           "escalations": 10,
-          "escalation_rate": 0.6667,
           "esc_ci_95": [
             0.4171,
             0.8482
@@ -330,12 +310,16 @@
             "judge": 0,
             "human": 0,
             "none": 12
-          }
+          },
+          "sample_status": "insufficient sample",
+          "insufficient_sample": true
         },
         "latency": {
           "avg_canary_ms": 4725.6,
           "avg_judge_ms": 4416.2,
-          "avg_total_ms": 6516.8
+          "avg_total_ms": 6516.8,
+          "sample_status": "insufficient sample",
+          "insufficient_sample": true
         }
       }
     }
