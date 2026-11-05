@@ -570,16 +570,28 @@ class ReplayEvaluator:
                 l = r.get("blocked_by", "none")
                 layers[l] = layers.get(l, 0) + 1
 
-            approved = sum(1 for r in c_runs if r.get("final_decision") == "approved")
-            denied = sum(1 for r in c_runs if r.get("final_decision") == "denied")
-            escalated = sum(1 for r in c_runs if r.get("escalated"))
-            auto_denied = sum(1 for r in c_runs if r.get("decision") == "denied")
+            # Compute outcomes over valid observations only
+            valid_c_runs = [r for r in c_runs if is_valid_observation(r)]
+            approved = sum(1 for r in valid_c_runs if r.get("final_decision") == "approved")
+            denied = sum(1 for r in valid_c_runs if r.get("final_decision") == "denied")
+            escalated = sum(1 for r in valid_c_runs if r.get("escalated"))
+            auto_denied = sum(1 for r in valid_c_runs if r.get("decision") == "denied")
+            money_moved = sum(1 for r in valid_c_runs if r.get("would_have_executed"))
+            frozen = sum(1 for r in valid_c_runs if r.get("mandate_frozen"))
+
+            # Track raw counts across all observations (including excluded/fail-mode)
+            raw_approved = sum(1 for r in c_runs if r.get("final_decision") == "approved")
+            raw_denied = sum(1 for r in c_runs if r.get("final_decision") == "denied")
+            raw_escalated = sum(1 for r in c_runs if r.get("escalated"))
+            raw_auto_denied = sum(1 for r in c_runs if r.get("decision") == "denied")
+            raw_money_moved = sum(1 for r in c_runs if r.get("would_have_executed"))
+
             escalation_causes: dict[str, int] = {}
             denial_causes: dict[str, int] = {}
             stopping_causes: dict[str, int] = {}
             llm_errors = 0
             fallbacks = 0
-            for r in c_runs:
+            for r in valid_c_runs:
                 risk = r.get("risk_details") or {}
                 judge = risk.get("judge") or {}
                 cause = risk.get("escalation_cause")
@@ -592,11 +604,13 @@ class ReplayEvaluator:
                 stopping_causes[stop] = stopping_causes.get(stop, 0) + 1
                 llm_errors += int(bool(judge.get("llm_error") or (risk.get("canary") or {}).get("meta", {}).get("llm_error")))
                 fallbacks += int(bool((judge.get("meta") or {}).get("fallback_used")))
-            money_moved = sum(1 for r in c_runs if r.get("would_have_executed"))
-            frozen = sum(1 for r in c_runs if r.get("mandate_frozen"))
+
+            # Class-specific unique intents and scenarios
+            class_unique_intents = len({normalized_intent_key(r.get("scenario_id", ""), r.get("intent_request") or {}) for r in valid_c_runs})
+            class_scenarios = len({r.get("scenario_id") for r in valid_c_runs if r.get("scenario_id")})
 
             not_reportable = (c_runs and (sum(not is_valid_observation(r) for r in c_runs) / n) > 0.10)
-            insufficient_sample = (sum(is_valid_observation(r) for r in c_runs) < 10)
+            insufficient_sample = class_unique_intents < 10
 
             if c_name in ["malicious_in_policy", "malicious_out_of_policy"]:
                 metric = valid_observation_summary(c_runs)
@@ -605,6 +619,8 @@ class ReplayEvaluator:
                     "count": n,
                     "blocked": blocked,
                     **metric,
+                    "n_unique_intents": class_unique_intents,
+                    "n_scenarios": class_scenarios,
                     "approved": approved,
                     "denied": denied,
                     "auto_denied": auto_denied,
@@ -616,6 +632,16 @@ class ReplayEvaluator:
                     "llm_fallbacks": fallbacks,
                     "mandate_frozen": frozen,
                     "would_have_moved_money": money_moved,
+                    "raw_observations": {
+                        "total": n,
+                        "valid": len(valid_c_runs),
+                        "excluded": n - len(valid_c_runs),
+                        "approved": raw_approved,
+                        "denied": raw_denied,
+                        "escalated": raw_escalated,
+                        "auto_denied": raw_auto_denied,
+                        "would_have_moved_money": raw_money_moved,
+                    },
                     "blocked_by": layers,
                     "not_reportable": not_reportable,
                     "insufficient_sample": insufficient_sample,
@@ -631,6 +657,8 @@ class ReplayEvaluator:
                     "n_valid": fp_metric["n_valid"],
                     "n_excluded": fp_metric["n_excluded"],
                     "exclusion_reasons": fp_metric["exclusion_reasons"],
+                    "n_unique_intents": class_unique_intents,
+                    "n_scenarios": class_scenarios,
                     "false_positives": fp_count,
                     "false_positive_rate": fp_metric["detection_rate"],
                     "fp_ci_95": fp_metric["ci_95"],
@@ -647,10 +675,21 @@ class ReplayEvaluator:
                     "llm_errors": llm_errors,
                     "llm_fallbacks": fallbacks,
                     "would_have_moved_money": money_moved,
+                    "raw_observations": {
+                        "total": n,
+                        "valid": len(valid_c_runs),
+                        "excluded": n - len(valid_c_runs),
+                        "approved": raw_approved,
+                        "denied": raw_denied,
+                        "escalated": raw_escalated,
+                        "auto_denied": raw_auto_denied,
+                        "would_have_moved_money": raw_money_moved,
+                    },
                     "blocked_by": layers,
                     "not_reportable": not_reportable,
                     "insufficient_sample": insufficient_sample,
                 }
+
 
         # Backwards compatibility: populate legacy keys 'in_policy', 'out_of_policy', 'benign'
         summary["in_policy"] = summary["malicious_in_policy"]

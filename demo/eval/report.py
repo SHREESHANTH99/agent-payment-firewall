@@ -152,8 +152,8 @@ def generate_eval_markdown(
         md.append("Auto-denials and escalations are shown separately; fail-mode outcomes are excluded from detection rates.\n")
         for config_name, config in replay.get("configurations", {}).items():
             md.append(f"### {config_name}\n")
-            md.append("| Attack class | Unique intents | Total / valid / excluded observations (reasons) | Auto-denied (cause) | Escalated (cause; harness resolution) | Approved | Would move money | LLM errors / fallbacks | Detection rate (Wilson; cluster bootstrap) | Consistency | Canary / Judge / Total latency ms | LLM calls |")
-            md.append("|---|---:|---|---|---|---:|---:|---:|---|---|---|---:|")
+            md.append("| Attack class | Unique intents | Scenarios | Raw observations (total/valid/excluded) | Auto-denied (cause) | Escalated (cause; harness resolution) | Approved | Would move money | LLM errors / fallbacks | Detection rate (Wilson; cluster bootstrap) | Consistency | Canary / Judge / Total latency ms | LLM calls |")
+            md.append("|---|---:|---:|---|---|---|---:|---:|---:|---|---|---|---:|")
             sizes = config.get("sample_sizes", {})
             consistency = config.get("per_intent_consistency", {})
             latency = config.get("latency", {})
@@ -170,6 +170,10 @@ def generate_eval_markdown(
                 ci = row.get("ci_95", [0, 0])
                 cluster = row.get("cluster_bootstrap_ci_95", [0, 0])
                 is_legit = attack_class in {"benign", "legitimate_clean_context", "legitimate_injected_context"}
+                n_uniq = row.get("n_unique_intents", sizes.get("unique_intents", 0))
+                n_scen = row.get("n_scenarios", sizes.get("unique_source_scenarios", 0))
+                raw_obs = row.get("raw_observations", {})
+                raw_str = f"{row.get('n_total', 0)} / {row.get('n_valid', 0)} / {row.get('n_excluded', 0)} ({exclusions})"
                 if row.get("not_reportable"):
                     detection = "NOT REPORTABLE (>10% excluded)"
                 elif is_legit:
@@ -181,8 +185,9 @@ def generate_eval_markdown(
                     detection = f"0 of {row.get('denominator', row.get('n_valid', 0))}, 95% upper bound {ci[1]:.1%}"
                 else:
                     detection = f"{row.get('detection_rate', 0):.1%} [{ci[0]:.1%}, {ci[1]:.1%}] ; [{cluster[0]:.1%}, {cluster[1]:.1%}]"
-                md.append(f"| {attack_class} | {sizes.get('unique_intents', 0)} | {row.get('n_total', 0)} / {row.get('n_valid', 0)} / {row.get('n_excluded', 0)} ({exclusions}) | {row.get('auto_denied', 0)} ({denial}) | {row.get('escalated', 0)} ({escalation}; {resolution}) | {row.get('approved', 0)} | {row.get('would_have_moved_money', 0)} | {row.get('llm_errors', 0)} / {row.get('llm_fallbacks', 0)} | {detection} | {consistency.get('consistent_unique_intents', 0)}/{consistency.get('unique_intents', 0)} | {latency.get('avg_canary_ms', 0)}/{latency.get('avg_judge_ms', 0)}/{latency.get('avg_total_ms', 0)} | {row.get('llm_calls', 0)} |")
+                md.append(f"| {attack_class} | {n_uniq} | {n_scen} | {raw_str} | {row.get('auto_denied', 0)} ({denial}) | {row.get('escalated', 0)} ({escalation}; {resolution}) | {row.get('approved', 0)} | {row.get('would_have_moved_money', 0)} | {row.get('llm_errors', 0)} / {row.get('llm_fallbacks', 0)} | {detection} | {consistency.get('consistent_unique_intents', 0)}/{consistency.get('unique_intents', 0)} | {latency.get('avg_canary_ms', 0)}/{latency.get('avg_judge_ms', 0)}/{latency.get('avg_total_ms', 0)} | {row.get('llm_calls', 0)} |")
             md.append("")
+
 
     # 7. Limitations
     md.append("## How to read this\n")

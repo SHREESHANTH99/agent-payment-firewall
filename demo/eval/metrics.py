@@ -227,30 +227,71 @@ def exclusion_counts(records: list[dict[str, Any]]) -> dict[str, int]:
     return counts
 
 
-def valid_observation_summary(records: list[dict[str, Any]], success_fn=detection_event) -> dict[str, Any]:
-    """Single denominator/numerator path for replay rates and intervals."""
-    valid = [record for record in records if is_valid_observation(record)]
-    detected = [record for record in valid if success_fn(record)]
-    rate, low, high = calculate_wilson_interval(len(detected), len(valid))
-    bootstrap_records = [{**record, "_metric_success": success_fn(record)} for record in valid]
-    boot_low, boot_high = cluster_bootstrap_interval(bootstrap_records, "_metric_success")
-    # A report invariant requires its displayed point estimate to be contained
-    # by both displayed intervals.  Percentile bootstrap endpoints can exclude
-    # the empirical point estimate for small, unbalanced cluster samples.
+def unique_intent_majority_summary(
+    records: list[dict[str, Any]],
+    success_fn=detection_event,
+    cluster_key: str = "scenario_id",
+) -> dict[str, Any]:
+    """Aggregate records by unique intent (majority verdict) and cluster-bootstrap over scenarios.
+    
+    Unit of analysis: unique intent key = (scenario_id, merchant, amount_cents, description).
+    For each unique intent, repeats are aggregated by majority vote.
+    """
+    valid = [r for r in records if is_valid_observation(r)]
+    by_intent: dict[tuple[str, str, int, str], list[dict[str, Any]]] = {}
+    for r in valid:
+        key = normalized_intent_key(r.get("scenario_id", ""), r.get("intent_request") or {})
+        by_intent.setdefault(key, []).append(r)
+
+    unique_intent_records: list[dict[str, Any]] = []
+    for key, group in by_intent.items():
+        successes = sum(bool(success_fn(r)) for r in group)
+        # Majority verdict: if >= half of valid repeats succeeded, count as success
+        majority_success = successes >= (len(group) / 2.0)
+        scenario_id = group[0].get("scenario_id", key[0])
+        # Track majority outcome in group
+        decisions = [r.get("decision") for r in group]
+        majority_decision = max(set(decisions), key=decisions.count) if decisions else "unknown"
+        unique_intent_records.append({
+            "scenario_id": scenario_id,
+            "intent_key": key,
+            "_metric_success": majority_success,
+            "majority_decision": majority_decision,
+            "repeats": len(group),
+            "records": group,
+        })
+
+    n_unique = len(unique_intent_records)
+    n_scenarios = len({r["scenario_id"] for r in unique_intent_records})
+    detected_intents = sum(bool(r["_metric_success"]) for r in unique_intent_records)
+
+    rate, low, high = calculate_wilson_interval(detected_intents, n_unique)
+    boot_low, boot_high = cluster_bootstrap_interval(unique_intent_records, "_metric_success", cluster_key=cluster_key)
     boot_low, boot_high = min(boot_low, rate), max(boot_high, rate)
+
     summary = {
         "n_total": len(records),
         "n_valid": len(valid),
         "n_excluded": len(records) - len(valid),
         "exclusion_reasons": exclusion_counts(records),
-        "numerator": len(detected),
-        "denominator": len(valid),
+        "n_unique_intents": n_unique,
+        "n_scenarios": n_scenarios,
+        "numerator": detected_intents,
+        "denominator": n_unique,
         "detection_rate": rate,
         "ci_95": [low, high],
         "cluster_bootstrap_ci_95": [boot_low, boot_high],
+        "insufficient_sample": n_unique < 10,
     }
     assert_metric_invariants(summary, records)
     return summary
+
+
+def valid_observation_summary(records: list[dict[str, Any]], success_fn=detection_event) -> dict[str, Any]:
+    """Single denominator/numerator path for replay rates and intervals based on unique intent majority aggregation."""
+    return unique_intent_majority_summary(records, success_fn=success_fn)
+
+
 
 
 def assert_metric_invariants(summary: dict[str, Any], records: list[dict[str, Any]]) -> None:
