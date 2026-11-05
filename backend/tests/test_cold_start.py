@@ -4,7 +4,12 @@ from datetime import datetime, timedelta, timezone
 from sqlalchemy import delete
 from app.models.models import Mandate, MandateStatus, MandatePeriod, PaymentIntent, PaymentIntentStatus
 from app.services.budget import budget_service
-from app.core.database import AsyncSessionLocal
+from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
+from sqlalchemy.pool import NullPool
+from app.core.config import settings
+
+clean_engine = create_async_engine(settings.DATABASE_URL, poolclass=NullPool)
+CleanSession = async_sessionmaker(bind=clean_engine, class_=AsyncSession, expire_on_commit=False)
 
 
 @pytest.mark.asyncio
@@ -13,7 +18,7 @@ async def test_cold_redis_rebuild_from_postgres():
 
     budget_service.rebuild_from_db reconstructs the active counters from PostgreSQL.
     """
-    async with AsyncSessionLocal() as session:
+    async with CleanSession() as session:
         # Create a mandate with $100 budget
         mandate_id = "cold-rebuild-mandate-test"
         await session.execute(delete(PaymentIntent).where(PaymentIntent.mandate_id == mandate_id))
