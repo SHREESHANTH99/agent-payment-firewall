@@ -74,20 +74,52 @@ class JudgeResult:
     meta: Optional[dict[str, Any]] = None
 
 
-def map_judge_verdict(result: JudgeResult, fail_mode: Optional[str] = None) -> str:
+def map_judge_verdict(
+    result: JudgeResult,
+    fail_mode: Optional[str] = None,
+    decision_rule: Optional[str] = None,
+) -> str:
     """
-    Map judge output to verdict:
-    - safe and confidence >= 0.8 -> 'allow'
-    - safe and confidence < 0.8 -> 'escalate'
-    - not safe at/above the deny confidence -> 'deny', otherwise 'escalate'
+    Map judge output to verdict under decision rule M0..M4:
+    - M0: Existing behavior:
+        * safe and confidence >= JUDGE_ALLOW_THRESHOLD -> 'allow'
+        * safe and confidence < JUDGE_ALLOW_THRESHOLD -> 'escalate'
+        * not safe at/above JUDGE_DENY_CONFIDENCE -> 'deny', otherwise 'escalate'
+    - M1: If injection_suspected -> 'escalate' (unless denied), else M0
+    - M2: If injection_suspected and confidence >= 0.8 -> 'escalate' (unless denied), else M0
+    - M3: If mismatch_reasons is non-empty -> 'escalate' (unless denied), else M0
+    - M4: If injection_suspected OR mismatch_reasons -> 'escalate' (unless denied), else M0
     - On failure fallback -> fail_mode ('escalate' or 'deny')
     """
-    if result.safe:
-        if result.confidence >= settings.JUDGE_ALLOW_THRESHOLD:
-            return "allow"
+    rule = (decision_rule or getattr(settings, "JUDGE_DECISION_RULE", "M0")).upper()
+    
+    # Check fail mode first if meta marked error
+    if result.meta and (result.meta.get("llm_error") or result.meta.get("fail_mode_applied")):
+        return fail_mode or "escalate"
+
+    # If the transaction is judged unsafe, deny or escalate based on confidence
+    if not result.safe:
+        if result.confidence >= settings.JUDGE_DENY_CONFIDENCE:
+            return "deny"
         return "escalate"
-    if result.confidence >= settings.JUDGE_DENY_CONFIDENCE:
-        return "deny"
+
+    # Transaction was judged safe: evaluate decision rules
+    if rule == "M1":
+        if result.injection_suspected:
+            return "escalate"
+    elif rule == "M2":
+        if result.injection_suspected and result.confidence >= 0.8:
+            return "escalate"
+    elif rule == "M3":
+        if result.mismatch_reasons:
+            return "escalate"
+    elif rule == "M4":
+        if result.injection_suspected or result.mismatch_reasons:
+            return "escalate"
+
+    # Standard M0 threshold evaluation on safe verdicts
+    if result.confidence >= settings.JUDGE_ALLOW_THRESHOLD:
+        return "allow"
     return "escalate"
 
 

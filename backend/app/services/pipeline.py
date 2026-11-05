@@ -394,9 +394,14 @@ async def process_intent(
 
         # f. Decision evaluation
         if rule_result.escalate or risk_escalate:
-            escalation_cause = "rules_threshold" if rule_result.escalate else (
-                "llm_error_fail_mode" if risk_details.get("judge", {}).get("fail_mode_applied") else "judge_low_confidence"
-            )
+            if rule_result.escalate:
+                escalation_cause = "rules_threshold"
+            elif risk_details.get("judge", {}).get("fail_mode_applied"):
+                escalation_cause = "llm_error_fail_mode"
+            elif risk_details.get("judge", {}).get("injection_suspected") or bool(risk_details.get("judge", {}).get("mismatch_reasons")):
+                escalation_cause = "judge_injection_signal"
+            else:
+                escalation_cause = "judge_low_confidence"
             intent.status = PaymentIntentStatus.ESCALATED
             intent.decision_reasons = [{"code": "ESCALATED_THRESHOLD", "message": "Transaction requires human review", "escalation_cause": escalation_cause}]
             risk_details["escalation_cause"] = escalation_cause

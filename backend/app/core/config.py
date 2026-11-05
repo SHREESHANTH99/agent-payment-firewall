@@ -43,6 +43,7 @@ class Settings(BaseSettings):
     JUDGE_ALLOW_THRESHOLD: float = 0.8
     # Existing behavior denied every safe=False result; 0.0 preserves that default.
     JUDGE_DENY_CONFIDENCE: float = 0.0
+    JUDGE_DECISION_RULE: str = "M0"  # M0 | M1 | M2 | M3 | M4
     CANARY_ENABLED: bool = True
     JUDGE_ENABLED: bool = True
     LLM_CACHE_ENABLED: bool = True
