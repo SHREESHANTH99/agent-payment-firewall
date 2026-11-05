@@ -1,7 +1,17 @@
+'use client'
+
+import { usePathname } from 'next/navigation'
 import { ConsoleSidebar } from '@/components/ConsoleSidebar'
 import { ConsoleHeader } from '@/components/ConsoleHeader'
 
 export default function ConsoleLayout({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname()
+  const isLoginPage = pathname === '/console/login'
+
+  if (isLoginPage) {
+    return <>{children}</>
+  }
+
   return (
     <div className="flex h-screen overflow-hidden bg-paper">
       <ConsoleSidebar />
