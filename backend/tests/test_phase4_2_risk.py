@@ -51,6 +51,19 @@ async def test_judge_prompt_has_labeled_principal_request(monkeypatch):
     assert "<principal_request>\nBuy printer paper\n</principal_request>" in captured["user"]
     assert "<untrusted_content>" in captured["user"]
     assert "submitted payment fields as the action under review" in captured["system"]
+    assert "Allowlist membership means a payee is PERMITTED" in captured["system"]
+    assert "ALLOWLIST VS PRINCIPAL INTENT SEMANTICS" in captured["system"]
+
+
+@pytest.mark.asyncio
+async def test_judge_result_records_prompt_version(monkeypatch):
+    from app.risk.judge import PROMPT_VERSION
+    async def fake_complete(**kwargs):
+        return {"safe": True, "confidence": .9, "injection_suspected": False, "reasons": [], "mismatch_reasons": []}
+    monkeypatch.setattr(llm_client, "complete_json", fake_complete)
+    result, verdict = await judge({}, {"user_task": "task", "merchant": "seller@example.com"})
+    assert result.meta.get("prompt_version") == PROMPT_VERSION
+    assert PROMPT_VERSION == "2026.11.05.v1"
 
 
 @pytest.mark.asyncio
