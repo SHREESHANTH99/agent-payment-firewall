@@ -12,6 +12,11 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
+from app.core.metrics import (
+    INTENT_DECISIONS_TOTAL,
+    PIPELINE_LATENCY_SECONDS,
+    RISK_CHECKS_TOTAL,
+)
 from app.models.models import Mandate, PaymentIntent, PaymentIntentStatus
 from app.risk.canary import canary_scan
 from app.risk.judge import judge
@@ -66,6 +71,8 @@ async def process_intent(
        - approve -> execute payout via execute_intent
     Fail-closed: Any unhandled exception releases reservation, marks intent failed, and audits.
     """
+    import time
+    start_time = time.time()
     idempotency_key = request_data.get("idempotency_key")
     if not idempotency_key:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Missing idempotency_key")
@@ -474,6 +481,12 @@ async def process_intent(
         }
         if getattr(settings, "EXECUTION_MODE", "paypal") == "dry_run":
             res["dry_run"] = True
+        # Record metrics before returning
+        decision_val = res.get("decision", "unknown")
+        stopping_layer = res.get("risk", {}).get("denial_cause") or res.get("risk", {}).get("escalation_cause") or "none"
+        INTENT_DECISIONS_TOTAL.labels(decision=decision_val, stopping_layer=stopping_layer).inc()
+        PIPELINE_LATENCY_SECONDS.observe(time.time() - start_time)
+
         await idempotency_service.store_response(idempotency_key, res)
         return res
 

@@ -21,6 +21,7 @@ class Settings(BaseSettings):
     EXECUTION_MODE: str = "paypal"  # paypal | dry_run
     ENV: str = "development"  # development | production | test
     ENABLE_DOCS: bool = False
+    METRICS_TOKEN: str = ""
     INTENTS_RATE_LIMIT_PER_MINUTE: int = 60
     WS_TICKET_RATE_LIMIT_PER_MINUTE: int = 30
     MAX_REQUEST_BODY_BYTES: int = 256 * 1024  # 256 KB default

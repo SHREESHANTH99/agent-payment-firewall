@@ -6,10 +6,10 @@ import logging
 from typing import Any
 import uuid
 
-from fastapi import FastAPI, Request, status
+from fastapi import Depends, FastAPI, Request, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.middleware.base import BaseHTTPMiddleware
 
@@ -23,6 +23,8 @@ from app.api.websocket import router as websocket_router
 from app.core.config import settings
 from app.core.database import AsyncSessionLocal, Base, engine
 from app.core.logging import setup_logging
+from app.core.metrics import export_metrics
+from app.core.security import metrics_auth
 from app.services.budget import budget_service
 from app.services.scheduler import escalation_expiry_loop, payout_polling_loop
 from sqlalchemy import text
@@ -254,6 +256,13 @@ app.include_router(admin_router)
 app.include_router(websocket_router)
 
 
+@app.get("/metrics")
+async def prometheus_metrics(_: bool = Depends(metrics_auth)) -> Response:
+    """Expose Prometheus metrics text format (authenticated)."""
+    data, content_type = export_metrics()
+    return Response(content=data, media_type=content_type)
+
+
 @app.get("/health")
 async def health_check() -> dict[str, str]:
     """Health check endpoint to verify backend service liveness."""
@@ -290,7 +299,7 @@ async def readiness_check() -> dict[str, Any]:
 
 
     status_code = 200 if all_ready else 503
-    from fastapi.responses import JSONResponse
+    from fastapi.responses import JSONResponse, Response
     return JSONResponse(
         status_code=status_code,
         content={"status": "ready" if all_ready else "not_ready", "checks": checks},

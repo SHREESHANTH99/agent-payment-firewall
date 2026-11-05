@@ -63,3 +63,28 @@ async def operator_auth(
         )
 
     return True
+
+
+async def metrics_auth(
+    credentials: Annotated[Optional[HTTPAuthorizationCredentials], Security(bearer_scheme)] = None,
+) -> bool:
+    """Authenticate Prometheus scraper via Bearer METRICS_TOKEN or OPERATOR_TOKEN."""
+    if not credentials or not credentials.credentials:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Missing Authorization: Bearer token for metrics",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    token = credentials.credentials
+    valid_metrics = bool(settings.METRICS_TOKEN and hmac.compare_digest(token, settings.METRICS_TOKEN))
+    valid_operator = bool(settings.OPERATOR_TOKEN and hmac.compare_digest(token, settings.OPERATOR_TOKEN))
+
+    if not (valid_metrics or valid_operator):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid metrics token",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    return True
