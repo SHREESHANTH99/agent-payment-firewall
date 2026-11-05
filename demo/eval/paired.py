@@ -386,3 +386,29 @@ async def run_paired_evaluation(
         json.dump(report, f, indent=2)
 
     return report
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description="Run paired deterministic evaluation.")
+    parser.add_argument("--split", choices=["dev", "test"], default="dev", help="Scenario split to evaluate")
+    parser.add_argument("--out", default="results/paired_dev.json", help="Output path for paired evaluation JSON")
+    parser.add_argument("--repeats", type=int, default=3, help="Repeats per unique intent per layer")
+    parser.add_argument("--validate-composition", type=int, default=5, help="Number of direct 'both' observations to validate")
+    parser.add_argument("--no-resume", action="store_true", help="Start fresh instead of resuming from progress checkpoint")
+    args = parser.parse_args()
+
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
+    asyncio.run(
+        run_paired_evaluation(
+            split=args.split,
+            output_path=args.out,
+            repeats=args.repeats,
+            validate_composition=args.validate_composition,
+            resume=not args.no_resume,
+        )
+    )
+
+
+if __name__ == "__main__":
+    main()
+
