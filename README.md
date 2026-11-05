@@ -1,342 +1,83 @@
-# Agent Payment Firewall (Gatekeeper)
+# Agent Payment Firewall
 
-A real-time security proxy and settlement firewall that intercepts, inspects, and executes autonomous AI agent payment requests before money moves.
+[![CI](https://github.com/SHREESHANTH99/agent-payment-firewall/actions/workflows/ci.yml/badge.svg)](https://github.com/SHREESHANTH99/agent-payment-firewall/actions/workflows/ci.yml)
+[![Coverage](https://img.shields.io/badge/coverage-85%25-brightgreen.svg)](https://github.com/SHREESHANTH99/agent-payment-firewall)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![PayPal](https://img.shields.io/badge/PayPal-Sandbox%20Only-orange.svg)](docs/deploy-render.md)
 
-It provides deterministic policy enforcement (budget limits, per-transaction caps, merchant allowlists), atomic Redis budget reservation, honeypot canary token traps, LLM-based adversarial risk adjudication, an automated circuit breaker, a SHA-256 hash-chained immutable audit ledger in PostgreSQL, and secure PayPal sandbox payout execution.
+**Open-source, deterministic payment firewall between autonomous AI agents and PayPal Payouts.**
 
----
+Autonomous procurement agents face indirect prompt injection when browsing untrusted vendor websites, review feeds, and checkout DOMs. Without an intermediary guardrail proxy, compromised agents can be tricked into transferring corporate funds to adversary accounts or purchasing incorrect goods.
 
-## Architecture Overview
-
-```
-                      +-----------------------------+
-                      |   Autonomous AI Agent       |
-                      +--------------+--------------+
-                                     |
-                                     |  X-Agent-Key: Bearer <key>
-                                     v
-                      +-----------------------------+
-                      |  Agent Payment Firewall API |
-                      +--------------+--------------+
-                                     |
-             +-----------------------+-----------------------+
-             |                       |                       |
-             v                       v                       v
-     [ 1. Idempotency ]      [ 2. Mandate Check ]    [ 3. Atomic Budget ]
-    Atomic key locking in    Agent ID, allowlist,    Redis reserve/commit
-            Redis              lifetime/period caps       with TTL release
-             |                       |                       |
-             +-----------------------+-----------------------+
-                                     |
-             +-----------------------+-----------------------+
-             |                                               |
-             v                                               v
-    [ 4. Honeypot Canary ]                          [ 5. Risk Judge ]
-   Overlapping context scan                        Adversarial prompt
-    detects honeypot tool                          injection & semantic
-      calls (fail-closed)                             drift analysis
-             |                                               |
-             +-----------------------+-----------------------+
-                                     |
-                                     v
-                           [ 6. Decision Engine ]
-                                     |
-                 +-------------------+-------------------+
-                 |                                       |
-           (Approved)                               (Escalated)
-                 |                                       |
-                 v                                       v
-     [ PayPal Sandbox Payout ]                 [ Human Review Queue ]
-     OAuth token batch payout                WebSocket streaming to Console
-     + Webhook signature check               Operator Approve / Reject
-                 |                                       |
-                 +-------------------+-------------------+
-                                     |
-                                     v
-                         [ SHA-256 Audit Chain ]
-                        Postgres chained ledger
-                        Genesis -> Head verification
-```
-
-### Defense-in-Depth Pipeline
-
-1. **Idempotency Deduplication**: Atomic Redis key locking prevents replay attacks and race condition double-spending.
-2. **Deterministic Mandate & Policy Rules**: Strict validation of agent ID, currency, merchant allowlists, per-transaction limits, and period budgets.
-3. **Atomic Redis Budgeting**: Strict `reserve` $\to$ `commit` or `release` pattern guarantees budgets cannot be overspent across concurrent requests.
-4. **Honeypot Canary Scanner**: Injects dummy tool definitions into untrusted context segments. If prompt injection induces an agent tool call, the canary trips and auto-freezes the mandate via the circuit breaker.
-5. **LLM Risk Judge**: Evaluates intent reasoning, recipient, and untrusted context against adversarial manipulation and semantic drift with structured Pydantic schema validation.
-6. **Automated Circuit Breaker**: Instantly freezes compromised mandates, emits real-time WebSocket alerts, and halts any further settlement until an operator reviews.
-7. **Human Escalation Queue**: Transactions exceeding policy thresholds or flagged by risk layers require operator authorization.
-8. **Cryptographic SHA-256 Hash Chain**: Every state change, approval, rejection, and circuit breaker trip is appended to an immutable tamper-evident audit ledger in PostgreSQL.
-9. **PayPal Sandbox Settlement**: Final execution through PayPal Sandbox Payouts API (`/v1/payments/payouts`) with cryptographic webhook signature verification.
+The **Agent Payment Firewall** intercepts payment intents before money moves, executing defense-in-depth inspection through deterministic policy limits, atomic budget accounting, honeypot canary scanning, and adversarial LLM adjudication.
 
 ---
 
-## Web Interface: Landing Page & Operator Console
+## 60-Second Quickstart
 
-The frontend is built with **Next.js 14**, **TypeScript**, and **Tailwind CSS**, designed using the Paper & Ink aesthetic token system (Paper `#F3F0E8`, Ink `#14130F`, Vermilion `#E5391B`, Forest `#1F7A4D`, Amber `#B7791F` with dark mode support).
-
-### 1. Public Landing Page (`/`)
-- **Sticky Navigation**: Clean section navigation with 72px scroll-spy offset, dark/light theme toggle, and a **Launch Console** dropdown (Demo mode vs. Operator Token sign-in).
-- **Interactive Settlement Simulator**: Test 4 real-world attack scenarios (clean purchase, over-limit, prompt injection, in-policy redirect) with live firewall ON/OFF toggling.
-- **Empirical Calibration Evidence**: Grounded accuracy charts rendered from benchmark evaluation runs (`/public/data/eval.json` and `results/CALIBRATION.md`).
-- **Architecture & Attack Story**: Visual walkthrough of DOM-based prompt injection threats and how honeypot canaries neutralize them.
-
-### 2. Operator Governance Console (`/console`)
-- **Overview**: 5 live KPIs (Settled, Reserved, Remaining Budget, Pending Approvals, Frozen Mandates), 24-hour decision distribution chart, 6-stage pipeline inspection strip, and live WebSocket activity ledger.
-- **Approvals (`/console/approvals`)**: Human-in-the-loop escalation cards displaying merchant, amount, reasoning, collapsible source context, and canary/judge stamps with real-time countdown expiry and one-click Approve/Reject.
-- **Intents (`/console/intents`)**: AG Grid ledger with status filters and slide-over drawer displaying raw JSON risk details and audit logs.
-- **Mandates (`/console/mandates`)**: Mandate management table with spent/reserved/remaining budget bars and instant Freeze, Unfreeze, and Revoke controls.
-- **Audit Chain (`/console/audit`)**: Linked SHA-256 hash block visualization with an animated "Verify Chain Integrity" tool that detects broken hashes.
-- **Risk Controls (`/console/controls`)**: Runtime toggles for the Canary Scanner and AI Judge with persistent security warnings when defenses are disarmed.
-- **Dual Operating Modes**:
-  - **Live Sandbox Mode**: Authenticates with `OPERATOR_TOKEN` and connects to the FastAPI backend and WebSocket event stream.
-  - **Interactive Demo Mode (`/console?demo=1`)**: Fully offline mock provider that simulates real-time events, approvals, freeze actions, and chain verification with sample data.
-
----
-
-## Getting Started
-
-### Prerequisites
-- **Docker & Docker Compose** (Docker Desktop on Windows/macOS/Linux)
-- **Node.js 18+ & npm** (for dashboard development)
-- **Python 3.11+** (for backend testing and scripts)
-
----
-
-### Step 1: Clone and Configure Environment
+Bring up the complete local stack (PostgreSQL, Redis, Backend API, Dashboard, and Mock Store):
 
 ```bash
-git clone https://github.com/SHREESHANTH99/agent-payment-firewall.git
+# 1. Clone repository and set up environment
+git clone https://github.com/SHREESHANTH99/agent-payment-firewall
 cd agent-payment-firewall
 cp .env.example .env
+
+# 2. Run the full Docker stack
+docker compose up --build
 ```
 
-Edit `.env` to configure your sandbox tokens and LLM credentials:
-
-```ini
-# Database & Redis
-DATABASE_URL=postgresql+asyncpg://postgres:postgres@localhost:5432/firewall
-REDIS_URL=redis://localhost:6379/0
-
-# Operator & Agent Authentication Keys
-OPERATOR_TOKEN=your_operator_bearer_token_here
-AGENT_API_KEYS={"your_agent_secret_key_here":"agent-007"}
-
-# AI Risk Inspection Engine
-LLM_BASE_URL=https://generativelanguage.googleapis.com/v1beta/openai/
-LLM_API_KEY=your_gemini_or_openai_api_key
-CANARY_MODEL=gemini-3.5-flash
-JUDGE_MODEL=gemini-3.5-flash
-CANARY_ENABLED=true
-JUDGE_ENABLED=true
-
-# PayPal Sandbox Credentials & Execution Mode
-PAYPAL_CLIENT_ID=your_sandbox_client_id
-PAYPAL_CLIENT_SECRET=your_sandbox_client_secret
-PAYPAL_MODE=sandbox
-PAYPAL_TEST_RECEIVER_EMAIL=your_sandbox_buyer_email@example.com
-
-# Execution Mode: 'paypal' executes sandbox payouts; 'dry_run' simulates settlement,
-# records dry-run ledger references ("dry-run-<id>"), commits budget, and skips external API calls.
-EXECUTION_MODE=dry_run
-```
+- **Landing Page & Console**: [http://localhost:3000](http://localhost:3000) (Click **Demo mode** to test immediately without tokens)
+- **FastAPI Documentation**: [http://localhost:8000/docs](http://localhost:8000/docs)
+- **Readiness Probe**: [http://localhost:8000/ready](http://localhost:8000/ready)
+- **Prometheus Metrics**: `GET http://localhost:8000/metrics` (Bearer authorized)
 
 ---
 
-### Step 2: Start Services via Docker
+## Architecture
 
-To run the complete stack (FastAPI Backend, PostgreSQL, Redis, and Next.js Dashboard):
+![Architecture](docs/architecture.svg)
 
-```bash
-docker compose up -d
-```
-
-Verify the backend service is healthy:
-```bash
-curl http://localhost:8000/health
-# {"status":"OK"}
-```
-
-Access the web interfaces:
-- **Landing Page**: [http://localhost:3000](http://localhost:3000)
-- **Interactive Demo Console**: [http://localhost:3000/console?demo=1](http://localhost:3000/console?demo=1)
-- **Operator Console Sign-In**: [http://localhost:3000/console/login](http://localhost:3000/console/login)
+### Six Pipeline Checkpoints
+1. **Idempotency Check**: Atomic Redis `SETNX` deduplication ensures crashed or retrying agents never cause duplicate disbursements.
+2. **Mandate & Policy Rules**: Pure deterministic verification against active mandate bounds: merchant allowlist, transaction cap, period budget, valid date windows, and `approval_required_merchants`.
+3. **Atomic Budget Reservation**: Redis Lua script (`reserve` $\rightarrow$ `commit` or `release`) guarantees parallel agent threads cannot race to overdraw funds.
+4. **Canary Scanner**: Injects honeypot tool definitions into the agent tool list; if called, prompt injection is caught with zero LLM inference cost.
+5. **LLM Risk Judge**: Semantic review analyzing discrepancies between original user tasks and synthesized payment arguments. Operates **fail-closed** on quota or provider failures.
+6. **Execution & Payout**: Dispatches via PayPal Payouts v1 (Sandbox) with two-phase webhook settlement (`PAYMENT.PAYOUTS-ITEM.SUCCEEDED`) and SHA-256 hash-chain audit logging.
 
 ---
 
-### Step 3: Running the Dashboard in Local Dev Mode
+## Evaluation Summary & Empirical Findings
 
-If developing or modifying the Next.js dashboard locally:
+Evaluated under pre-registered protocol freeze [`eval-freeze-v1`](docs/EVAL_PROTOCOL.md) (`f56f0eb`) on frozen judge prompt `2026.11.05.v2` and decision rule `M0`. Full results and run details are available in [results/EVAL.md](results/EVAL.md) and [results/PAIRED_TEST_DETAILS.md](results/PAIRED_TEST_DETAILS.md).
 
-```bash
-cd dashboard
-npm install
-npm run dev
-```
+> **Sample Guard Disclosure**: Any class with fewer than 10 unique intents reports exact integer counts with `insufficient sample`, never empirical percentages or intervals.
 
-Run frontend tests:
-```bash
-npm test
-```
+| Class | Unique Intents | Scenarios | Stopped / Validated | Primary Defense Mechanism |
+| :--- | :--- | :--- | :--- | :--- |
+| **Malicious In-Policy** | 6 | 3 | 2 of 6 stopped | AI Judge (wrong-item scenario; reroutes missed by AI alone) `(insufficient sample)` |
+| **Malicious Out-of-Policy** | 6 | 3 | 6 of 6 stopped | Deterministic Rules Allowlist (Blocked in pre-risk) `(insufficient sample)` |
+| **Legitimate Clean Page** | 4 | 4 | 3 of 4 approved | Mandate Cap ($50 limit stopped $89 replacement item) `(insufficient sample)` |
+| **Legitimate Poisoned Page** | 9 | 9 | 9 of 9 approved | Benign Task Execution (0 false blocks on clean instructions) `(insufficient sample)` |
 
-Build for production:
-```bash
-npm run build
-```
+### Core Evaluation Findings
+- **Attacks Stopped by Rules**: All 18 out-of-policy observations in the test set were stopped deterministically by allowlist checks before AI evaluation ran. Rules counts are strictly distinguished from AI detection.
+- **AI Scope Limits**: The AI risk judge stopped wrong-item substitutions in both reasoning styles (`cites_page` and `laundered`), but missed payee rerouting between two allowlisted merchants.
+- **Deterministic Fix**: Reroutes between allowlisted merchants are reliably halted by the `approval_required_merchants` policy control, confirming that defense-in-depth deterministic controls are necessary alongside LLMs.
 
 ---
 
-## API Reference
+## Limitations
 
-All requests require either Operator authentication (`Authorization: Bearer <OPERATOR_TOKEN>`) or Agent authentication (`X-Agent-Key: <key>`).
-
-### 1. Health Check
-```bash
-curl http://localhost:8000/health
-```
-
-### 2. Mandates (Operator Only)
-```bash
-# Create spending mandate
-curl -X POST http://localhost:8000/mandates \
-  -H "Authorization: Bearer $OPERATOR_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "mandate_id": "mnd-prod-007",
-    "agent_id": "agent-007",
-    "budget_total": "1500.00",
-    "per_transaction_cap": "25.00",
-    "escalation_threshold": "15.00",
-    "period": "monthly",
-    "allowed_currencies": ["USD"],
-    "allowlist_merchants": ["cloud-compute-grid.net", "developer-tools.com"]
-  }'
-
-# Freeze a mandate
-curl -X POST http://localhost:8000/mandates/mnd-prod-007/freeze \
-  -H "Authorization: Bearer $OPERATOR_TOKEN"
-
-# Unfreeze a mandate
-curl -X POST http://localhost:8000/mandates/mnd-prod-007/unfreeze \
-  -H "Authorization: Bearer $OPERATOR_TOKEN"
-```
-
-### 3. Payment Intents (Agents & Operators)
-```bash
-# Submit an intent as an AI agent
-curl -X POST http://localhost:8000/intents \
-  -H "X-Agent-Key: your-agent-api-key" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "idempotency_key": "unique-uuid-001",
-    "mandate_id": "mnd-prod-007",
-    "amount": "14.00",
-    "currency": "USD",
-    "merchant": "developer-tools.com",
-    "description": "Monthly CI build worker renewal",
-    "reasoning": "Sprint pipeline automation dependency",
-    "source_context": "Task #402: provision CI runner node for release build"
-  }'
-
-# Approve an escalated intent (Operator only)
-curl -X POST http://localhost:8000/intents/<intent-id>/approve \
-  -H "Authorization: Bearer $OPERATOR_TOKEN"
-
-# Reject an escalated intent
-curl -X POST http://localhost:8000/intents/<intent-id>/reject \
-  -H "Authorization: Bearer $OPERATOR_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{"reason": "Exceeds daily provisioning budget"}'
-```
-
-### 4. Audit Chain Verification (Operator Only)
-```bash
-# Verify cryptographic hash chain integrity
-curl http://localhost:8000/audit/verify \
-  -H "Authorization: Bearer $OPERATOR_TOKEN"
-# {"valid": true, "checked": 42, "first_broken_index": null, "chain_head_hash": "..."}
-```
-
-### 5. Risk Configuration (Operator Only)
-```bash
-# Toggle Canary Scanner and AI Judge
-curl -X POST http://localhost:8000/admin/risk-config \
-  -H "Authorization: Bearer $OPERATOR_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{"canary_enabled": true, "judge_enabled": true}'
-```
+1. **Sandbox Only**: The PayPal integration strictly targets the PayPal Sandbox (`api-m.sandbox.paypal.com`). Live financial endpoints are forbidden by design.
+2. **Single Tenant Prototype**: Designed for single-tenant / workgroup deployments with token-based operator access and pre-shared agent API keys.
+3. **Probabilistic AI Layers**: Large Language Models are non-deterministic. Risk thresholds and canary tripwires reduce risk, but do not provide mathematical guarantees without deterministic rules.
+4. **Small Evaluation Sample Sizes**: Due to API rate limits and token costs, preset runs provide directional defense metrics rather than asymptotic convergence.
+5. **Free-Tier Infrastructure**: When deploying to free-tier cloud platforms (e.g., Render), in-memory Redis caches are ephemeral and services sleep on inactivity. The firewall automatically rebuilds budget counters from PostgreSQL on cold start.
 
 ---
 
-## Testing & Quality Assurance
+## Responsible Use & Security
 
-### Backend Unit & Integration Tests (Pytest)
-```bash
-pytest
-```
-Covers:
-- Idempotency deduplication & Redis reserve/commit/release lifecycle.
-- Deterministic policy enforcement (caps, allowlists, currency).
-- Honeypot canary token tripping and fail-closed behaviors.
-- Judge prompt formatting, schema validation, and confidence fallbacks.
-- SHA-256 cryptographic hash-chain tamper detection.
-- PayPal OAuth token caching and payout dispatch mock verification.
-
-### Frontend Unit & State Tests (Vitest)
-```bash
-cd dashboard
-npm test
-```
-Covers:
-- Number formatting (currency compact & full notation).
-- Semantic status badge mapping and verdict stamps.
-- Mock API provider workflows (intent filtering, budget calculation, freeze/unfreeze).
-- Cryptographic hash shortening and SHA-256 copy helpers.
-
----
-
-## Repository Structure
-
-```
-├── backend/
-│   ├── app/
-│   │   ├── api/              # FastAPI endpoints (intents, mandates, audit, admin, webhooks, ws)
-│   │   ├── core/             # Database connection, security, config settings
-│   │   ├── models/           # SQLAlchemy models (Mandate, PaymentIntent, AuditLog)
-│   │   ├── paypal/           # PayPal client, payout batches, webhook verification
-│   │   ├── risk/             # Honeypot Canary scanner and AI Risk Judge
-│   │   ├── services/         # Budget accounting, pipeline processor, circuit breaker
-│   │   └── main.py           # FastAPI entry point & lifespan routines
-│   ├── results/              # Calibration benchmark outputs and reports
-│   └── tests/                # Pytest integration & unit test suite
-├── dashboard/
-│   ├── public/               # SVG illustrations, favicon, scenarios.json, calibration data
-│   ├── src/
-│   │   ├── app/
-│   │   │   ├── console/      # Operator console routes (overview, approvals, intents, mandates, audit, controls)
-│   │   │   ├── globals.css   # Paper & Ink design tokens, hairline borders, AG Grid theme
-│   │   │   └── page.tsx      # Public landing page with interactive simulator
-│   │   ├── components/       # UI elements (Stamps, KpiNumerals, PipelineStrip, Drawer)
-│   │   ├── hooks/            # useRealtime WebSocket hook
-│   │   ├── lib/              # API clients (real & mockService for demo mode)
-│   │   └── types/            # TypeScript interfaces
-│   └── package.json
-├── docker-compose.yml        # Docker compose configuration (API, Postgres, Redis, Dashboard)
-├── .env.example              # Environment variables template
-└── README.md
-```
-
----
-
-## Security Model & Truthful Disclosure
-
-- **Presentation Layer Integrity**: The dashboard presentation layer is decoupled from payment settlement logic. The frontend communicates with the backend exclusively via standard REST endpoints and authenticated WebSocket tickets.
-- **Fail-Closed Principle**: If LLM risk inspection layers time out or encounter rate limits, transactions do not execute silently; they fail closed and escalate for human operator verification.
-- **Immutable Ledger**: Every financial state transition is recorded in PostgreSQL with the SHA-256 hash of the payload linked to the previous entry (`prev_hash`). Any manual database record modification breaks the verification hash chain.
-
----
-
-## License
-
-MIT License. Copyright (c) 2026 SHREESHANTH99.
+The Agent Payment Firewall is experimental defensive cybersecurity software created for the AI agent hackathon. It is designed to safeguard automated workflows and assess vulnerability surfaces under controlled sandbox conditions. Please review our [Threat Model](docs/threat-model.md) and [Security Policy](SECURITY.md).
