@@ -1,0 +1,76 @@
+services:
+  # 1. Backend FastAPI Service
+  - type: web
+    name: payment-firewall-api
+    runtime: docker
+    dockerContext: backend
+    dockerfilePath: backend/Dockerfile
+    plan: free
+    region: oregon
+    healthCheckPath: /ready
+    envVars:
+      - key: ENV
+        value: production
+      - key: EXECUTION_MODE
+        value: paypal
+      - key: PAYPAL_MODE
+        value: sandbox
+      - key: DATABASE_URL
+        fromDatabase:
+          name: payment-firewall-db
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          type: keyvalue
+          name: payment-firewall-redis
+          property: connectionString
+      - key: DASHBOARD_ORIGIN
+        fromService:
+          type: web
+          name: payment-firewall-dashboard
+          property: url
+      - key: OPERATOR_TOKEN
+        sync: false
+      - key: AGENT_API_KEYS
+        sync: false
+      - key: PAYPAL_CLIENT_ID
+        sync: false
+      - key: PAYPAL_CLIENT_SECRET
+        sync: false
+      - key: PAYPAL_WEBHOOK_ID
+        sync: false
+      - key: LLM_API_KEY
+        sync: false
+      - key: ENABLE_DOCS
+        value: "true"
+
+  # 2. Dashboard Next.js Frontend
+  - type: web
+    name: payment-firewall-dashboard
+    runtime: docker
+    dockerContext: dashboard
+    dockerfilePath: dashboard/Dockerfile
+    plan: free
+    region: oregon
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NEXT_PUBLIC_API_URL
+        fromService:
+          type: web
+          name: payment-firewall-api
+          property: url
+
+databases:
+  # 3. PostgreSQL Database (Source of Truth)
+  - name: payment-firewall-db
+    plan: free
+    region: oregon
+    databaseName: firewall
+    user: firewall_user
+
+  # 4. Redis Key-Value Store (Ephemeral / Rebuildable Budget & Idempotency)
+  - type: keyvalue
+    name: payment-firewall-redis
+    plan: free
+    region: oregon
