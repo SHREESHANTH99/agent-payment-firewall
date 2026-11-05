@@ -1,0 +1,166 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  backend:
+    name: Backend CI
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgrespassword
+          POSTGRES_DB: test_firewall
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r backend/requirements.txt
+          pip install ruff mypy pytest-cov
+
+      - name: Ruff Lint & Format check
+        run: |
+          ruff check backend/
+          ruff format --check backend/
+
+      - name: Mypy Typecheck
+        run: |
+          mypy --ignore-missing-imports backend/app/ || true
+
+      - name: Run pytest with coverage
+        env:
+          DATABASE_URL: postgresql+asyncpg://postgres:postgrespassword@localhost:5432/test_firewall
+          REDIS_URL: redis://localhost:6379/0
+          ENV: test
+          EXECUTION_MODE: dry_run
+          PAYPAL_MODE: sandbox
+          OPERATOR_TOKEN: test-ci-operator-token-min-24-chars-long
+          AGENT_API_KEYS: '{"ci-agent-key": "ci-agent"}'
+        run: |
+          cd backend
+          pytest --cov=app --cov-report=xml --cov-report=term tests/
+
+      - name: Upload coverage artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-coverage-report
+          path: backend/coverage.xml
+
+  dashboard:
+    name: Dashboard CI
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: dashboard/package-lock.json
+
+      - name: Install dependencies
+        working-directory: dashboard
+        run: npm ci
+
+      - name: Lint
+        working-directory: dashboard
+        run: npm run lint || true
+
+      - name: Test (vitest)
+        working-directory: dashboard
+        run: npm test
+
+      - name: Build
+        working-directory: dashboard
+        run: npm run build
+
+  demo:
+    name: Demo Services CI
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Install demo dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r backend/requirements.txt
+          pip install pytest httpx
+
+      - name: Run Demo and Export schema tests
+        run: |
+          pytest tests/
+
+  security:
+    name: Security & Container Checks
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Gitleaks Secret Detection
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        continue-on-error: true
+
+      - name: Pip Audit
+        run: |
+          python -m pip install --upgrade pip
+          pip install pip-audit
+          pip-audit -r backend/requirements.txt --ignore-vuln || true
+
+      - name: Npm Audit
+        working-directory: dashboard
+        run: npm audit --audit-level=high || true
+
+      - name: Docker Build Backend
+        run: docker build -t apf-backend:ci backend/
+
+      - name: Docker Build Dashboard
+        run: docker build -t apf-dashboard:ci dashboard/
+
+      - name: Docker Build Demo Store
+        run: docker build -t apf-store:ci demo/store/
