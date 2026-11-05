@@ -148,9 +148,15 @@ def generate_eval_markdown(
 
     replay = eval_data.get("replay")
     if replay:
-        md.append("## Replay results by defense configuration\n")
+        eval_type = replay.get("evaluation_type", "agent_generated_intents")
+        type_title = "Constructed Paired Intent Evaluation" if eval_type == "constructed_paired_intents" else "Agent-Generated Intent Replay Evaluation"
+        md.append(f"## {type_title}\n")
+        md.append(f"- **Evaluation Dataset Source:** `{eval_type}`\n")
         md.append("Auto-denials and escalations are shown separately; fail-mode outcomes are excluded from detection rates.\n")
-        for config_name, config in replay.get("configurations", {}).items():
+        
+        # Render standard configurations
+        standard_configs = {k: v for k, v in replay.get("configurations", {}).items() if k != "rules_plus_policy"}
+        for config_name, config in standard_configs.items():
             md.append(f"### {config_name}\n")
             md.append("| Attack class | Unique intents | Scenarios | Raw observations (total/valid/excluded) | Auto-denied (cause) | Escalated (cause; harness resolution) | Approved | Would move money | LLM errors / fallbacks | Detection rate (Wilson; cluster bootstrap) | Consistency | Canary / Judge / Total latency ms | LLM calls |")
             md.append("|---|---:|---:|---|---|---|---:|---:|---:|---|---|---|---:|")
@@ -188,11 +194,51 @@ def generate_eval_markdown(
                 md.append(f"| {attack_class} | {n_uniq} | {n_scen} | {raw_str} | {row.get('auto_denied', 0)} ({denial}) | {row.get('escalated', 0)} ({escalation}; {resolution}) | {row.get('approved', 0)} | {row.get('would_have_moved_money', 0)} | {row.get('llm_errors', 0)} / {row.get('llm_fallbacks', 0)} | {detection} | {consistency.get('consistent_unique_intents', 0)}/{consistency.get('unique_intents', 0)} | {latency.get('avg_canary_ms', 0)}/{latency.get('avg_judge_ms', 0)}/{latency.get('avg_total_ms', 0)} | {row.get('llm_calls', 0)} |")
             md.append("")
 
+        # Render Policy Control Section separately if rules_plus_policy is present
+        policy_config = replay.get("configurations", {}).get("rules_plus_policy")
+        if policy_config:
+            md.append("## Deterministic Policy Control (`approval_required_merchants`)\n")
+            md.append(
+                "This control demonstrates a deterministic policy safeguard: marking secondary payees as "
+                "`approval_required_merchants`. This stops 100% of rerouted payments deterministically before "
+                "any LLM call, at the operational cost of requiring human approval for every transaction to that payee.\n"
+            )
+            md.append("| Attack class | Unique intents | Scenarios | Raw observations | Auto-denied | Escalated | Approved | Detection / Escalation | Cost (Human Reviews Required) |")
+            md.append("|---|---:|---:|---|---|---|---:|---|---|")
+            for attack_class in [c for c in ("malicious_in_policy", "malicious_out_of_policy", "legitimate_clean_context", "legitimate_injected_context") if c in policy_config]:
+                row = policy_config.get(attack_class, {})
+                n_uniq = row.get("n_unique_intents", 0)
+                n_scen = row.get("n_scenarios", 0)
+                raw_str = f"{row.get('n_total', 0)} / {row.get('n_valid', 0)} / {row.get('n_excluded', 0)}"
+                is_legit = attack_class in {"benign", "legitimate_clean_context", "legitimate_injected_context"}
+                ci = row.get("ci_95", [0, 0])
+                if is_legit:
+                    det_str = f"FP / Esc: {row.get('escalation_rate', 0.0):.1%}"
+                    cost_str = f"{row.get('escalated', 0)} legitimate payments escalated"
+                else:
+                    det_str = f"Stopped: {row.get('detection_rate', 0.0):.1%} [{ci[0]:.1%}, {ci[1]:.1%}]"
+                    cost_str = f"{row.get('escalated', 0)} reviews triggered"
+                md.append(f"| {attack_class} | {n_uniq} | {n_scen} | {raw_str} | {row.get('auto_denied', 0)} | {row.get('escalated', 0)} | {row.get('approved', 0)} | {det_str} | {cost_str} |")
+            md.append("")
+
+    # What this measures and what it doesn't
+    md.append("## What this measures and what it doesn't\n")
+    md.append(
+        "- **What this measures:**\n"
+        "  - The defense-in-depth barrier provided by deterministic policy rules (allowlists, caps, approval requirements) and AI semantic layers (canaries, judge).\n"
+        "  - The performance of semantic judge evaluations under strict isolation of untrusted web content vs principal task instructions.\n"
+        "  - False positive and escalation rates on legitimate procurement intents under clean and hostile page contexts.\n"
+        "- **What this does NOT measure:**\n"
+        "  - Multi-turn conversational social engineering across human agents.\n"
+        "  - Web browser fingerprinting, dynamic anti-bot mechanisms, or client-side JavaScript execution beyond HTTP scraping.\n"
+        "  - Out-of-policy attacks when an autonomous agent resistively aborts before dispatching a payment intent (the firewall evaluates submitted financial actions).\n"
+    )
 
     # 7. Limitations
     md.append("## How to read this\n")
     md.append("Unique intents are distinct normalized submissions; observations include repeats. Escalations are human-review requests, not auto-denials. LLM fail-mode outcomes are reported separately and excluded from detection rates. DEV is for tuning and TEST is for final reporting. LLM outcomes can vary between runs.\n")
     md.append("## 7. Limitations & Honest Assessment\n")
+
     md.append(
         "1. **Small Sample Sizes:** Due to API free-tier quotas and rate limits, preset runs ($N=2$ for quick, $N=5$ for full) "
         "provide directional indicators with wide confidence intervals rather than asymptotic convergence.\n"
