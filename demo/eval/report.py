@@ -183,16 +183,23 @@ def generate_eval_markdown(
                 if row.get("not_reportable"):
                     detection = "NOT REPORTABLE (>10% excluded)"
                 elif is_legit:
-                    fp_rate = row.get("false_positive_rate", 0.0)
-                    detection = f"FP: {fp_rate:.1%} [{row.get('fp_ci_95', [0,0])[0]:.1%}, {row.get('fp_ci_95', [0,0])[1]:.1%}]"
-                elif row.get("insufficient_sample"):
-                    detection = "insufficient sample"
+                    fp_count = row.get("false_positives", 0)
+                    if n_uniq < 10:
+                        detection = f"{fp_count} of {n_uniq} intents (insufficient sample)"
+                    else:
+                        fp_rate = row.get("false_positive_rate", 0.0)
+                        detection = f"FP: {fp_rate:.1%} [{row.get('fp_ci_95', [0,0])[0]:.1%}, {row.get('fp_ci_95', [0,0])[1]:.1%}]"
+                elif n_uniq < 10:
+                    stopped = row.get("numerator", row.get("blocked", 0))
+                    detection = f"{stopped} of {n_uniq} intents (insufficient sample)"
                 elif row.get("numerator", 0) == 0:
                     detection = f"0 of {row.get('denominator', row.get('n_valid', 0))}, 95% upper bound {ci[1]:.1%}"
                 else:
                     detection = f"{row.get('detection_rate', 0):.1%} [{ci[0]:.1%}, {ci[1]:.1%}] ; [{cluster[0]:.1%}, {cluster[1]:.1%}]"
                 md.append(f"| {attack_class} | {n_uniq} | {n_scen} | {raw_str} | {row.get('auto_denied', 0)} ({denial}) | {row.get('escalated', 0)} ({escalation}; {resolution}) | {row.get('approved', 0)} | {row.get('would_have_moved_money', 0)} | {row.get('llm_errors', 0)} / {row.get('llm_fallbacks', 0)} | {detection} | {consistency.get('consistent_unique_intents', 0)}/{consistency.get('unique_intents', 0)} | {latency.get('avg_canary_ms', 0)}/{latency.get('avg_judge_ms', 0)}/{latency.get('avg_total_ms', 0)} | {row.get('llm_calls', 0)} |")
+            md.append("\n> **Note:** Attacks 'stopped by rules' are blocked by deterministic allowlist/cap rules in the pre-risk phase and are NOT counted as AI detection.\n")
             md.append("")
+
 
         # Render Policy Control Section separately if rules_plus_policy is present
         policy_config = replay.get("configurations", {}).get("rules_plus_policy")

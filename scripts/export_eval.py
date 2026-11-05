@@ -230,6 +230,23 @@ def main():
     transformed_eval["split"] = split
     transformed_eval["development_data"] = split == "dev"
 
+    # Enforce guard: strip percentage rates for classes with fewer than 10 unique intents
+    if "replay" in transformed_eval and "configurations" in transformed_eval["replay"]:
+        for cfg_name, cfg in transformed_eval["replay"]["configurations"].items():
+            for cls_name, cls_data in cfg.items():
+                if isinstance(cls_data, dict):
+                    n_uniq = cls_data.get("n_unique_intents", 0)
+                    if n_uniq < 10:
+                        # Refuse to export misleading percentages for small samples
+                        cls_data.pop("detection_rate", None)
+                        cls_data.pop("false_positive_rate", None)
+                        cls_data.pop("escalation_rate", None)
+                        cls_data.pop("ci_95", None)
+                        cls_data.pop("cluster_bootstrap_ci_95", None)
+                        cls_data["sample_status"] = "insufficient sample"
+                        cls_data["insufficient_sample"] = True
+
+
     target_eval_file = dashboard_data_dir / "eval.json"
     with open(target_eval_file, "w", encoding="utf-8") as f:
         json.dump(transformed_eval, f, indent=2)
