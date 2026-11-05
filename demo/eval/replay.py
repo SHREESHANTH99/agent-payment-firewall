@@ -188,10 +188,18 @@ class ReplayEvaluator:
             "period": "lifetime",
             "valid_until": valid_until,
         }
-        async with httpx.AsyncClient(timeout=10.0) as client:
-            res = await client.post(url, json=payload, headers=headers)
-            res.raise_for_status()
-            return res.json()["mandate_id"]
+        # Retry creation up to 3 times with exponential backoff on transient timeout/connect error
+        for attempt in range(3):
+            try:
+                async with httpx.AsyncClient(timeout=30.0) as client:
+                    res = await client.post(url, json=payload, headers=headers)
+                    res.raise_for_status()
+                    return res.json()["mandate_id"]
+            except (httpx.TimeoutException, httpx.NetworkError) as exc:
+                if attempt == 2:
+                    raise
+                await asyncio.sleep(2.0 * (attempt + 1))
+
 
     async def cleanup_mandate(self, mandate_id: str):
         headers = {"Authorization": f"Bearer {self.operator_token}"}
