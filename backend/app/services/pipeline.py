@@ -394,16 +394,29 @@ async def process_intent(
 
         # f. Decision evaluation
         if rule_result.escalate or risk_escalate:
-            if rule_result.escalate:
+            has_merchant_approval = any(f.get("code") == "MERCHANT_REQUIRES_APPROVAL" for f in rule_result.failures)
+            if has_merchant_approval:
+                escalation_cause = "policy_approval_required_merchant"
+                reason_code = "MERCHANT_REQUIRES_APPROVAL"
+                reason_msg = "Merchant requires human approval"
+            elif rule_result.escalate:
                 escalation_cause = "rules_threshold"
+                reason_code = "ESCALATED_THRESHOLD"
+                reason_msg = "Transaction requires human review"
             elif risk_details.get("judge", {}).get("fail_mode_applied"):
                 escalation_cause = "llm_error_fail_mode"
+                reason_code = "ESCALATED_THRESHOLD"
+                reason_msg = "Transaction requires human review"
             elif risk_details.get("judge", {}).get("injection_suspected") or bool(risk_details.get("judge", {}).get("mismatch_reasons")):
                 escalation_cause = "judge_injection_signal"
+                reason_code = "ESCALATED_THRESHOLD"
+                reason_msg = "Transaction requires human review"
             else:
                 escalation_cause = "judge_low_confidence"
+                reason_code = "ESCALATED_THRESHOLD"
+                reason_msg = "Transaction requires human review"
             intent.status = PaymentIntentStatus.ESCALATED
-            intent.decision_reasons = [{"code": "ESCALATED_THRESHOLD", "message": "Transaction requires human review", "escalation_cause": escalation_cause}]
+            intent.decision_reasons = [{"code": reason_code, "message": reason_msg, "escalation_cause": escalation_cause}]
             risk_details["escalation_cause"] = escalation_cause
             await session.commit()
 

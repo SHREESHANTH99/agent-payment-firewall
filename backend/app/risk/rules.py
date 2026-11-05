@@ -152,5 +152,17 @@ def evaluate_rules(
         if amount_cents > escalation_thresh:
             escalate = True
 
-    passed = len(failures) == 0
+    # 8. Approval required merchants check (unconditional escalation)
+    approval_required = getattr(mandate, "approval_required_merchants", None) or []
+    approval_clean = [str(m).strip().lower() for m in approval_required]
+    if merchant_clean and merchant_clean in approval_clean:
+        escalate = True
+        failures.append({
+            "code": "MERCHANT_REQUIRES_APPROVAL",
+            "message": f"Merchant '{merchant}' requires human approval",
+        })
+
+    # Note: If MERCHANT_REQUIRES_APPROVAL is present, it triggers escalation rather than hard denial
+    non_escalation_failures = [f for f in failures if f["code"] != "MERCHANT_REQUIRES_APPROVAL"]
+    passed = len(non_escalation_failures) == 0
     return RuleResult(passed=passed, escalate=escalate, failures=failures)

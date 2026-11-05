@@ -76,6 +76,7 @@ class Mandate(Base):
     budget_total = Column(BigInteger, nullable=False)  # stored in integer cents
     per_transaction_cap = Column(BigInteger, nullable=False)  # stored in integer cents
     allowlist_merchants = Column(JSONType, nullable=False, default=list)  # list of emails/merchants
+    approval_required_merchants = Column(JSONType, nullable=False, default=list)  # list of merchants requiring human approval
     allowed_currencies = Column(JSONType, nullable=False, default=lambda: ["USD"])
     period = Column(String(20), nullable=False, default="lifetime")  # lifetime | daily | weekly
     valid_from = Column(DateTime(timezone=True), nullable=False)

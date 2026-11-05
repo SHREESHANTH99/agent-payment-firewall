@@ -441,3 +441,28 @@ async def test_mandate_crud_freeze_revoke_flow(client: httpx.AsyncClient):
     revoke_resp = await client.post(f"/mandates/{mandate_id}/revoke", headers=headers)
     assert revoke_resp.status_code == 200
     assert revoke_resp.json()["status"] == "revoked"
+
+
+def test_approval_required_merchants_policy_rule():
+    mandate = type("MandateStub", (), {
+        "status": "active",
+        "valid_from": None,
+        "valid_until": None,
+        "allowed_currencies": ["USD"],
+        "per_transaction_cap": 5000,
+        "escalation_threshold": 4000,
+        "allowlist_merchants": ["seller1@example.com", "seller2@example.com"],
+        "approval_required_merchants": ["seller2@example.com"],
+    })()
+
+    # 1. seller1 is allowlisted and not approval required -> passes without escalation
+    res1 = evaluate_rules(mandate, {"merchant": "seller1@example.com", "amount": "10.00", "currency": "USD"})
+    assert res1.passed is True
+    assert res1.escalate is False
+
+    # 2. seller2 is allowlisted but in approval_required_merchants -> escalates with code MERCHANT_REQUIRES_APPROVAL
+    res2 = evaluate_rules(mandate, {"merchant": "seller2@example.com", "amount": "10.00", "currency": "USD"})
+    assert res2.passed is True
+    assert res2.escalate is True
+    assert any(f["code"] == "MERCHANT_REQUIRES_APPROVAL" for f in res2.failures)
+

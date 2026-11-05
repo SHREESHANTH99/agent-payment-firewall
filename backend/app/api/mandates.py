@@ -34,6 +34,7 @@ class MandateCreateRequest(BaseModel):
     budget_total: Union[str, float, Decimal, int]  # input in dollars e.g. 500.00
     per_transaction_cap: Union[str, float, Decimal, int]  # input in dollars e.g. 50.00
     allowlist_merchants: list[str]  # PayPal recipient emails
+    approval_required_merchants: list[str] = []  # Merchants requiring unconditional human escalation
     allowed_currencies: list[str] = ["USD"]
     period: str = "lifetime"  # lifetime | daily | weekly
     valid_from: Optional[datetime] = None
@@ -58,6 +59,7 @@ class MandatePatchRequest(BaseModel):
     budget_total: Optional[Union[str, float, Decimal, int]] = None
     per_transaction_cap: Optional[Union[str, float, Decimal, int]] = None
     allowlist_merchants: Optional[list[str]] = None
+    approval_required_merchants: Optional[list[str]] = None
     allowed_currencies: Optional[list[str]] = None
     period: Optional[str] = None
     valid_from: Optional[datetime] = None
@@ -86,6 +88,7 @@ class MandateResponse(BaseModel):
     per_transaction_cap: str
     per_transaction_cap_cents: int
     allowlist_merchants: list[str]
+    approval_required_merchants: list[str] = []
     allowed_currencies: list[str]
     period: str
     valid_from: datetime
@@ -120,6 +123,7 @@ async def _enrich_mandate_response(mandate: Mandate) -> MandateResponse:
         per_transaction_cap=format_cents_to_decimal(mandate.per_transaction_cap) or "0.00",
         per_transaction_cap_cents=int(mandate.per_transaction_cap),
         allowlist_merchants=mandate.allowlist_merchants or [],
+        approval_required_merchants=mandate.approval_required_merchants or [],
         allowed_currencies=mandate.allowed_currencies or ["USD"],
         period=mandate.period,
         valid_from=mandate.valid_from,
@@ -162,6 +166,7 @@ async def create_mandate(
         budget_total=budget_cents,
         per_transaction_cap=cap_cents,
         allowlist_merchants=[m.strip().lower() for m in body.allowlist_merchants],
+        approval_required_merchants=[m.strip().lower() for m in (body.approval_required_merchants or [])],
         allowed_currencies=[c.upper() for c in body.allowed_currencies],
         period=body.period.lower(),
         valid_from=valid_from,
@@ -220,6 +225,8 @@ async def patch_mandate(
         mandate.per_transaction_cap = to_cents(body.per_transaction_cap)
     if body.allowlist_merchants is not None:
         mandate.allowlist_merchants = [m.strip().lower() for m in body.allowlist_merchants]
+    if body.approval_required_merchants is not None:
+        mandate.approval_required_merchants = [m.strip().lower() for m in body.approval_required_merchants]
     if body.allowed_currencies is not None:
         mandate.allowed_currencies = [c.upper() for c in body.allowed_currencies]
     if body.period is not None:

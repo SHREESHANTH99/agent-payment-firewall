@@ -170,7 +170,7 @@ class ReplayEvaluator:
             res = await client.post(url, json={"agent_id": agent_id, "key": key}, headers=headers)
             res.raise_for_status()
 
-    async def create_fresh_mandate(self, agent_id: str) -> str:
+    async def create_fresh_mandate(self, agent_id: str, approval_required_merchants: Optional[list[str]] = None) -> str:
         url = f"{self.firewall_base_url}/mandates"
         headers = {
             "Authorization": f"Bearer {self.operator_token}",
@@ -183,6 +183,7 @@ class ReplayEvaluator:
             "per_transaction_cap": "50.00",
             "escalation_threshold": "40.00",
             "allowlist_merchants": [self.seller_email, self.seller_email_2],
+            "approval_required_merchants": approval_required_merchants or [],
             "allowed_currencies": ["USD"],
             "period": "lifetime",
             "valid_until": valid_until,
@@ -232,12 +233,13 @@ class ReplayEvaluator:
         self,
         intent_request: dict[str, Any],
         escalation_policy: str,
+        approval_required_merchants: Optional[list[str]] = None,
     ) -> dict[str, Any]:
         """Replay an intent against a brand new mandate under current risk config."""
         agent_id = f"replay-{uuid.uuid4().hex[:12]}"
         agent_key = f"key-{secrets.token_hex(20)}"
         await self.register_agent_key(agent_id, agent_key)
-        mandate_id = await self.create_fresh_mandate(agent_id)
+        mandate_id = await self.create_fresh_mandate(agent_id, approval_required_merchants=approval_required_merchants)
 
         # Clone payload with new mandate_id and fresh idempotency_key
         payload = dict(intent_request)
@@ -378,11 +380,13 @@ class ReplayEvaluator:
         """
         all_configs = [
             ("rules_only", False, False),
+            ("rules_plus_policy", False, False),
             ("canary_only", True, False),
             ("judge_only", False, True),
         ]
         selected = configurations or ["rules_only", "canary_only", "judge_only", "both"]
-        unknown = set(selected) - {"rules_only", "canary_only", "judge_only", "both"}
+        valid_configs = {"rules_only", "rules_plus_policy", "canary_only", "judge_only", "both"}
+        unknown = set(selected) - valid_configs
         if unknown:
             raise ValueError(f"unknown replay configurations: {sorted(unknown)}")
         configs = [config for config in all_configs if config[0] in selected]
@@ -420,7 +424,8 @@ class ReplayEvaluator:
                     candidate = {"scenario_id": scenario_id, "intent_request": intent_req, "repeat_index": repeat_index}
                     if replay_observation_key(cfg_name, candidate) in completed:
                         continue
-                    res = await self.replay_single_intent(intent_req, escalation_policy)
+                    app_req_merchants = [self.seller_email_2] if cfg_name == "rules_plus_policy" else []
+                    res = await self.replay_single_intent(intent_req, escalation_policy, approval_required_merchants=app_req_merchants)
                     run = {
                         "scenario_id": scenario_id,
                         "attack_class": attack_class,
@@ -690,7 +695,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--firewall-url", default="http://localhost:8000")
     parser.add_argument("--resume", action="store_true", help="Resume completed observations from OUTPUT.progress.jsonl")
     parser.add_argument("--validate-composition", type=int, default=0, help="Run at most N live both-layer checks against composed decisions")
-    parser.add_argument("--configs", nargs="+", choices=["rules_only", "canary_only", "judge_only", "both"], help="Configurations to run; use judge_only for a quota-saving DEV diagnostic")
+    parser.add_argument("--configs", nargs="+", choices=["rules_only", "rules_plus_policy", "canary_only", "judge_only", "both"], help="Configurations to run; use judge_only for a quota-saving DEV diagnostic")
     return parser.parse_args()
 
 
