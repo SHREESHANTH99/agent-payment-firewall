@@ -19,6 +19,13 @@ def regenerate(replay: dict, source: str) -> dict:
         runs = configuration.get("runs")
         if not isinstance(runs, list):
             raise ValueError(f"replay configuration {name!r} has no stored raw observations")
+        if name == "both" and "canary_only" in configurations and "judge_only" in configurations:
+            canary_runs = configurations["canary_only"].get("runs", [])
+            judge_runs = configurations["judge_only"].get("runs", [])
+            from demo.eval.replay import compose_both_observation, replay_observation_key
+            judge_by_key = {replay_observation_key("judge_only", run)[1:]: run for run in judge_runs}
+            composed_runs = [compose_both_observation(run, judge_by_key[replay_observation_key("canary_only", run)[1:]]) for run in canary_runs if replay_observation_key("canary_only", run)[1:] in judge_by_key]
+            runs = composed_runs
         configurations[name] = evaluator._summarize_config(runs)
 
     metadata = regenerated.setdefault("metadata", {})

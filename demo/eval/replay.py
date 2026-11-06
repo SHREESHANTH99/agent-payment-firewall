@@ -68,13 +68,25 @@ def compose_both_observation(canary_run: dict[str, Any], judge_run: dict[str, An
         decision = "escalated"
     else:
         decision = "approved"
+    # Attributing blocked_by: respect production pipeline order: rules -> canary -> judge
+    if canary_risk.get("denial_cause") == "rules" or judge_risk.get("denial_cause") == "rules":
+        blocked_by = "rules"
+    elif canary_risk.get("escalation_cause") == "rules_threshold" or judge_risk.get("escalation_cause") == "rules_threshold":
+        blocked_by = "rules"
+    elif canary_decision in {"denied", "escalated"}:
+        blocked_by = "canary"
+    elif judge_decision in {"denied", "escalated"}:
+        blocked_by = "judge"
+    else:
+        blocked_by = "none"
+
     result = dict(canary_run)
     result.update({
         "decision": decision,
         "final_decision": decision,
         "escalated": decision == "escalated",
         "would_have_executed": decision == "approved",
-        "blocked_by": "canary" if canary_decision in {"denied", "escalated"} else ("judge" if judge_decision in {"denied", "escalated"} else "none"),
+        "blocked_by": blocked_by,
         "risk_details": {**canary_risk, "judge": judge_risk.get("judge") or {}, "composition_source": "canary_only+judge_only"},
         "composed": True,
     })
