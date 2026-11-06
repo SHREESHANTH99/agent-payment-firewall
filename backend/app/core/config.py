@@ -24,6 +24,7 @@ class Settings(BaseSettings):
     METRICS_TOKEN: str = ""
     INTENTS_RATE_LIMIT_PER_MINUTE: int = 60
     WS_TICKET_RATE_LIMIT_PER_MINUTE: int = 30
+    TRUSTED_PROXY_COUNT: int = 0
     MAX_REQUEST_BODY_BYTES: int = 256 * 1024  # 256 KB default
 
     # LLM & AI Risk Layer Configuration

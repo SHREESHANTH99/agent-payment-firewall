@@ -43,6 +43,8 @@ services:
         sync: false
       - key: ENABLE_DOCS
         value: "true"
+      - key: TRUSTED_PROXY_COUNT
+        value: "1"
 
   # 2. Dashboard Next.js Frontend
   - type: web

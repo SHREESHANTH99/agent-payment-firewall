@@ -1,8 +1,34 @@
 """Rate limiting utility using Redis token bucket / sliding counter."""
 import time
 from typing import Optional
-from fastapi import HTTPException, status
+from fastapi import HTTPException, Request, status
+from app.core.config import settings
 from app.services.budget import budget_service
+
+
+def get_client_ip(request: Request) -> str:
+    """Extract client IP taking TRUSTED_PROXY_COUNT into account for reverse proxies."""
+    if settings.TRUSTED_PROXY_COUNT > 0:
+        forwarded = request.headers.get("X-Forwarded-For")
+        if forwarded:
+            ips = [ip.strip() for ip in forwarded.split(",") if ip.strip()]
+            if len(ips) >= settings.TRUSTED_PROXY_COUNT:
+                return ips[-settings.TRUSTED_PROXY_COUNT]
+            elif ips:
+                return ips[0]
+    return request.client.host if request.client else "unknown"
+
+
+def is_rate_limit_exempt(path: str) -> bool:
+    """Paths exempt from per-IP client rate limiting."""
+    clean = path.rstrip("/")
+    exempt_paths = {
+        "/health",
+        "/ready",
+        "/webhooks/paypal",
+        "/api/v1/webhooks/paypal",
+    }
+    return clean in exempt_paths or clean.endswith("/webhooks/paypal")
 
 
 async def check_rate_limit(
