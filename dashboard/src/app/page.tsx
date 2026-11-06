@@ -244,14 +244,24 @@ function EvidenceSection({ calibration, eval: evalData }: { calibration: Calibra
     <div className="space-y-6">
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {[
-          { label: 'Combined detection rate', value: m ? `${(m.overall_detection_rates?.combined_defense * 100).toFixed(1)}%` : undefined },
-          { label: 'False positive rate', value: m ? `${(m.false_positive_rates?.canary * 100).toFixed(1)}%` : undefined },
+          {
+            label: 'Combined detection rate',
+            value: m?.sample_sizes?.injection_cases && m.sample_sizes.injection_cases >= 10
+              ? `${(m.overall_detection_rates?.combined_defense * 100).toFixed(1)}%`
+              : m?.sample_sizes?.injection_cases ? `${m.sample_sizes.injection_cases} observed (insufficient sample)` : 'Not measured yet',
+          },
+          {
+            label: 'False positive rate',
+            value: m?.sample_sizes?.benign_cases && m.sample_sizes.benign_cases >= 10
+              ? `${(m.false_positive_rates?.canary * 100).toFixed(1)}%`
+              : m?.sample_sizes?.benign_cases ? `${m.sample_sizes.benign_cases} observed (insufficient sample)` : 'Not measured yet',
+          },
           { label: 'Benign cases', value: m?.sample_sizes?.benign_cases },
           { label: 'Injection cases', value: m?.sample_sizes?.injection_cases },
         ].map(({ label, value }) => (
           <div key={label} className="p-3 bg-paper-low border border-border">
             <p className="font-sans text-2xs uppercase text-ink-muted">{label}</p>
-            <p className="font-mono text-lg font-bold text-ink mt-1">
+            <p className="font-mono text-sm font-bold text-ink mt-1">
               {metric(value)}
             </p>
           </div>
