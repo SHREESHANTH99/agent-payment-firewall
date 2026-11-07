@@ -113,3 +113,28 @@ p, h1, h2, h3, h4, h5, h6 {
 .animate-slide-left {
   animation: slideLeft 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
+
+.field {
+  display: block;
+  width: 100%;
+  margin-top: 0.35rem;
+  border: 1px solid var(--border-line);
+  background: var(--paper);
+  color: var(--ink);
+  padding: 0.55rem 0.65rem;
+  font: inherit;
+  font-size: 14px;
+}
+
+.field:focus {
+  outline: 1px solid var(--vermilion);
+  outline-offset: 1px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

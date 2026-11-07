@@ -380,7 +380,7 @@ export default function LandingPage() {
               <span>GitHub</span>
             </a>
             <Link
-              href="/console?demo=1"
+              href="/playground"
               className="inline-flex items-center gap-1.5 h-8 px-3 rounded-full bg-amber/10 hover:bg-amber/20 text-amber font-sans text-xs font-medium border border-amber/30 transition-colors whitespace-nowrap"
             >
               <span className="w-1.5 h-1.5 rounded-full bg-amber" />
@@ -435,7 +435,7 @@ export default function LandingPage() {
               </p>
               <div className="flex flex-wrap gap-3">
                 <Link
-                  href="/console?demo=1"
+                  href="/playground"
                   className="inline-flex items-center gap-2 px-4 py-2.5 border border-border bg-paper-high text-ink font-sans text-sm font-semibold hover:bg-paper-highest transition-colors"
                 >
                   Explore demo
@@ -658,7 +658,7 @@ export default function LandingPage() {
             </div>
             <div className="mt-6 flex gap-3">
               <Link
-                href="/console?demo=1"
+                href="/playground"
                 className="inline-flex items-center gap-2 px-4 py-2.5 bg-vermilion text-white font-sans text-sm font-semibold hover:bg-ink transition-colors"
               >
                 Open demo console
@@ -718,7 +718,7 @@ docker compose up --build`}
           <span>Agent Payment Firewall — MIT License</span>
           <div className="flex items-center gap-4">
             <a href="https://github.com/SHREESHANTH99/agent-payment-firewall" target="_blank" rel="noopener noreferrer" className="hover:text-ink transition-colors">GitHub</a>
-            <Link href="/console?demo=1" className="hover:text-ink transition-colors">Demo</Link>
+            <Link href="/playground" className="hover:text-ink transition-colors">Demo</Link>
             <Link href="/console/login" className="hover:text-ink transition-colors">Console</Link>
           </div>
         </div>
