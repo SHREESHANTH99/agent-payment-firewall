@@ -63,16 +63,17 @@ services:
           name: payment-firewall-api
           property: url
 
+  # 3. Redis Key-Value Store (In services array as required by Render Blueprint Spec)
+  - type: keyvalue
+    name: payment-firewall-redis
+    plan: free
+    region: oregon
+    ipAllowList: []
+
 databases:
-  # 3. PostgreSQL Database (Source of Truth)
+  # 4. PostgreSQL Database (Source of Truth)
   - name: payment-firewall-db
     plan: free
     region: oregon
     databaseName: firewall
     user: firewall_user
-
-  # 4. Redis Key-Value Store (Ephemeral / Rebuildable Budget & Idempotency)
-  - type: keyvalue
-    name: payment-firewall-redis
-    plan: free
-    region: oregon
