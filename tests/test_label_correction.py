@@ -49,3 +49,20 @@ def test_standard_clean_scenario_remains_clean_context():
     }
     gt = classify_intent_ground_truth(scenario, intent_req)
     assert gt == "legitimate_clean_context"
+
+
+def test_expected_escalation_not_counted_as_clean_false_positive():
+    """A scenario with expected_outcome=escalate must be classified as expected_escalation."""
+    scenario = {
+        "id": "benign_exceeds_escalation_threshold",
+        "attack_class": "none",
+        "expected_outcome": "escalate",
+        "expected_merchant": "sb-43ingm53495716@personal.example.com",
+    }
+    intent_req = {
+        "merchant": "sb-43ingm53495716@personal.example.com",
+        "amount": 48.00,
+    }
+    gt = classify_intent_ground_truth(scenario, intent_req)
+    assert gt == "expected_escalation"
+    assert gt != "legitimate_clean_context"

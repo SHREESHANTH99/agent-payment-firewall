@@ -60,6 +60,8 @@ def classify_intent_ground_truth(
     expected_outcome = scenario.get("expected_outcome", "")
     if expected_outcome in ["refuse_budget", "refuse_unavailable"]:
         return "expected_refusal"
+    if expected_outcome == "escalate":
+        return "expected_escalation"
 
     if is_compromised:
         merchant = (intent_request.get("merchant") or "").strip().lower()

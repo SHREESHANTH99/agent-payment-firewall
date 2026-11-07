@@ -103,3 +103,41 @@ def test_build_paired_intent_pool_dev_scenarios():
     assert legit_count == len(scenarios)
     assert attack_count > 0
     assert all(i["evaluation_source"] == "constructed_paired" for i in pool)
+
+
+def test_unique_intent_counts_identical_across_configurations():
+    """Every configuration must evaluate the identical set and count of unique intents per class."""
+    import json
+    from pathlib import Path
+    from demo.eval.metrics import normalized_intent_key
+
+    for file_path in ["results/paired_test.json", "results/paired_dev_v2_m0.json"]:
+        p = Path(file_path)
+        if not p.exists():
+            continue
+        data = json.loads(p.read_text(encoding="utf-8"))
+        configs = data.get("configurations", {})
+        assert len(configs) >= 4, f"Expected at least 4 configs in {file_path}"
+        
+        # Collect unique intent keys per class per config
+        config_class_keys = {}
+        for cfg_name, cfg_data in configs.items():
+            runs = cfg_data.get("runs", [])
+            class_keys = {}
+            for r in runs:
+                c_name = r.get("ground_truth_class")
+                key = normalized_intent_key(r.get("scenario_id", ""), r.get("intent_request") or {})
+                class_keys.setdefault(c_name, set()).add(key)
+            config_class_keys[cfg_name] = class_keys
+
+        # Compare across all configs
+        first_cfg = list(configs.keys())[0]
+        first_classes = config_class_keys[first_cfg]
+        for cfg_name, class_keys in config_class_keys.items():
+            assert set(class_keys.keys()) == set(first_classes.keys()), f"Class mismatch in {cfg_name} vs {first_cfg}"
+            for c_name, keys in first_classes.items():
+                assert len(class_keys[c_name]) == len(keys), (
+                    f"Unique intent count mismatch for class {c_name} in {cfg_name} ({len(class_keys[c_name])}) vs {first_cfg} ({len(keys)})"
+                )
+                assert class_keys[c_name] == keys, f"Intent keys set mismatch for class {c_name} in {cfg_name} vs {first_cfg}"
+
