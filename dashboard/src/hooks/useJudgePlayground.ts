@@ -80,5 +80,10 @@ export function useJudgePlayground() {
   }, [playground.session, playground.sessionSecret, refresh, result])
 
   const reset = useCallback(() => window.location.reload(), [])
-  return { ...playground, result, agentEvents, submit, setConfig, runAgent, escalation, reset }
+  const refreshSession = useCallback(async () => {
+    if (playground.session && playground.sessionSecret) {
+      await refresh(playground.session.id, playground.sessionSecret)
+    }
+  }, [playground.session, playground.sessionSecret, refresh])
+  return { ...playground, result, agentEvents, submit, setConfig, runAgent, escalation, reset, refreshSession }
 }
