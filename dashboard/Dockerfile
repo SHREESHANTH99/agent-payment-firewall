@@ -12,7 +12,7 @@ FROM node:20-alpine AS runner
 WORKDIR /app
 
 ENV NODE_ENV=production \
-    PORT=3000
+    HOSTNAME=0.0.0.0
 
 # Install curl for HEALTHCHECK
 RUN apk add --no-cache curl
@@ -24,9 +24,5 @@ COPY --from=builder /app/public ./public
 COPY --from=builder --chown=node:node /app/.next/standalone ./
 COPY --from=builder --chown=node:node /app/.next/static ./.next/static
 
-EXPOSE 3000
-
-HEALTHCHECK --interval=15s --timeout=5s --start-period=5s --retries=3 \
-  CMD curl -f http://localhost:${PORT} || exit 1
-
-CMD ["sh", "-c", "node server.js"]
+# Dynamic port from Render environment (falls back to 3000 if not set)
+CMD ["sh", "-c", "PORT=${PORT:-3000} node server.js"]
