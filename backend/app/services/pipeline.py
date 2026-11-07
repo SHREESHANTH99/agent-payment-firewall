@@ -32,6 +32,20 @@ from app.services.risk_config import risk_config_state
 logger = logging.getLogger(__name__)
 
 
+async def evaluate_canary(source_context: str) -> Any:
+    """Compatibility wrapper used by tests to patch canary evaluation."""
+    return await canary_scan(source_context)
+
+
+async def evaluate_judge(
+    mandate_summary: dict[str, Any],
+    intent_summary: dict[str, Any],
+    source_context: Optional[str],
+) -> Union[tuple[Any, str], Any]:
+    """Compatibility wrapper used by tests to patch judge evaluation."""
+    return await judge(mandate_summary, intent_summary, source_context)
+
+
 @dataclass
 class RiskResult:
     verdict: str  # allow | escalate | deny
@@ -42,6 +56,30 @@ def _denial_payload(risk_details: dict[str, Any], cause: str) -> dict[str, Any]:
     """Attach machine-readable denial attribution before persisting/auditing it."""
     risk_details["denial_cause"] = cause
     return risk_details
+
+
+def _as_dict(value: Any) -> dict[str, Any]:
+    return value if isinstance(value, dict) else {}
+
+
+def _as_list(value: Any) -> list[Any]:
+    return value if isinstance(value, list) else []
+
+
+def _as_bool(value: Any, default: bool = False) -> bool:
+    return value if isinstance(value, bool) else default
+
+
+def _as_float(value: Any, default: float = 0.0) -> float:
+    return float(value) if isinstance(value, (int, float)) else default
+
+
+def _as_int(value: Any, default: int = 0) -> int:
+    return int(value) if isinstance(value, int) else default
+
+
+def _as_optional_str(value: Any) -> Optional[str]:
+    return value if isinstance(value, str) else None
 
 
 # Risk check hook registry
@@ -270,22 +308,23 @@ async def process_intent(
 
         # 1. Canary Scan (if enabled)
         if risk_cfg.canary_enabled and source_context:
-            canary_res = await canary_scan(source_context)
+            canary_res = await evaluate_canary(source_context)
+            canary_meta = _as_dict(getattr(canary_res, "meta", {}))
             risk_details["canary"] = {
-                "tripped": canary_res.tripped,
-                "honeypot_calls": canary_res.honeypot_calls,
-                "segments": canary_res.segments,
-                "error": canary_res.error,
-                "meta": canary_res.meta,
-                "llm_error": bool((canary_res.meta or {}).get("llm_error", False)),
-                "fail_mode_applied": bool((canary_res.meta or {}).get("fail_mode_applied", False)),
-                "cached": bool((canary_res.meta or {}).get("cached", False)),
-                "provider": (canary_res.meta or {}).get("provider"),
-                "model": (canary_res.meta or {}).get("model"),
-                "retries": (canary_res.meta or {}).get("retries", 0),
+                "tripped": _as_bool(getattr(canary_res, "tripped", False)),
+                "honeypot_calls": _as_list(getattr(canary_res, "honeypot_calls", [])),
+                "segments": _as_int(getattr(canary_res, "segments", 0)),
+                "error": _as_optional_str(getattr(canary_res, "error", None)),
+                "meta": canary_meta,
+                "llm_error": _as_bool(canary_meta.get("llm_error"), False),
+                "fail_mode_applied": _as_bool(canary_meta.get("fail_mode_applied"), False),
+                "cached": _as_bool(canary_meta.get("cached"), False),
+                "provider": _as_optional_str(canary_meta.get("provider")),
+                "model": _as_optional_str(canary_meta.get("model")),
+                "retries": _as_int(canary_meta.get("retries"), 0),
             }
 
-            if canary_res.tripped:
+            if risk_details["canary"]["tripped"]:
                 # Canary tripped -> audit event, freeze mandate via circuit breaker, deny intent
                 logger.warning("Canary scan tripped for intent %s!", intent.id)
                 await append_event(session, intent.id, "canary_tripped", risk_details["canary"])
@@ -302,7 +341,7 @@ async def process_intent(
                 reservation_made = False
 
                 intent.status = PaymentIntentStatus.DENIED
-                intent.risk_details = _denial_payload(risk_details, "llm_error_fail_mode" if (canary_res.meta or {}).get("llm_error") else "canary")
+                intent.risk_details = _denial_payload(risk_details, "llm_error_fail_mode" if canary_meta.get("llm_error") else "canary")
                 # Agent-facing reason is strictly generic
                 intent.decision_reasons = [{"code": "RISK_POLICY_VIOLATION", "message": "blocked by risk policy"}]
                 await session.commit()
@@ -340,21 +379,27 @@ async def process_intent(
                 "user_task": user_task,
             }
 
-            judge_res, judge_verdict = await judge(mandate_summary, intent_summary, source_context)
+            judge_eval = await evaluate_judge(mandate_summary, intent_summary, source_context)
+            if isinstance(judge_eval, tuple):
+                judge_res, judge_verdict = judge_eval
+            else:
+                judge_res = judge_eval
+                judge_verdict = str(getattr(judge_res, "verdict", "escalate"))
+            judge_meta = _as_dict(getattr(judge_res, "meta", {}))
             risk_details["judge"] = {
-                "safe": judge_res.safe,
-                "confidence": judge_res.confidence,
-                "injection_suspected": judge_res.injection_suspected,
-                "reasons": judge_res.reasons,
-                "mismatch_reasons": judge_res.mismatch_reasons,
+                "safe": _as_bool(getattr(judge_res, "safe", False)),
+                "confidence": _as_float(getattr(judge_res, "confidence", 0.0)),
+                "injection_suspected": _as_bool(getattr(judge_res, "injection_suspected", False)),
+                "reasons": _as_list(getattr(judge_res, "reasons", [])),
+                "mismatch_reasons": _as_list(getattr(judge_res, "mismatch_reasons", [])),
                 "verdict": judge_verdict,
-                "meta": judge_res.meta,
-                "llm_error": bool((judge_res.meta or {}).get("llm_error", False)),
-                "fail_mode_applied": bool((judge_res.meta or {}).get("fail_mode_applied", False)),
-                "cached": bool((judge_res.meta or {}).get("cached", False)),
-                "provider": (judge_res.meta or {}).get("provider"),
-                "model": (judge_res.meta or {}).get("model"),
-                "retries": (judge_res.meta or {}).get("retries", 0),
+                "meta": judge_meta,
+                "llm_error": _as_bool(judge_meta.get("llm_error"), False),
+                "fail_mode_applied": _as_bool(judge_meta.get("fail_mode_applied"), False),
+                "cached": _as_bool(judge_meta.get("cached"), False),
+                "provider": _as_optional_str(judge_meta.get("provider")),
+                "model": _as_optional_str(judge_meta.get("model")),
+                "retries": _as_int(judge_meta.get("retries"), 0),
             }
             await append_event(session, intent.id, "judge_evaluated", risk_details["judge"])
 
