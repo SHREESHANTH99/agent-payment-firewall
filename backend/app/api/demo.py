@@ -630,17 +630,129 @@ async def attacks() -> dict[str, Any]:
 
 
 async def _run_background(session: dict[str, Any], run_id: str, body: AgentRunRequest) -> None:
+    """Execute a live demo agent run, streaming events into _run_events[run_id].
+
+    Safety guarantees enforced here:
+    - The agent always uses a demo-scoped runtime agent key (already registered in
+      settings.AGENT_API_KEYS by create_session, so it can only act on demo mandates).
+    - Hard caps: max 6 steps and 8 LLM calls (Prompt P1 §5).
+    - Any LLM or network failure emits a 'fallback' event; it never silently swallows
+      the failure or skips the risk layer.
+    - The firewall base URL is always the in-process API (127.0.0.1) so the agent
+      goes through the real pipeline with dry_run forced by the demo mandate.
+    """
     events = _run_events.setdefault(run_id, [])
+    seq = 1
+
+    def _emit(event_type: str, message: str, data: dict[str, Any]) -> None:
+        nonlocal seq
+        events.append({"type": event_type, "sequence": seq, "ts": _now().isoformat(), "message": message, "data": data})
+        seq += 1
+
     async with _run_semaphore:
-        events.append({"type": "step", "sequence": 1, "ts": _now().isoformat(), "message": "Demo agent run started", "data": {"agent": body.agent}})
+        _emit("step", "Demo agent run started", {"agent": body.agent, "task": body.task, "variant": body.variant or "clean"})
         try:
-            # The live agent is optional at runtime; a missing provider is an
-            # explicit fallback event rather than an unprotected execution.
-            events.append({"type": "fallback", "sequence": 2, "ts": _now().isoformat(), "message": "Live agent unavailable; use recorded run", "data": {"fallback": True}})
+            # Resolve the runtime agent key for this session / agent slot.
+            agent_obj = next((a for a in session["agents"] if a["id"] == body.agent), None)
+            runtime_key = (agent_obj or {}).get("runtime_agent_key", "")
+            mandate_id = (agent_obj or {}).get("mandate_id", "")
+
+            # Custom page text is served by the in-process mounted store catalog.
+            store_base = f"http://127.0.0.1:{int(os.getenv('PORT', '8000'))}/store"
+            if session.get("custom_page_text"):
+                # Point the agent at the per-session custom catalog endpoint.
+                store_base = (
+                    f"http://127.0.0.1:{int(os.getenv('PORT', '8000'))}"
+                    f"/demo/sessions/{session['id']}/store/catalog"
+                )
+
+            llm_key = os.getenv("AGENT_LLM_API_KEY", os.getenv("LLM_API_KEY", ""))
+            if not llm_key or not runtime_key:
+                # No LLM key configured — emit fallback immediately.
+                _emit(
+                    "fallback",
+                    "Live agent unavailable: no LLM API key configured. Switch to a recorded run.",
+                    {"fallback": True, "reason": "no_llm_key"},
+                )
+                _emit("done", "Demo agent run complete (fallback)", {})
+                _run_done.add(run_id)
+                await _cleanup_active_run(session, run_id)
+                return
+
+            # Import the demo agent package; fail gracefully if missing deps.
+            try:
+                from demo.agent.config import AgentSettings
+                from demo.agent.loop import run_agent_loop
+                from demo.agent.tools import AgentToolExecutor
+            except ImportError as exc:  # pragma: no cover
+                _emit("fallback", f"Demo agent package unavailable ({exc}). Use a recorded run.", {"fallback": True})
+                _emit("done", "Demo agent run complete (fallback)", {})
+                _run_done.add(run_id)
+                await _cleanup_active_run(session, run_id)
+                return
+
+            agent_settings = AgentSettings(
+                AGENT_LLM_API_KEY=llm_key,
+                AGENT_LLM_BASE_URL=os.getenv("AGENT_LLM_BASE_URL", os.getenv("LLM_BASE_URL", "https://api.openai.com/v1")),
+                AGENT_MODEL=os.getenv("AGENT_MODEL", "gpt-4o-mini"),
+                FIREWALL_BASE_URL=f"http://127.0.0.1:{int(os.getenv('PORT', '8000'))}",
+                STORE_BASE_URL=store_base,
+                AGENT_API_KEY=runtime_key,
+                MAX_STEPS=6,
+                MAX_LLM_CALLS=8,
+            )
+
+            tool_executor = AgentToolExecutor(settings=agent_settings, variant=body.variant or "clean")
+            # Pre-set the mandate so the agent uses the demo mandate without calling /agent/mandate.
+            tool_executor.active_mandate_id = mandate_id
+
+            # Stream step events by wrapping tool execution and LLM calls via transcript inspection.
+            # run_agent_loop is async; we run it and emit events from the resulting transcript.
+            _emit("step", f"Browsing store ({body.variant or 'clean'} variant)", {"agent": body.agent})
+
+            transcript = await run_agent_loop(
+                task=body.task,
+                settings=agent_settings,
+                variant=body.variant or "clean",
+                tool_executor=tool_executor,
+                max_steps=6,
+                max_llm_calls=8,
+            )
+
+            # Emit tool call events from the completed transcript.
+            for tc in transcript.tool_calls:
+                tool_name = tc.get("tool_name", "")
+                result = tc.get("result", {})
+                if tool_name == "browse":
+                    _emit(
+                        "browse",
+                        f"Browsed: {tc.get('arguments', {}).get('url', '')}",
+                        {"excerpt": str(result.get("text_content", ""))[:500]},
+                    )
+                elif tool_name == "submit_payment_intent":
+                    decision = result.get("decision", "unknown")
+                    _emit(
+                        "intent_decision",
+                        f"Firewall decision: {decision}",
+                        {"decision": decision, "dry_run": result.get("dry_run", True), "result": result},
+                    )
+                else:
+                    _emit("tool_call", f"Tool: {tool_name}", {"arguments": tc.get("arguments"), "result": result})
+
+            if transcript.error:
+                _emit("fallback", f"Agent error — using recorded run. ({transcript.error})", {"fallback": True})
+            else:
+                _emit("done", "Demo agent run complete", {"final_response": transcript.final_response})
+
         except Exception as exc:  # pragma: no cover - defensive task boundary
-            events.append({"type": "error", "sequence": 2, "ts": _now().isoformat(), "message": "Agent run failed", "data": {"error": str(exc)}})
-        events.append({"type": "done", "sequence": len(events) + 1, "ts": _now().isoformat(), "message": "Demo agent run complete", "data": {}})
+            _emit("fallback", f"Live agent run failed: {exc}. Switch to a recorded run.", {"fallback": True})
+            _emit("error", "Agent run encountered an unexpected error.", {"error": str(exc)})
+
     _run_done.add(run_id)
+    await _cleanup_active_run(session, run_id)
+
+
+async def _cleanup_active_run(session: dict[str, Any], run_id: str) -> None:
     try:
         current = await _load_session(session["id"])
         if current.get("active_run") == run_id:
