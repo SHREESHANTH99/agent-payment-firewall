@@ -84,10 +84,21 @@ export async function updateDemoConfig(
 }
 
 export async function submitDemoIntent(sessionId: string, secret: string, intent: IntentRequest): Promise<IntentResult> {
+  const payload = {
+    agent: intent.agent_id || 'A',
+    amount: String(intent.amount),
+    currency: intent.currency || 'USD',
+    merchant: intent.merchant,
+    description: intent.description || undefined,
+    reasoning: intent.reasoning || undefined,
+    user_task: intent.user_task || undefined,
+    source_context: intent.source_context || undefined,
+    target_mandate: (intent as any).target_mandate || (intent.mandate_id && !intent.mandate_id.endsWith(`_${intent.agent_id}`) ? 'other' : 'own'),
+  }
   return request<IntentResult>(`/demo/sessions/${encodeURIComponent(sessionId)}/intents`, {
     method: 'POST',
     headers: authHeaders(sessionId, secret),
-    body: JSON.stringify(intent),
+    body: JSON.stringify(payload),
   })
 }
 
@@ -109,10 +120,16 @@ export async function startAgentRun(
   secret: string,
   payload: { agent_id: string; attack_id: string; user_task: string; page_text: string },
 ): Promise<{ run_id: string }> {
+  const backendPayload = {
+    task: payload.user_task || 'Complete purchase',
+    variant: payload.attack_id || 'clean',
+    custom_page_text: payload.page_text || undefined,
+    agent: (payload.agent_id as 'A' | 'B') || 'A',
+  }
   return request<{ run_id: string }>(`/demo/sessions/${encodeURIComponent(sessionId)}/agent-runs`, {
     method: 'POST',
     headers: authHeaders(sessionId, secret),
-    body: JSON.stringify(payload),
+    body: JSON.stringify(backendPayload),
   })
 }
 

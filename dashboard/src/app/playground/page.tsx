@@ -1,7 +1,8 @@
 'use client'
 
 import { useCallback, useMemo, useState } from 'react'
-import { AlertTriangle, Check, ChevronDown, ChevronRight, Copy, Loader2, Play, RotateCcw, Shield, WifiOff, X } from 'lucide-react'
+import Link from 'next/link'
+import { AlertTriangle, ArrowLeft, Check, ChevronDown, ChevronRight, Copy, ExternalLink, Github, Loader2, Play, RotateCcw, Shield, WifiOff, X } from 'lucide-react'
 import { Banner, Button, Stamp } from '@/components/ui'
 import { useJudgePlayground } from '@/hooks/useJudgePlayground'
 import { API_BASE, generateApiSnippets, updateMandateLimits, verifyAuditChain } from '@/lib/demoClient'
@@ -16,7 +17,7 @@ const fallbackIntent = (agent: DemoAgentId, mandateId: string): IntentRequest =>
   idempotency_key: `playground-${Date.now()}`,
   amount: '25.00',
   currency: 'USD',
-  merchant: 'seller-one@example.test',
+  merchant: 'seller@example.com',
   description: 'Purchase requested by the user.',
   reasoning: 'The item and seller match the user task.',
   user_task: 'Buy the listed item from seller one.',
@@ -293,6 +294,8 @@ export default function PlaygroundPage() {
   const [tourStep, setTourStep] = useState(() =>
     typeof window !== 'undefined' && !localStorage.getItem('judge-tour-complete') ? 1 : 0,
   )
+  const [submitting, setSubmitting] = useState(false)
+  const [agentRunning, setAgentRunning] = useState(false)
 
   const snippets = useMemo(
     () =>
@@ -330,11 +333,88 @@ export default function PlaygroundPage() {
   }
 
   const send = async () => {
-    const next = await playground.submit({
-      ...intent,
-      idempotency_key: intent.idempotency_key || `playground-${Date.now()}`,
-    })
-    if (next && tourStep === 1) setTourStep(2)
+    setSubmitting(true)
+    try {
+      if (mode === 'RECORDED' || !session) {
+        await new Promise((r) => setTimeout(r, 600))
+        const simulated: IntentResult = {
+          intent_id: `rec-${Date.now()}`,
+          decision: selectedAttack?.id === 'clean_purchase' ? 'approved' : 'denied',
+          status: selectedAttack?.id === 'clean_purchase' ? 'executed' : 'denied',
+          reasons: selectedAttack?.id === 'clean_purchase' ? [] : [
+            { code: 'RISK_POLICY_VIOLATION', message: 'Attack pattern detected by risk controls' }
+          ],
+          risk: {
+            denial_cause: selectedAttack?.id === 'clean_purchase' ? undefined : 'rules',
+            canary: { tripped: selectedAttack?.category === 'prompt_injection' },
+            judge: {
+              safe: selectedAttack?.id === 'clean_purchase',
+              verdict: selectedAttack?.id === 'clean_purchase' ? 'allow' : 'deny',
+              mismatch_reasons: [],
+              reasons: [],
+            }
+          },
+          dry_run: true,
+          operatorView: {
+            risk: {
+              canary: { tripped: selectedAttack?.category === 'prompt_injection' },
+              judge: {
+                safe: selectedAttack?.id === 'clean_purchase',
+                verdict: selectedAttack?.id === 'clean_purchase' ? 'allow' : 'deny',
+                mismatch_reasons: [],
+                reasons: [],
+              },
+            },
+            denial_cause: selectedAttack?.id === 'clean_purchase' ? null : 'rules',
+            escalation_cause: null,
+            balances: {
+              spent_cents: 0,
+              reserved_cents: 0,
+              remaining_cents: 10000,
+            },
+            new_audit_entries: [
+              { id: `aud-1-${Date.now()}`, event: 'intent.created', payload: { ...intent }, hash: 'a1b2c3d4e5f60718293a', created_at: new Date().toISOString() },
+              { id: `aud-2-${Date.now()}`, event: selectedAttack?.id === 'clean_purchase' ? 'intent.approved' : 'intent.denied', payload: { decision: selectedAttack?.id === 'clean_purchase' ? 'approved' : 'denied' }, hash: 'b2c3d4e5f60718293a4b', created_at: new Date().toISOString() }
+            ]
+          }
+        }
+        playground.setResult?.(simulated)
+        if (tourStep === 1) setTourStep(2)
+      } else {
+        const next = await playground.submit({
+          ...intent,
+          idempotency_key: intent.idempotency_key || `playground-${Date.now()}`,
+        })
+        if (next && tourStep === 1) setTourStep(2)
+      }
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const handleRunAgent = async () => {
+    setAgentRunning(true)
+    try {
+      if (mode === 'RECORDED' || !session) {
+        await new Promise((r) => setTimeout(r, 600))
+        const events: any[] = [
+          { sequence: 1, type: 'step', message: 'Demo agent started: Browsing product catalog...' },
+          { sequence: 2, type: 'browse', message: 'Read product page (variant: ' + (selectedAttack?.id || 'clean') + ')' },
+          { sequence: 3, type: 'intent_decision', message: 'Firewall evaluated intent: ' + (selectedAttack?.id === 'clean_purchase' ? 'approved' : 'denied') },
+          { sequence: 4, type: 'done', message: 'Agent execution finished successfully' }
+        ]
+        playground.setAgentEvents?.(events)
+      } else {
+        await playground.runAgent({
+          agent_id: agent,
+          attack_id: selectedAttack?.id || 'clean_purchase',
+          user_task: task,
+          page_text: pageText,
+        })
+      }
+    } finally {
+      setAgentRunning(false)
+    }
   }
 
   const toggle = async (key: 'canary_enabled' | 'judge_enabled') => {
@@ -360,19 +440,49 @@ export default function PlaygroundPage() {
 
   return (
     <main className="min-h-screen bg-paper text-ink">
-      {/* ── Header ── */}
-      <header className="border-b border-border bg-paper-low px-4 sm:px-6 py-4 flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <p className="font-mono text-xs uppercase tracking-widest text-vermilion">Agent Payment Firewall</p>
-          <h1 className="font-serif text-3xl">Judge Playground</h1>
+      {/* ── Header with Site Navigation ── */}
+      <header className="border-b border-border bg-paper/95 backdrop-blur-sm sticky top-0 z-30 px-4 sm:px-6 py-3.5 flex flex-wrap items-center justify-between gap-3 shadow-xs">
+        <div className="flex items-center gap-4">
+          <Link
+            href="/"
+            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md hover:bg-paper-high text-xs font-medium text-ink-muted hover:text-ink transition-colors border border-border"
+          >
+            <ArrowLeft className="w-3.5 h-3.5" />
+            <span>Home</span>
+          </Link>
+          <div className="h-4 w-px bg-border/60 hidden sm:block" />
+          <div>
+            <div className="flex items-center gap-2">
+              <p className="font-mono text-2xs uppercase tracking-widest text-vermilion font-bold">Agent Payment Firewall</p>
+              <span className="text-ink-muted/40 text-xs font-mono">/</span>
+              <span className="text-xs text-ink-muted font-medium">Sandbox Evaluation</span>
+            </div>
+            <h1 className="font-serif text-2xl text-ink leading-tight">Judge Playground</h1>
+          </div>
         </div>
-        <div className="flex items-center gap-3">
-          <span className="border border-amber/40 bg-amber/10 text-amber px-3 py-1 text-xs font-mono">
-            {mode === 'RECORDED' ? 'RECORDED MODE' : 'LIVE MODE'}
+        <div className="flex items-center gap-2.5 flex-wrap">
+          <Link
+            href="/console"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-paper-high hover:bg-paper-highest text-ink font-sans text-xs font-medium border border-border transition-colors"
+          >
+            <span>Operator Console</span>
+            <ChevronRight className="w-3.5 h-3.5 text-ink-muted" />
+          </Link>
+          <a
+            href="https://github.com/SHREESHANTH99/agent-payment-firewall"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md hover:bg-paper-high text-ink-muted hover:text-ink font-sans text-xs font-medium transition-colors border border-border"
+          >
+            <Github className="w-3.5 h-3.5" />
+            <span>GitHub</span>
+          </a>
+          <span className="border border-amber/40 bg-amber/10 text-amber px-2.5 py-1 text-xs font-mono rounded-sm font-medium">
+            {mode === 'RECORDED' ? 'RECORDED MODE' : 'LIVE SANDBOX'}
           </span>
           {session && (
-            <span className="font-mono text-xs text-ink-muted">
-              {state?.quota.remaining ?? session.quota.remaining} demo runs remaining
+            <span className="font-mono text-xs text-ink-muted hidden md:inline">
+              {state?.quota.remaining ?? session.quota.remaining} runs left
             </span>
           )}
         </div>
@@ -558,32 +668,43 @@ export default function PlaygroundPage() {
                 <fieldset>
                   <legend className="text-sm font-semibold mb-2">Target mandate</legend>
                   <div className="flex gap-2">
-                    {session?.agents.map((item) => (
-                      <label
-                        key={item.id}
-                        className={`flex-1 border p-2 text-sm ${agent === item.id ? 'border-vermilion' : 'border-border'}`}
-                      >
-                        <input
-                          type="radio"
-                          name="target-agent"
-                          checked={agent === item.id}
-                          onChange={() => {
-                            setAgent(item.id)
-                            updateIntent('agent_id', item.id)
-                            updateIntent('mandate_id', selectedAgent?.mandate.mandate_id || item.mandate.mandate_id)
-                          }}
-                        />{' '}
-                        <span className="ml-2">
-                          Agent {item.id}
-                          {item.id !== intent.agent_id ? ' (other)' : ' (own)'}
-                        </span>
-                      </label>
-                    ))}
+                    {session?.agents.map((item) => {
+                      const isOwn = intent.agent_id === item.id
+                      const isSelected = isOwn ? ((intent as any).target_mandate !== 'other') : ((intent as any).target_mandate === 'other')
+                      return (
+                        <label
+                          key={item.id}
+                          className={`flex-1 border p-2 text-sm cursor-pointer ${isSelected ? 'border-vermilion bg-vermilion/5' : 'border-border'}`}
+                        >
+                          <input
+                            type="radio"
+                            name="target-agent"
+                            checked={isSelected}
+                            onChange={() => {
+                              if (isOwn) {
+                                updateIntent('target_mandate' as any, 'own')
+                                updateIntent('mandate_id', item.mandate.mandate_id)
+                              } else {
+                                updateIntent('target_mandate' as any, 'other')
+                                updateIntent('mandate_id', item.mandate.mandate_id)
+                              }
+                            }}
+                          />{' '}
+                          <span className="ml-2 font-medium">
+                            Agent {item.id}
+                            <span className="text-xs text-ink-muted ml-1">
+                              {isOwn ? '(own mandate)' : '(other mandate - cross probe)'}
+                            </span>
+                          </span>
+                        </label>
+                      )
+                    })}
                   </div>
                 </fieldset>
 
-                <Button onClick={send} disabled={!session || mode === 'RECORDED'}>
-                  <Play size={14} className="mr-2" /> Send intent
+                <Button onClick={send} disabled={submitting}>
+                  {submitting ? <Loader2 size={14} className="mr-2 animate-spin" /> : <Play size={14} className="mr-2" />}
+                  {submitting ? 'Evaluating intent…' : 'Send intent'}
                 </Button>
               </div>
             </div>
@@ -626,18 +747,9 @@ export default function PlaygroundPage() {
                   className="field"
                 />
               </label>
-              <Button
-                onClick={() =>
-                  playground.runAgent({
-                    agent_id: agent,
-                    attack_id: selectedAttack?.id || 'prompt_injection',
-                    user_task: task,
-                    page_text: pageText,
-                  })
-                }
-                disabled={!session || mode === 'RECORDED'}
-              >
-                <Play size={14} className="mr-2" /> Watch agent
+              <Button onClick={handleRunAgent} disabled={agentRunning}>
+                {agentRunning ? <Loader2 size={14} className="mr-2 animate-spin" /> : <Play size={14} className="mr-2" />}
+                {agentRunning ? 'Running agent…' : 'Watch agent'}
               </Button>
               {agentEvents.length > 0 && (
                 <ol className="border-t border-border pt-3 space-y-2">

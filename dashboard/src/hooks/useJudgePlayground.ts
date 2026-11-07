@@ -85,5 +85,5 @@ export function useJudgePlayground() {
       await refresh(playground.session.id, playground.sessionSecret)
     }
   }, [playground.session, playground.sessionSecret, refresh])
-  return { ...playground, result, agentEvents, submit, setConfig, runAgent, escalation, reset, refreshSession }
+  return { ...playground, result, setResult, agentEvents, setAgentEvents, submit, setConfig, runAgent, escalation, reset, refreshSession }
 }
