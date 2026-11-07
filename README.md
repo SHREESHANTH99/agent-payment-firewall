@@ -1,6 +1,7 @@
 # Agent Payment Firewall
 
 [![CI](https://github.com/SHREESHANTH99/agent-payment-firewall/actions/workflows/ci.yml/badge.svg)](https://github.com/SHREESHANTH99/agent-payment-firewall/actions/workflows/ci.yml)
+[![Semgrep](https://img.shields.io/badge/Security-Semgrep%20SAST-blueviolet)](https://semgrep.dev)
 [![Coverage](https://img.shields.io/badge/coverage-85%25-brightgreen.svg)](https://github.com/SHREESHANTH99/agent-payment-firewall)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![PayPal](https://img.shields.io/badge/PayPal-Sandbox%20Only-orange.svg)](docs/deploy-render.md)
