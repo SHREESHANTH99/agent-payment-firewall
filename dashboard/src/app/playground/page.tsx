@@ -4,7 +4,7 @@ import { useCallback, useMemo, useState } from 'react'
 import { AlertTriangle, Check, ChevronDown, ChevronRight, Copy, Loader2, Play, RotateCcw, Shield, WifiOff, X } from 'lucide-react'
 import { Banner, Button, Stamp } from '@/components/ui'
 import { useJudgePlayground } from '@/hooks/useJudgePlayground'
-import { generateApiSnippets, updateMandateLimits, verifyAuditChain } from '@/lib/demoClient'
+import { API_BASE, generateApiSnippets, updateMandateLimits, verifyAuditChain } from '@/lib/demoClient'
 import type { AttackPreset, AuditEntry, DemoAgentId, IntentRequest, IntentResult } from '@/lib/demoApi.types'
 import { formatCents } from '@/lib/utils'
 
@@ -758,7 +758,7 @@ export default function PlaygroundPage() {
           </div>
           <a
             className="inline-block mt-4 text-sm underline"
-            href="/docs"
+            href={`${API_BASE}/docs`}
             target="_blank"
             rel="noreferrer"
           >

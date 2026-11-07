@@ -9,7 +9,7 @@ import type {
   Session,
 } from './demoApi.types'
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || ''
+export const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'https://payment-firewall-api.onrender.com'
 
 export type PlaygroundMode = 'LIVE' | 'RECORDED'
 

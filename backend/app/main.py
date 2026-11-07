@@ -252,7 +252,7 @@ app.add_middleware(
     allow_origins=[settings.DASHBOARD_ORIGIN],
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
-    allow_headers=["Authorization", "Content-Type"],
+    allow_headers=["*"],
 )
 
 app.include_router(mandates_router)

@@ -1,4 +1,4 @@
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+export const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'https://payment-firewall-api.onrender.com'
 
 // Simple in-memory response cache for lightning-fast tab navigation
 const responseCache = new Map<string, { data: any; expiry: number }>()
