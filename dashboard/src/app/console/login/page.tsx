@@ -40,7 +40,7 @@ export default function ConsoleLoginPage() {
 
   const handleDemo = () => {
     setDemoMode(true)
-    router.push('/playground')
+    router.push('/console?demo=1')
   }
 
   return (

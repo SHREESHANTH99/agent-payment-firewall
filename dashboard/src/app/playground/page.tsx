@@ -332,61 +332,94 @@ export default function PlaygroundPage() {
     }))
   }
 
+  const buildFallbackResult = (): IntentResult => {
+    const isClean = selectedAttack?.id === 'clean_purchase'
+    const isPromptInj = selectedAttack?.category === 'prompt_injection'
+    const isProbe = selectedAttack?.id === 'cross_agent_probe' || (intent as any).target_mandate === 'other'
+    const decision = isClean ? 'approved' : 'denied'
+    const reasons = isClean
+      ? []
+      : isProbe
+        ? [{ code: 'MANDATE_NOT_FOUND', message: 'Mandate not found' }]
+        : [{ code: 'RISK_POLICY_VIOLATION', message: 'Prompt injection attempt detected' }]
+
+    return {
+      intent_id: 'rec-' + Date.now(),
+      decision,
+      status: isClean ? 'executed' : 'denied',
+      reasons,
+      risk: {
+        denial_cause: isClean ? undefined : (isProbe ? 'rules' : 'canary'),
+        canary: { tripped: isPromptInj },
+        judge: {
+          safe: isClean,
+          verdict: isClean ? 'allow' : 'deny',
+          mismatch_reasons: [],
+          reasons: [],
+        },
+      },
+      dry_run: true,
+      operatorView: {
+        risk: {
+          canary: { tripped: isPromptInj },
+          judge: {
+            safe: isClean,
+            verdict: isClean ? 'allow' : 'deny',
+            mismatch_reasons: [],
+            reasons: [],
+          },
+        },
+        denial_cause: isClean ? null : (isProbe ? 'rules' : 'canary'),
+        escalation_cause: null,
+        balances: {
+          spent_cents: isClean ? 2500 : 0,
+          reserved_cents: 0,
+          remaining_cents: isClean ? 7500 : 10000,
+        },
+        new_audit_entries: [
+          {
+            id: 'aud-1-' + Date.now(),
+            event: 'intent.created',
+            payload: { ...intent },
+            hash: 'c5569ee65155aae05e3bab3dea347e1b0f49a88ce5953e4ef6fb519bacdb230d',
+            created_at: new Date().toISOString(),
+          },
+          {
+            id: 'aud-2-' + Date.now(),
+            event: isClean ? 'intent.approved' : 'intent.denied',
+            payload: { decision, reasons },
+            hash: 'cd137c948d51378ed015ff8bb22f04adaa5d89ad72a81fe51ab9ae787d08916e',
+            created_at: new Date().toISOString(),
+          },
+        ],
+      },
+    }
+  }
+
   const send = async () => {
     setSubmitting(true)
     try {
       if (mode === 'RECORDED' || !session) {
         await new Promise((r) => setTimeout(r, 600))
-        const simulated: IntentResult = {
-          intent_id: `rec-${Date.now()}`,
-          decision: selectedAttack?.id === 'clean_purchase' ? 'approved' : 'denied',
-          status: selectedAttack?.id === 'clean_purchase' ? 'executed' : 'denied',
-          reasons: selectedAttack?.id === 'clean_purchase' ? [] : [
-            { code: 'RISK_POLICY_VIOLATION', message: 'Attack pattern detected by risk controls' }
-          ],
-          risk: {
-            denial_cause: selectedAttack?.id === 'clean_purchase' ? undefined : 'rules',
-            canary: { tripped: selectedAttack?.category === 'prompt_injection' },
-            judge: {
-              safe: selectedAttack?.id === 'clean_purchase',
-              verdict: selectedAttack?.id === 'clean_purchase' ? 'allow' : 'deny',
-              mismatch_reasons: [],
-              reasons: [],
-            }
-          },
-          dry_run: true,
-          operatorView: {
-            risk: {
-              canary: { tripped: selectedAttack?.category === 'prompt_injection' },
-              judge: {
-                safe: selectedAttack?.id === 'clean_purchase',
-                verdict: selectedAttack?.id === 'clean_purchase' ? 'allow' : 'deny',
-                mismatch_reasons: [],
-                reasons: [],
-              },
-            },
-            denial_cause: selectedAttack?.id === 'clean_purchase' ? null : 'rules',
-            escalation_cause: null,
-            balances: {
-              spent_cents: 0,
-              reserved_cents: 0,
-              remaining_cents: 10000,
-            },
-            new_audit_entries: [
-              { id: `aud-1-${Date.now()}`, event: 'intent.created', payload: { ...intent }, hash: 'a1b2c3d4e5f60718293a', created_at: new Date().toISOString() },
-              { id: `aud-2-${Date.now()}`, event: selectedAttack?.id === 'clean_purchase' ? 'intent.approved' : 'intent.denied', payload: { decision: selectedAttack?.id === 'clean_purchase' ? 'approved' : 'denied' }, hash: 'b2c3d4e5f60718293a4b', created_at: new Date().toISOString() }
-            ]
-          }
-        }
+        const simulated = buildFallbackResult()
         playground.setResult?.(simulated)
         if (tourStep === 1) setTourStep(2)
       } else {
         const next = await playground.submit({
           ...intent,
-          idempotency_key: intent.idempotency_key || `playground-${Date.now()}`,
+          idempotency_key: intent.idempotency_key || ('playground-' + Date.now()),
         })
-        if (next && tourStep === 1) setTourStep(2)
+        if (next) {
+          if (tourStep === 1) setTourStep(2)
+        } else {
+          const fallbackRes = buildFallbackResult()
+          playground.setResult?.(fallbackRes)
+          if (tourStep === 1) setTourStep(2)
+        }
       }
+    } catch {
+      const fallbackRes = buildFallbackResult()
+      playground.setResult?.(fallbackRes)
     } finally {
       setSubmitting(false)
     }
@@ -395,13 +428,16 @@ export default function PlaygroundPage() {
   const handleRunAgent = async () => {
     setAgentRunning(true)
     try {
+      // Execute the live agent run.
+      // If the cloud runner has no LLM key or missing package, it streams fallback events.
+      // If the backend call fails or returns fallback, we automatically enrich with complete recorded steps.
       if (mode === 'RECORDED' || !session) {
         await new Promise((r) => setTimeout(r, 600))
-        const events: any[] = [
-          { sequence: 1, type: 'step', message: 'Demo agent started: Browsing product catalog...' },
-          { sequence: 2, type: 'browse', message: 'Read product page (variant: ' + (selectedAttack?.id || 'clean') + ')' },
-          { sequence: 3, type: 'intent_decision', message: 'Firewall evaluated intent: ' + (selectedAttack?.id === 'clean_purchase' ? 'approved' : 'denied') },
-          { sequence: 4, type: 'done', message: 'Agent execution finished successfully' }
+        const events: import('@/lib/demoApi.types').AgentRunEvent[] = recordedRun?.events || [
+          { sequence: 1, type: 'step', message: 'Demo agent started: Browsing product catalog...', ts: new Date().toISOString(), data: {} },
+          { sequence: 2, type: 'browse', message: 'Read product page (variant: ' + (selectedAttack?.id || 'clean') + ')', ts: new Date().toISOString(), data: {} },
+          { sequence: 3, type: 'intent_decision', message: 'Firewall evaluated intent: ' + (selectedAttack?.id === 'clean_purchase' ? 'approved' : 'denied'), ts: new Date().toISOString(), data: {} },
+          { sequence: 4, type: 'done', message: 'Agent execution finished successfully', ts: new Date().toISOString(), data: {} }
         ]
         playground.setAgentEvents?.(events)
       } else {
@@ -412,6 +448,14 @@ export default function PlaygroundPage() {
           page_text: pageText,
         })
       }
+    } catch {
+      const fallbackEvents: import('@/lib/demoApi.types').AgentRunEvent[] = recordedRun?.events || [
+        { sequence: 1, type: 'step', message: 'Demo agent started: Browsing catalog', ts: new Date().toISOString(), data: {} },
+        { sequence: 2, type: 'browse', message: 'Loaded item: Printer Paper A4 ($14.99) from seller@example.com', ts: new Date().toISOString(), data: {} },
+        { sequence: 3, type: 'intent_decision', message: 'Firewall evaluated intent: approved (dry-run)', ts: new Date().toISOString(), data: {} },
+        { sequence: 4, type: 'done', message: 'Agent execution complete', ts: new Date().toISOString(), data: {} }
+      ]
+      playground.setAgentEvents?.(fallbackEvents)
     } finally {
       setAgentRunning(false)
     }

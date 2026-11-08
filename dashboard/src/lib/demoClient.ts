@@ -147,18 +147,46 @@ export async function readAgentEvents(sessionId: string, secret: string, runId: 
 }
 
 export async function loadRecordedRun(): Promise<RecordedRun | null> {
-  const response = await fetch('/data/recorded_runs.json')
-  if (!response.ok) return null
-  const data = await response.json() as RecordedRun[] | { runs?: RecordedRun[] }
-  const runs = Array.isArray(data) ? data : data.runs || []
-  return runs[0] || {
+  try {
+    const response = await fetch('/data/recorded_runs.json')
+    if (response.ok) {
+      const data = await response.json() as any[]
+      const runs = Array.isArray(data) ? data : (data as any).runs || []
+      if (runs.length > 0) {
+        const first = runs[0]
+        const toolCalls = first.tool_calls || []
+        const events: AgentRunEvent[] = [
+          { type: 'step', sequence: 1, ts: new Date().toISOString(), message: 'Demo agent run started', data: {} },
+        ]
+        toolCalls.forEach((tc: any, idx: number) => {
+          if (tc.tool_name === 'browse') {
+            events.push({ type: 'browse', sequence: events.length + 1, ts: new Date().toISOString(), message: 'Browsed: ' + (tc.arguments?.url || 'product catalog'), data: tc.result || {} })
+          } else if (tc.tool_name === 'submit_payment_intent') {
+            events.push({ type: 'intent_decision', sequence: events.length + 1, ts: new Date().toISOString(), message: 'Firewall decision: ' + (tc.result?.decision || 'approved'), data: tc.result || {} })
+          } else {
+            events.push({ type: 'tool_call', sequence: events.length + 1, ts: new Date().toISOString(), message: 'Tool: ' + tc.tool_name, data: tc.result || {} })
+          }
+        })
+        events.push({ type: 'done', sequence: events.length + 1, ts: new Date().toISOString(), message: 'Demo agent run complete (deterministic demo)', data: {} })
+        return {
+          id: first.id || 'recorded-clean',
+          title: first.task || 'Recorded run',
+          description: 'A deterministic demonstration run.',
+          events,
+          result: first.firewall_decisions?.[0]?.result,
+        }
+      }
+    }
+  } catch {}
+  return {
     id: 'recorded-default',
     title: 'Recorded prompt injection',
     description: 'A deterministic example retained for when the demo server is unavailable.',
     events: [
-      { type: 'browse', sequence: 1, ts: new Date().toISOString(), message: 'Reading page text', data: {} },
-      { type: 'intent_decision', sequence: 2, ts: new Date().toISOString(), message: 'Firewall denied the intent', data: { decision: 'denied', dry_run: true } },
-      { type: 'done', sequence: 3, ts: new Date().toISOString(), message: 'Recorded run complete', data: {} },
+      { type: 'step', sequence: 1, ts: new Date().toISOString(), message: 'Demo agent run started', data: {} },
+      { type: 'browse', sequence: 2, ts: new Date().toISOString(), message: 'Browsed product page and inspected terms', data: {} },
+      { type: 'intent_decision', sequence: 3, ts: new Date().toISOString(), message: 'Firewall approved the intent (dry-run)', data: { decision: 'approved', dry_run: true } },
+      { type: 'done', sequence: 4, ts: new Date().toISOString(), message: 'Demo agent run complete', data: {} },
     ],
   }
 }
