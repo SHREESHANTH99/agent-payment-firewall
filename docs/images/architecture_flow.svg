@@ -1,0 +1,147 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1100 520" width="100%" height="100%" style="background:#090d16; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+  <defs>
+    <linearGradient id="headerGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#E5391B" />
+      <stop offset="100%" stop-color="#FF5722" />
+    </linearGradient>
+    <linearGradient id="cardGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#161f30" />
+      <stop offset="100%" stop-color="#0f172a" />
+    </linearGradient>
+    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="6" stdDeviation="8" flood-color="#000000" flood-opacity="0.6"/>
+    </filter>
+    <marker id="arrow" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 1 L 10 5 L 0 9 z" fill="#38bdf8" />
+    </marker>
+    <marker id="arrowRed" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 1 L 10 5 L 0 9 z" fill="#E5391B" />
+    </marker>
+    <marker id="arrowGreen" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 1 L 10 5 L 0 9 z" fill="#10b981" />
+    </marker>
+  </defs>
+
+  <!-- Title & Subtitle -->
+  <rect x="0" y="0" width="1100" height="70" fill="#0f172a" />
+  <circle cx="45" cy="35" r="16" fill="#E5391B" />
+  <text x="45" y="41" text-anchor="middle" fill="#ffffff" font-size="14" font-weight="bold">🛡️</text>
+  <text x="75" y="32" fill="#ffffff" font-size="18" font-weight="800" letter-spacing="0.5">AGENT PAYMENT FIREWALL (GATEKEEPER)</text>
+  <text x="75" y="52" fill="#94a3b8" font-size="12">Deterministic Defense-in-Depth Pipeline Intercepting AI Agent Transactions Before Settlement</text>
+
+  <!-- Column 1: AI Agent & Attacker Context -->
+  <g transform="translate(30, 95)" filter="url(#glow)">
+    <rect width="210" height="395" rx="10" fill="#111827" stroke="#3b82f6" stroke-width="2"/>
+    <path d="M 0 10 Q 0 0 10 0 L 200 0 Q 210 0 210 10 L 210 38 L 0 38 Z" fill="#1d4ed8" />
+    <text x="105" y="24" text-anchor="middle" fill="#ffffff" font-size="12" font-weight="700">1. AI AGENT ENVIRONMENT</text>
+
+    <!-- Sub boxes -->
+    <rect x="15" y="50" width="180" height="70" rx="6" fill="#1f2937" stroke="#374151"/>
+    <text x="105" y="70" text-anchor="middle" fill="#f3f4f6" font-size="11" font-weight="600">Autonomous Procurement</text>
+    <text x="105" y="88" text-anchor="middle" fill="#9ca3af" font-size="10">Claude Desktop / Cursor</text>
+    <text x="105" y="104" text-anchor="middle" fill="#60a5fa" font-size="10">Tool Calling Agent</text>
+
+    <rect x="15" y="130" width="180" height="85" rx="6" fill="#2d1518" stroke="#dc2626" stroke-dasharray="3"/>
+    <text x="105" y="150" text-anchor="middle" fill="#f87171" font-size="11" font-weight="700">Untrusted Web Content</text>
+    <text x="105" y="168" text-anchor="middle" fill="#fca5a5" font-size="10">• Hidden catalog instructions</text>
+    <text x="105" y="184" text-anchor="middle" fill="#fca5a5" font-size="10">• Delimiter breakouts</text>
+    <text x="105" y="200" text-anchor="middle" fill="#ef4444" font-size="10">• Payee reroute injection</text>
+
+    <rect x="15" y="225" width="180" height="65" rx="6" fill="#1e293b" stroke="#38bdf8"/>
+    <text x="105" y="245" text-anchor="middle" fill="#38bdf8" font-size="11" font-weight="700">FastMCP / REST Client</text>
+    <text x="105" y="262" text-anchor="middle" fill="#94a3b8" font-size="10">POST /intents</text>
+    <text x="105" y="278" text-anchor="middle" fill="#cbd5e1" font-size="9">idempotency, amount, task</text>
+
+    <text x="105" y="340" text-anchor="middle" fill="#64748b" font-size="11">Agent sends intent</text>
+    <text x="105" y="358" text-anchor="middle" fill="#64748b" font-size="11">prior to money movement</text>
+  </g>
+
+  <!-- Connective Flow 1 -->
+  <path d="M 240 355 L 290 355" stroke="#38bdf8" stroke-width="3" fill="none" marker-end="url(#arrow)"/>
+
+  <!-- Column 2: The Core Firewall -->
+  <g transform="translate(295, 85)" filter="url(#glow)">
+    <rect width="490" height="415" rx="12" fill="#0b1120" stroke="#E5391B" stroke-width="2.5"/>
+    <path d="M 0 12 Q 0 0 12 0 L 478 0 Q 490 0 490 12 L 490 42 L 0 42 Z" fill="#E5391B" />
+    <text x="245" y="26" text-anchor="middle" fill="#ffffff" font-size="13" font-weight="800" letter-spacing="1">2. GATEKEEPER INSPECTION PIPELINE</text>
+
+    <!-- Stage 1 -->
+    <rect x="20" y="55" width="450" height="48" rx="6" fill="#161f30" stroke="#334155"/>
+    <circle cx="45" cy="79" r="14" fill="#38bdf8"/>
+    <text x="45" y="84" text-anchor="middle" fill="#090d16" font-size="11" font-weight="bold">1</text>
+    <text x="70" y="73" fill="#ffffff" font-size="12" font-weight="700">Idempotency &amp; Replay Guard (Redis SETNX)</text>
+    <text x="70" y="90" fill="#94a3b8" font-size="10">Blocks duplicate intents from crashed or looping agent instances</text>
+
+    <!-- Stage 2 -->
+    <rect x="20" y="112" width="450" height="48" rx="6" fill="#161f30" stroke="#334155"/>
+    <circle cx="45" cy="136" r="14" fill="#38bdf8"/>
+    <text x="45" y="141" text-anchor="middle" fill="#090d16" font-size="11" font-weight="bold">2</text>
+    <text x="70" y="130" fill="#ffffff" font-size="12" font-weight="700">Mandate &amp; Policy Bounds (PostgreSQL Rules)</text>
+    <text x="70" y="147" fill="#94a3b8" font-size="10">Merchant allowlist, currency, transaction cap, expiration date</text>
+
+    <!-- Stage 3 -->
+    <rect x="20" y="169" width="450" height="48" rx="6" fill="#161f30" stroke="#334155"/>
+    <circle cx="45" cy="193" r="14" fill="#38bdf8"/>
+    <text x="45" y="198" text-anchor="middle" fill="#090d16" font-size="11" font-weight="bold">3</text>
+    <text x="70" y="187" fill="#ffffff" font-size="12" font-weight="700">Atomic Budget Reservation (Redis Lua CAS)</text>
+    <text x="70" y="204" fill="#94a3b8" font-size="10">Prevents parallel overdraw across concurrent agent threads</text>
+
+    <!-- Stage 4 -->
+    <rect x="20" y="226" width="450" height="48" rx="6" fill="#161f30" stroke="#f59e0b"/>
+    <circle cx="45" cy="250" r="14" fill="#f59e0b"/>
+    <text x="45" y="255" text-anchor="middle" fill="#090d16" font-size="11" font-weight="bold">4</text>
+    <text x="70" y="244" fill="#ffffff" font-size="12" font-weight="700">Honeypot Canary Scanner (Zero-Cost Tool Trap)</text>
+    <text x="70" y="261" fill="#fcd34d" font-size="10">Trips instantly on prompt injection tool-call attempts in source context</text>
+
+    <!-- Stage 5 -->
+    <rect x="20" y="283" width="450" height="48" rx="6" fill="#161f30" stroke="#f59e0b"/>
+    <circle cx="45" cy="307" r="14" fill="#f59e0b"/>
+    <text x="45" y="312" text-anchor="middle" fill="#090d16" font-size="11" font-weight="bold">5</text>
+    <text x="70" y="301" fill="#ffffff" font-size="12" font-weight="700">Adversarial LLM Risk Judge (Fail-Closed)</text>
+    <text x="70" y="318" fill="#fcd34d" font-size="10">Detects semantic goal drift, unauthorized items, or price padding</text>
+
+    <!-- Stage 6 -->
+    <rect x="20" y="340" width="450" height="58" rx="6" fill="#161f30" stroke="#10b981"/>
+    <circle cx="45" cy="369" r="14" fill="#10b981"/>
+    <text x="45" y="374" text-anchor="middle" fill="#090d16" font-size="11" font-weight="bold">6</text>
+    <text x="70" y="358" fill="#ffffff" font-size="12" font-weight="700">Adjudication: Approved / Escalated / Denied</text>
+    <text x="70" y="375" fill="#a7f3d0" font-size="10">Approved → PayPal Sandbox | Escalated → Operator WebSocket</text>
+    <text x="70" y="390" fill="#a7f3d0" font-size="10">Denied → Auto-freeze mandate &amp; release reserved funds</text>
+  </g>
+
+  <!-- Connective Flow 2 (Branches) -->
+  <path d="M 785 240 L 835 170" stroke="#10b981" stroke-width="2.5" fill="none" marker-end="url(#arrowGreen)"/>
+  <path d="M 785 290 L 835 290" stroke="#f59e0b" stroke-width="2.5" fill="none" marker-end="url(#arrow)"/>
+  <path d="M 785 340 L 835 410" stroke="#E5391B" stroke-width="2.5" fill="none" marker-end="url(#arrowRed)"/>
+
+  <!-- Column 3: Outcomes & Ledger -->
+  <g transform="translate(845, 95)" filter="url(#glow)">
+    <rect width="225" height="395" rx="10" fill="#111827" stroke="#475569" stroke-width="2"/>
+    <path d="M 0 10 Q 0 0 10 0 L 215 0 Q 225 0 225 10 L 225 38 L 0 38 Z" fill="#334155" />
+    <text x="112" y="24" text-anchor="middle" fill="#ffffff" font-size="12" font-weight="700">3. OUTCOMES &amp; LEDGER</text>
+
+    <!-- Branch A -->
+    <rect x="15" y="50" width="195" height="70" rx="6" fill="#064e3b" stroke="#059669"/>
+    <text x="112" y="72" text-anchor="middle" fill="#6ee7b7" font-size="11" font-weight="700">✅ APPROVED</text>
+    <text x="112" y="90" text-anchor="middle" fill="#e2e8f0" font-size="10">PayPal Payouts Sandbox</text>
+    <text x="112" y="106" text-anchor="middle" fill="#a7f3d0" font-size="9">Two-phase webhook settlement</text>
+
+    <!-- Branch B -->
+    <rect x="15" y="135" width="195" height="70" rx="6" fill="#451a03" stroke="#d97706"/>
+    <text x="112" y="157" text-anchor="middle" fill="#fcd34d" font-size="11" font-weight="700">⚠️ ESCALATED</text>
+    <text x="112" y="175" text-anchor="middle" fill="#e2e8f0" font-size="10">Human Operator Queue</text>
+    <text x="112" y="191" text-anchor="middle" fill="#fed7aa" font-size="9">Live WebSocket UI + Expiry timer</text>
+
+    <!-- Branch C -->
+    <rect x="15" y="220" width="195" height="70" rx="6" fill="#450a0a" stroke="#dc2626"/>
+    <text x="112" y="242" text-anchor="middle" fill="#fca5a5" font-size="11" font-weight="700">🛑 DENIED / BLOCKED</text>
+    <text x="112" y="260" text-anchor="middle" fill="#e2e8f0" font-size="10">Circuit Breaker Tripped</text>
+    <text x="112" y="276" text-anchor="middle" fill="#fecaca" font-size="9">Mandate auto-frozen</text>
+
+    <!-- Audit Ledger Box -->
+    <rect x="15" y="305" width="195" height="75" rx="6" fill="#0f172a" stroke="#64748b"/>
+    <text x="112" y="325" text-anchor="middle" fill="#e2e8f0" font-size="10" font-weight="700">🔗 SHA-256 Hash Chain</text>
+    <text x="112" y="342" text-anchor="middle" fill="#94a3b8" font-size="9">Immutable PostgreSQL ledger</text>
+    <text x="112" y="358" text-anchor="middle" fill="#38bdf8" font-size="9">1-Click chain integrity check</text>
+  </g>
+</svg>

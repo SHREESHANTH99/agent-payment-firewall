@@ -1,0 +1,100 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1100 280" width="100%" height="100%" style="background:#090d16; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+  <defs>
+    <filter id="shadowBox2" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="4" stdDeviation="5" flood-color="#000000" flood-opacity="0.5"/>
+    </filter>
+  </defs>
+
+  <text x="550" y="32" text-anchor="middle" fill="#ffffff" font-size="16" font-weight="bold" letter-spacing="0.5">THE 6 DETERMINISTIC PIPELINE CHECKPOINTS</text>
+  <text x="550" y="52" text-anchor="middle" fill="#94a3b8" font-size="11">Every payment intent passes through each stage in strict sequence — no shortcuts, no bypasses</text>
+
+  <!-- Step 1 -->
+  <g transform="translate(25, 75)" filter="url(#shadowBox2)">
+    <rect width="165" height="175" rx="8" fill="#111827" stroke="#38bdf8" stroke-width="1.5"/>
+    <circle cx="28" cy="24" r="12" fill="#38bdf8"/>
+    <text x="28" y="28" text-anchor="middle" fill="#090d16" font-size="10" font-weight="bold">1</text>
+    <text x="46" y="27" fill="#ffffff" font-size="11" font-weight="bold">Idempotency</text>
+    <text x="14" y="55" fill="#94a3b8" font-size="9" font-weight="600">REDIS SETNX LOCK</text>
+    <text x="14" y="75" fill="#e2e8f0" font-size="9">• SHA-256 payload hash</text>
+    <text x="14" y="92" fill="#e2e8f0" font-size="9">• Deduplicates retries</text>
+    <text x="14" y="109" fill="#e2e8f0" font-size="9">• Prevents replay loops</text>
+    <text x="14" y="126" fill="#e2e8f0" font-size="9">• Sub-millisecond latency</text>
+    <rect x="12" y="142" width="141" height="22" rx="4" fill="#0284c7"/>
+    <text x="82" y="157" text-anchor="middle" fill="#ffffff" font-size="9" font-weight="bold">ZERO DUPLICATES</text>
+  </g>
+
+  <!-- Step 2 -->
+  <g transform="translate(205, 75)" filter="url(#shadowBox2)">
+    <rect width="165" height="175" rx="8" fill="#111827" stroke="#38bdf8" stroke-width="1.5"/>
+    <circle cx="28" cy="24" r="12" fill="#38bdf8"/>
+    <text x="28" y="28" text-anchor="middle" fill="#090d16" font-size="10" font-weight="bold">2</text>
+    <text x="46" y="27" fill="#ffffff" font-size="11" font-weight="bold">Mandate Rules</text>
+    <text x="14" y="55" fill="#94a3b8" font-size="9" font-weight="600">POSTGRES RULES</text>
+    <text x="14" y="75" fill="#e2e8f0" font-size="9">• Merchant allowlist</text>
+    <text x="14" y="92" fill="#e2e8f0" font-size="9">• Per-tx spending cap</text>
+    <text x="14" y="109" fill="#e2e8f0" font-size="9">• Currency verification</text>
+    <text x="14" y="126" fill="#e2e8f0" font-size="9">• Expiry date window</text>
+    <rect x="12" y="142" width="141" height="22" rx="4" fill="#0284c7"/>
+    <text x="82" y="157" text-anchor="middle" fill="#ffffff" font-size="9" font-weight="bold">DETERMINISTIC</text>
+  </g>
+
+  <!-- Step 3 -->
+  <g transform="translate(385, 75)" filter="url(#shadowBox2)">
+    <rect width="165" height="175" rx="8" fill="#111827" stroke="#38bdf8" stroke-width="1.5"/>
+    <circle cx="28" cy="24" r="12" fill="#38bdf8"/>
+    <text x="28" y="28" text-anchor="middle" fill="#090d16" font-size="10" font-weight="bold">3</text>
+    <text x="46" y="27" fill="#ffffff" font-size="11" font-weight="bold">Atomic Budget</text>
+    <text x="14" y="55" fill="#94a3b8" font-size="9" font-weight="600">REDIS LUA SCRIPT</text>
+    <text x="14" y="75" fill="#e2e8f0" font-size="9">• Compare-and-swap</text>
+    <text x="14" y="92" fill="#e2e8f0" font-size="9">• Two-phase reservation</text>
+    <text x="14" y="109" fill="#e2e8f0" font-size="9">• Reserve → Commit</text>
+    <text x="14" y="126" fill="#e2e8f0" font-size="9">• Release on denial</text>
+    <rect x="12" y="142" width="141" height="22" rx="4" fill="#0284c7"/>
+    <text x="82" y="157" text-anchor="middle" fill="#ffffff" font-size="9" font-weight="bold">NO OVERDRAW</text>
+  </g>
+
+  <!-- Step 4 -->
+  <g transform="translate(565, 75)" filter="url(#shadowBox2)">
+    <rect width="165" height="175" rx="8" fill="#111827" stroke="#f59e0b" stroke-width="1.5"/>
+    <circle cx="28" cy="24" r="12" fill="#f59e0b"/>
+    <text x="28" y="28" text-anchor="middle" fill="#090d16" font-size="10" font-weight="bold">4</text>
+    <text x="46" y="27" fill="#ffffff" font-size="11" font-weight="bold">Canary Scan</text>
+    <text x="14" y="55" fill="#fcd34d" font-size="9" font-weight="600">HONEYPOT TRAPS</text>
+    <text x="14" y="75" fill="#e2e8f0" font-size="9">• Honeypot tool traps</text>
+    <text x="14" y="92" fill="#e2e8f0" font-size="9">• Zero inference latency</text>
+    <text x="14" y="109" fill="#e2e8f0" font-size="9">• Catches raw injection</text>
+    <text x="14" y="126" fill="#e2e8f0" font-size="9">• Fail-closed on trip</text>
+    <rect x="12" y="142" width="141" height="22" rx="4" fill="#b45309"/>
+    <text x="82" y="157" text-anchor="middle" fill="#ffffff" font-size="9" font-weight="bold">INSTANT DETECTION</text>
+  </g>
+
+  <!-- Step 5 -->
+  <g transform="translate(745, 75)" filter="url(#shadowBox2)">
+    <rect width="165" height="175" rx="8" fill="#111827" stroke="#f59e0b" stroke-width="1.5"/>
+    <circle cx="28" cy="24" r="12" fill="#f59e0b"/>
+    <text x="28" y="28" text-anchor="middle" fill="#090d16" font-size="10" font-weight="bold">5</text>
+    <text x="46" y="27" fill="#ffffff" font-size="11" font-weight="bold">Risk Judge</text>
+    <text x="14" y="55" fill="#fcd34d" font-size="9" font-weight="600">ADVERSARIAL LLM</text>
+    <text x="14" y="75" fill="#e2e8f0" font-size="9">• Semantic discrepancy</text>
+    <text x="14" y="92" fill="#e2e8f0" font-size="9">• Task vs context diff</text>
+    <text x="14" y="109" fill="#e2e8f0" font-size="9">• Structured JSON output</text>
+    <text x="14" y="126" fill="#e2e8f0" font-size="9">• Fallback model tier</text>
+    <rect x="12" y="142" width="141" height="22" rx="4" fill="#b45309"/>
+    <text x="82" y="157" text-anchor="middle" fill="#ffffff" font-size="9" font-weight="bold">SEMANTIC CHECK</text>
+  </g>
+
+  <!-- Step 6 -->
+  <g transform="translate(925, 75)" filter="url(#shadowBox2)">
+    <rect width="150" height="175" rx="8" fill="#111827" stroke="#10b981" stroke-width="1.5"/>
+    <circle cx="28" cy="24" r="12" fill="#10b981"/>
+    <text x="28" y="28" text-anchor="middle" fill="#090d16" font-size="10" font-weight="bold">6</text>
+    <text x="46" y="27" fill="#ffffff" font-size="11" font-weight="bold">Settlement</text>
+    <text x="14" y="55" fill="#6ee7b7" font-size="9" font-weight="600">PAYPAL PAYOUTS</text>
+    <text x="14" y="75" fill="#e2e8f0" font-size="9">• Batch payout API</text>
+    <text x="14" y="92" fill="#e2e8f0" font-size="9">• Two-phase webhook</text>
+    <text x="14" y="109" fill="#e2e8f0" font-size="9">• SHA-256 hash chain</text>
+    <text x="14" y="126" fill="#e2e8f0" font-size="9">• Auto-freeze circuit</text>
+    <rect x="12" y="142" width="126" height="22" rx="4" fill="#059669"/>
+    <text x="75" y="157" text-anchor="middle" fill="#ffffff" font-size="9" font-weight="bold">PROVEN AUDIT</text>
+  </g>
+</svg>
