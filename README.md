@@ -27,6 +27,12 @@ Without an independent security proxy:
 
 ---
 
+## What is Spendlatch?
+
+**Spendlatch** (spend + latch): Just as a physical hardware latch fastens a vault or gate shut until securely unlocked, Spendlatch acts as an automated settlement latch for autonomous AI agents — holding financial disbursements in an uncommitted state through six deterministic checkpoints until all security, budget, and policy conditions are satisfied.
+
+---
+
 ## The Solution: Spendlatch Payment Firewall
 
 Spendlatch acts as a hardened payment gateway proxy positioned between autonomous AI agents and payment rails (PayPal Sandbox). Every transaction must be submitted as a payment intent (`POST /intents`) and pass through **6 deterministic inspection layers** before any money moves.

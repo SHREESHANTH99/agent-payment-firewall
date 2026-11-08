@@ -1,4 +1,10 @@
-# Threat Model: Agent Payment Firewall
+# Threat Model: Agent Payment Firewall (Spendlatch)
+
+## 0. Product Name & Etymology
+
+**Spendlatch** (`spend` + `latch`): A *latch* is a physical hardware mechanism that firmly locks a barrier into place until explicitly released. Spendlatch acts as an automated settlement latch for autonomous AI agents — holding financial disbursements in a locked, dry-run state through six deterministic checkpoints until all security, budget, and policy conditions are satisfied.
+
+---
 
 ## 1. System Assets
 1. **Mandate Funds & Budget Limits**: Total lifetime/periodic spending allowances assigned to autonomous agents.
