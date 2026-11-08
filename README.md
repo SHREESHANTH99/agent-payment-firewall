@@ -33,32 +33,7 @@ Spendlatch acts as an intermediary security proxy positioned between autonomous 
 
 ## Architecture
 
-```mermaid
-flowchart TD
-    subgraph Untrusted ["Untrusted environment"]
-        Page["External page or catalog (potential injection)"]
-        Agent["Autonomous AI agent"]
-    end
-
-    subgraph Spendlatch ["Spendlatch payment firewall"]
-        API["FastAPI intent endpoint (POST /intents)"]
-        State["PostgreSQL (source of truth) and Redis (rebuildable)"]
-        Pipeline["Inspection pipeline (rules, budget, canary, judge)"]
-    end
-
-    subgraph Settlement ["Settlement rails (sandbox only)"]
-        PayPal["PayPal Sandbox Payouts API"]
-        Operator["Human operator review"]
-    end
-
-    Page -->|Context| Agent
-    Agent -->|Submit intent| API
-    API --> Pipeline
-    Pipeline <--> State
-    Pipeline -->|Approved| PayPal
-    Pipeline -->|Escalated| Operator
-    Pipeline -->|Denied| State
-```
+![System Architecture](docs/images/SystemArchitecture.png)
 System architecture diagram illustrating untrusted agent inputs, firewall state, and sandbox settlement boundaries.
 
 PostgreSQL serves as the authoritative source of truth for spending mandates, payment records, and audit logs. Redis maintains rebuildable runtime state for distributed idempotency claims and atomic Lua budget accounting.
@@ -67,16 +42,7 @@ PostgreSQL serves as the authoritative source of truth for spending mandates, pa
 
 ## How a payment is checked
 
-```mermaid
-flowchart LR
-    Start([Intent received]) --> C1[1. Idempotency guard]
-    C1 --> C2[2. Mandate and rules]
-    C2 --> C3[3. Atomic budget reservation]
-    C3 --> C4[4. Canary scanner]
-    C4 --> C5[5. LLM risk judge]
-    C5 --> C6[6. Decision and settlement]
-    C6 --> End([Approved / Escalated / Denied])
-```
+![Intent Pipeline](docs/images/IntentPipeline.png)
 Sequential checkpoint pipeline for payment intents.
 
 | Step | Inspection checkpoint | Engine | Verification type | Failure outcome |
@@ -94,32 +60,7 @@ Every intent evaluation and state transition is cryptographically sealed in an a
 
 ## An attack, and what can stop it
 
-```mermaid
-sequenceDiagram
-    autonumber
-    actor Attacker as Malicious page
-    actor Agent as Procurement agent
-    participant Firewall as Spendlatch firewall
-    participant Human as Human reviewer
-    participant PayPal as PayPal Sandbox
-
-    Attacker->>Agent: Supplies catalog with hidden prompt injection
-    Agent->>Firewall: Submits hijacked payment intent (POST /intents)
-    rect rgb(240, 240, 240)
-        Note over Firewall: Checks 1-3: Rules and budget evaluation
-        Note over Firewall: Checks 4-5: Canary scan and LLM judge evaluation
-    end
-    alt Out-of-policy payee
-        Firewall-->>Agent: Denied (deterministic allowlist)
-    else Canary tripped or judge deviation
-        Firewall-->>Agent: Denied (mandate frozen via circuit breaker)
-    else In-policy payee reroute (approval required)
-        Firewall->>Human: Escalated for human review
-        Human-->>Firewall: Approve or deny
-    else Clean valid intent
-        Firewall->>PayPal: Execute payout (sandbox)
-    end
-```
+![Attack Lifecycle](docs/images/attack%20and%20where%20it%20can%20be%20stopped%20%28sequence%29.png)
 End-to-end attack lifecycle showing defense interception points.
 
 When an agent context is hijacked by an untrusted catalog page, deterministic mandate rules block out-of-policy payees before invoking any model. For subtle in-policy attacks, the canary honeypot, the semantic judge, and deterministic approval controls intercept payments before funds transfer.
@@ -140,30 +81,7 @@ Evaluation outcomes under pre-registered freeze [`eval-freeze-v1`](docs/EVAL_PRO
 | Expected escalation | 1 | 3 | 1 of 1 escalated | Deterministic rules (`amount > threshold`) | `insufficient sample` |
 | Policy control: secondary payee | 6 | 18 | 6 of 6 stopped | Deterministic rule (`approval_required_merchants`) | `insufficient sample` |
 
-```mermaid
-flowchart TD
-    subgraph Risks ["Threat categories"]
-        R1["Out-of-policy transfer (unknown payee or over-cap amount)"]
-        R2["Direct tool-calling injection in page context"]
-        R3["Semantic task diversion (unauthorized item substitution)"]
-        R4["Subtle payee reroute among allowlisted merchants"]
-        R5["Concurrent balance overdraw and network replay"]
-    end
-
-    subgraph Layers ["Covering defense layer"]
-        L1["Deterministic mandate rules (allowlists and caps)"]
-        L2["Canary scanner (gullible LLM honeypot)"]
-        L3["Adversarial LLM judge (semantic goal comparison)"]
-        L4["Policy control: approval_required_merchants (human review)"]
-        L5["Redis idempotency and Lua CAS reservation"]
-    end
-
-    R1 --> L1
-    R2 --> L2
-    R3 --> L3
-    R4 --> L4
-    R5 --> L5
-```
+![Risk Layer Coverage Matrix](docs/images/Which%20layer%20covers%20which%20risk.png)
 Risk coverage mapping illustrating which defense layers address specific attack vectors.
 
 Key evaluation findings:
