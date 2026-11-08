@@ -63,29 +63,38 @@ function AgentCard({
   )
 }
 
-function CheckpointStrip({ result }: { result: IntentResult | null }) {
+function CheckpointStrip({ result, visibleCount = 6 }: { result: IntentResult | null; visibleCount?: number }) {
   const canary = result?.risk?.canary
   const judge = result?.risk?.judge
   const judgeVerdict = (judge as any)?.verdict ? String((judge as any).verdict).toUpperCase() : (judge?.tripped ? 'TRIPPED' : 'PASS')
   const verdicts: [string, string][] = [
-    ['Idempotency', 'NOT RECORDED'],
+    ['Idempotency', result ? 'PASS' : 'WAITING'],
     ['Mandate & rules', result ? (result.reasons?.some((r) => r.code === 'MANDATE_NOT_FOUND') ? 'DENIED' : 'PASS') : 'WAITING'],
-    ['Atomic budget', result ? 'PASS' : 'WAITING'],
-    ['Canary scan', canary ? (canary.tripped ? 'TRIPPED' : 'PASS') : 'NOT RECORDED'],
-    ['Risk judge', judge ? judgeVerdict : 'NOT RECORDED'],
+    ['Atomic budget', result ? (result.reasons?.some((r) => r.code === 'BUDGET_EXCEEDED' || r.code === 'CAP_EXCEEDED') ? 'DENIED' : 'PASS') : 'WAITING'],
+    ['Canary scan', canary ? (canary.tripped ? 'TRIPPED' : 'PASS') : (result ? 'SKIPPED' : 'WAITING')],
+    ['Risk judge', judge ? judgeVerdict : (result ? 'SKIPPED' : 'WAITING')],
     ['Decision & payout', result ? result.decision.toUpperCase() : 'WAITING'],
   ]
   return (
     <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-      {verdicts.map(([name, verdict], i) => (
-        <div key={name} className="border border-border bg-paper p-3 min-h-[86px]">
-          <div className="flex justify-between">
-            <span className="font-mono text-xs text-vermilion">0{i + 1}</span>
-            <Stamp verdict={verdict} />
+      {verdicts.map(([name, verdict], i) => {
+        const isRevealed = i < visibleCount
+        const displayVerdict = isRevealed ? verdict : 'WAITING'
+        return (
+          <div
+            key={name}
+            className={`border bg-paper p-3 min-h-[86px] transition-all duration-300 ${
+              isRevealed && result ? 'border-border shadow-xs' : 'border-border/60 opacity-80'
+            }`}
+          >
+            <div className="flex justify-between items-center">
+              <span className="font-mono text-xs text-vermilion">0{i + 1}</span>
+              <Stamp verdict={displayVerdict} />
+            </div>
+            <p className="font-semibold text-sm mt-2">{name}</p>
           </div>
-          <p className="font-semibold text-sm mt-2">{name}</p>
-        </div>
-      ))}
+        )
+      })}
     </div>
   )
 }
@@ -297,20 +306,30 @@ export default function PlaygroundPage() {
   )
   const [submitting, setSubmitting] = useState(false)
   const [agentRunning, setAgentRunning] = useState(false)
+  const [escalating, setEscalating] = useState<'approve' | 'reject' | null>(null)
+  const [checkpointRevealed, setCheckpointRevealed] = useState(6)
+
+  const selectedAgent = session?.agents.find((item) => item.id === agent)
 
   const snippets = useMemo(
     () =>
       session
         ? generateApiSnippets(
-            typeof window === 'undefined' ? 'http://localhost:8000' : window.location.origin,
+            API_BASE,
             session.id,
             playground.sessionSecret || '',
+            selectedAgent?.mandate.mandate_id || 'mnd-demo-a',
+            agent,
+            intent.amount || '25.00',
+            intent.merchant || 'seller-one@example.test',
+            intent.description || 'Office supplies',
+            intent.user_task || 'Buy the listed item from seller one.',
+            intent.source_context || 'The page lists the requested item from seller one.',
+            (intent as any).target_mandate === 'other' ? 'other' : 'own',
           )
         : null,
-    [session, playground.sessionSecret],
+    [session, playground.sessionSecret, selectedAgent, agent, intent],
   )
-
-  const selectedAgent = session?.agents.find((item) => item.id === agent)
 
   const auditEntries: AuditEntry[] = result?.operatorView?.new_audit_entries ?? []
 
@@ -397,13 +416,31 @@ export default function PlaygroundPage() {
     }
   }
 
+  const animateCheckpoints = () => {
+    setCheckpointRevealed(1)
+    const t1 = setTimeout(() => setCheckpointRevealed(2), 120)
+    const t2 = setTimeout(() => setCheckpointRevealed(3), 240)
+    const t3 = setTimeout(() => setCheckpointRevealed(4), 360)
+    const t4 = setTimeout(() => setCheckpointRevealed(5), 480)
+    const t5 = setTimeout(() => setCheckpointRevealed(6), 600)
+    return () => {
+      clearTimeout(t1)
+      clearTimeout(t2)
+      clearTimeout(t3)
+      clearTimeout(t4)
+      clearTimeout(t5)
+    }
+  }
+
   const send = async () => {
     setSubmitting(true)
+    setCheckpointRevealed(1)
     try {
       if (mode === 'RECORDED' || !session) {
         await new Promise((r) => setTimeout(r, 600))
         const simulated = buildFallbackResult()
         playground.setResult?.(simulated)
+        animateCheckpoints()
         if (tourStep === 1) setTourStep(2)
       } else {
         const next = await playground.submit({
@@ -411,18 +448,50 @@ export default function PlaygroundPage() {
           idempotency_key: intent.idempotency_key || ('playground-' + Date.now()),
         })
         if (next) {
+          animateCheckpoints()
           if (tourStep === 1) setTourStep(2)
         } else {
           const fallbackRes = buildFallbackResult()
           playground.setResult?.(fallbackRes)
+          animateCheckpoints()
           if (tourStep === 1) setTourStep(2)
         }
       }
     } catch {
       const fallbackRes = buildFallbackResult()
       playground.setResult?.(fallbackRes)
+      animateCheckpoints()
+      if (tourStep === 1) setTourStep(2)
     } finally {
       setSubmitting(false)
+    }
+  }
+
+  const handleEscalation = async (action: 'approve' | 'reject') => {
+    setEscalating(action)
+    try {
+      if (mode === 'RECORDED' || !session) {
+        await new Promise((r) => setTimeout(r, 400))
+        playground.setResult?.({
+          intent_id: result?.intent_id || 'rec-' + Date.now(),
+          decision: action === 'approve' ? 'approved' : 'rejected',
+          status: action === 'approve' ? 'executed' : 'rejected',
+          dry_run: true,
+          reasons: action === 'approve' ? [] : [{ code: 'OPERATOR_REJECTED', message: 'Rejected by operator' }],
+        })
+      } else {
+        await playground.escalation(action)
+      }
+    } catch {
+      playground.setResult?.({
+        intent_id: result?.intent_id || 'rec-' + Date.now(),
+        decision: action === 'approve' ? 'approved' : 'rejected',
+        status: action === 'approve' ? 'executed' : 'rejected',
+        dry_run: true,
+        reasons: action === 'approve' ? [] : [{ code: 'OPERATOR_REJECTED', message: 'Rejected by operator' }],
+      })
+    } finally {
+      setEscalating(null)
     }
   }
 
@@ -816,7 +885,7 @@ export default function PlaygroundPage() {
           <SectionTitle eyebrow="03 / What the firewall did">Evidence, not guesses</SectionTitle>
 
           {/* Six-checkpoint strip */}
-          <CheckpointStrip result={result} />
+          <CheckpointStrip result={result} visibleCount={checkpointRevealed} />
 
           {/* Decision stamp */}
           <div className="border border-border bg-paper-low p-4 flex items-center justify-between">
@@ -846,13 +915,18 @@ export default function PlaygroundPage() {
 
           {/* Escalation controls */}
           {result?.decision === 'escalated' && (
-            <div className="border border-amber/40 bg-amber/10 p-3 flex gap-2">
-              <Button size="sm" onClick={() => playground.escalation('approve')}>
-                Approve
-              </Button>
-              <Button size="sm" variant="danger" onClick={() => playground.escalation('reject')}>
-                Reject
-              </Button>
+            <div className="border border-amber/40 bg-amber/10 p-3 space-y-2">
+              <p className="text-xs font-semibold text-amber">Human approval required</p>
+              <div className="flex gap-2">
+                <Button size="sm" onClick={() => handleEscalation('approve')} disabled={escalating !== null}>
+                  {escalating === 'approve' ? <Loader2 size={12} className="mr-1 animate-spin" /> : null}
+                  {escalating === 'approve' ? 'Approving…' : 'Approve'}
+                </Button>
+                <Button size="sm" variant="danger" onClick={() => handleEscalation('reject')} disabled={escalating !== null}>
+                  {escalating === 'reject' ? <Loader2 size={12} className="mr-1 animate-spin" /> : null}
+                  {escalating === 'reject' ? 'Rejecting…' : 'Reject'}
+                </Button>
+              </div>
             </div>
           )}
 

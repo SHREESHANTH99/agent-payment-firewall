@@ -278,8 +278,16 @@ export function generateApiSnippets(
   agentId: string = 'A',
   amount: string = '25.00',
   merchant: string = 'seller-one@example.test',
+  description: string = 'Office supplies',
+  userTask: string = 'Buy the listed item from seller one.',
+  sourceContext: string = 'The page lists the requested item from seller one.',
+  targetMandate: string = 'own',
 ): { curl: string; python: string } {
   const base = apiBase.replace(/\/$/, '')
+  const safeDesc = JSON.stringify(description || 'Office supplies')
+  const safeTask = JSON.stringify(userTask || 'Buy the listed item from seller one.')
+  const safeContext = JSON.stringify(sourceContext || 'The page lists the requested item from seller one.')
+
   const curl = `curl -X POST "${base}/demo/sessions/${sessionId}/intents" \\
   -H "Content-Type: application/json" \\
   -H "X-Demo-Session-Id: ${sessionId}" \\
@@ -289,10 +297,10 @@ export function generateApiSnippets(
     "amount": "${amount}",
     "currency": "USD",
     "merchant": "${merchant}",
-    "description": "Office supplies",
-    "user_task": "Buy the listed item from seller one.",
-    "source_context": "The page lists the requested item from seller one.",
-    "target_mandate": "own"
+    "description": ${safeDesc},
+    "user_task": ${safeTask},
+    "source_context": ${safeContext},
+    "target_mandate": "${targetMandate}"
   }'`
 
   const python = `import os
@@ -309,10 +317,10 @@ payload = {
     "amount": "${amount}",
     "currency": "USD",
     "merchant": "${merchant}",
-    "description": "Office supplies",
-    "user_task": "Buy the listed item from seller one.",
-    "source_context": "The page lists the requested item from seller one.",
-    "target_mandate": "own",
+    "description": ${safeDesc},
+    "user_task": ${safeTask},
+    "source_context": ${safeContext},
+    "target_mandate": "${targetMandate}",
 }
 resp = requests.post(url, json=payload, headers=headers)
 print(resp.json())`

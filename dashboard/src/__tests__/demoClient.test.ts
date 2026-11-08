@@ -3,10 +3,23 @@ import { generateApiSnippets, loadRecordedRun } from '@/lib/demoClient'
 
 describe('demo client helpers', () => {
   it('generates snippets from the supplied session values', () => {
-    const snippets = generateApiSnippets('https://sandbox.example.test/', 'demo-session', 'short-lived-demo-key')
+    const snippets = generateApiSnippets(
+      'https://sandbox.example.test/',
+      'demo-session',
+      'short-lived-demo-key',
+      'mnd-demo-a',
+      'A',
+      '29.99',
+      'acme-corp@example.com',
+      'Printer ink refill',
+    )
     expect(snippets.curl).toContain('https://sandbox.example.test/demo/sessions/demo-session/intents')
     expect(snippets.curl).toContain('short-lived-demo-key')
+    expect(snippets.curl).toContain('29.99')
+    expect(snippets.curl).toContain('acme-corp@example.com')
+    expect(snippets.curl).toContain('Printer ink refill')
     expect(snippets.python).toContain('DEMO_SESSION_SECRET')
+    expect(snippets.python).toContain('29.99')
     expect(snippets.python).not.toContain('short-lived-demo-key')
   })
 

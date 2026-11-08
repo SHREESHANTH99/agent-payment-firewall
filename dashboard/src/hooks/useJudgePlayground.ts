@@ -48,11 +48,20 @@ export function useJudgePlayground() {
     try {
       const next = await submitDemoIntent(playground.session.id, playground.sessionSecret, intent)
       setResult(next)
-      await refresh(playground.session.id, playground.sessionSecret)
+      try {
+        await refresh(playground.session.id, playground.sessionSecret)
+      } catch {
+        // State refresh error shouldn't discard valid intent result
+      }
       return next
-    } catch (error) {
-      await fallback(error)
-      return null
+    } catch (error: any) {
+      if (error?.status === 429 || error?.code === 'demo_quota') {
+        // Quota exhausted or rate-limited: switch to recorded fallback mode smoothly
+        await fallback(error)
+        return null
+      }
+      // Re-throw so playground UI can handle fallback or alert
+      throw error
     }
   }, [fallback, playground.session, playground.sessionSecret, refresh])
 

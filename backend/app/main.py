@@ -249,7 +249,7 @@ async def unhandled_exception_handler(request: Request, exc: Exception):
 # CORS configuration restricted to DASHBOARD_ORIGIN
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[settings.DASHBOARD_ORIGIN],
+    allow_origins=[o.strip() for o in settings.DASHBOARD_ORIGIN.split(",") if o.strip()],
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
     allow_headers=["*"],
