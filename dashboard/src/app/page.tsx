@@ -381,16 +381,21 @@ export default function LandingPage() {
             </a>
             <Link
               href="/playground"
-              className="inline-flex items-center gap-1.5 h-8 px-3 rounded-full bg-amber/10 hover:bg-amber/20 text-amber font-sans text-xs font-medium border border-amber/30 transition-colors whitespace-nowrap"
+              className="inline-flex items-center gap-1.5 h-8 px-3 rounded-md bg-paper-high hover:bg-paper-highest text-ink font-sans text-xs font-medium border border-border transition-colors whitespace-nowrap"
             >
-              <span className="w-1.5 h-1.5 rounded-full bg-amber" />
-              <span>Demo mode</span>
+              <span>Playground</span>
+            </Link>
+            <Link
+              href="/console?demo=1"
+              className="inline-flex items-center gap-1.5 h-8 px-3 rounded-md bg-amber/10 hover:bg-amber/20 text-amber font-sans text-xs font-medium border border-amber/30 transition-colors whitespace-nowrap"
+            >
+              <span>Sample console</span>
             </Link>
             <Link
               href="/console/login"
-              className="inline-flex items-center gap-1.5 h-8 px-3.5 rounded-md bg-vermilion hover:bg-vermilion-bright text-white font-sans text-xs font-medium shadow-xs transition-colors whitespace-nowrap active:scale-[0.98]"
+              className="hidden sm:inline text-xs text-ink-muted hover:text-ink transition-colors whitespace-nowrap px-1"
             >
-              <span>Sign in with token</span>
+              Sign in with token
             </Link>
             <button
               onClick={() => setMenuOpen(!menuOpen)}
@@ -436,17 +441,16 @@ export default function LandingPage() {
               <div className="flex flex-wrap gap-3">
                 <Link
                   href="/playground"
-                  className="inline-flex items-center gap-2 px-4 py-2.5 border border-border bg-paper-high text-ink font-sans text-sm font-semibold hover:bg-paper-highest transition-colors"
+                  className="inline-flex items-center gap-2 px-5 py-2.5 bg-vermilion text-white font-sans text-sm font-semibold hover:bg-ink transition-colors shadow-xs"
                 >
-                  Explore demo
+                  Try the Playground
                   <ExternalLink className="w-3.5 h-3.5" />
                 </Link>
                 <Link
-                  href="/console/login"
-                  className="inline-flex items-center gap-2 px-4 py-2.5 bg-vermilion text-white font-sans text-sm font-semibold hover:bg-ink transition-colors"
+                  href="/console?demo=1"
+                  className="inline-flex items-center gap-2 px-4 py-2.5 border border-border bg-paper-high text-ink font-sans text-sm font-semibold hover:bg-paper-highest transition-colors"
                 >
-                  Sign in with token
-                  <ExternalLink className="w-3.5 h-3.5" />
+                  View sample console
                 </Link>
                 <a
                   href="https://github.com/SHREESHANTH99/agent-payment-firewall"
@@ -718,8 +722,9 @@ docker compose up --build`}
           <span>Agent Payment Firewall — MIT License</span>
           <div className="flex items-center gap-4">
             <a href="https://github.com/SHREESHANTH99/agent-payment-firewall" target="_blank" rel="noopener noreferrer" className="hover:text-ink transition-colors">GitHub</a>
-            <Link href="/playground" className="hover:text-ink transition-colors">Demo</Link>
-            <Link href="/console/login" className="hover:text-ink transition-colors">Console</Link>
+            <Link href="/playground" className="hover:text-ink transition-colors">Playground</Link>
+            <Link href="/console?demo=1" className="hover:text-ink transition-colors">Sample console</Link>
+            <Link href="/console/login" className="hover:text-ink transition-colors">Sign in with token</Link>
           </div>
         </div>
       </footer>

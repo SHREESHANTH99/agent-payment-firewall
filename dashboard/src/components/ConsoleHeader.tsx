@@ -72,13 +72,26 @@ export function ConsoleHeader() {
 
       {/* Right: Environment & Actions */}
       <div className="flex items-center gap-2 shrink-0">
-        {/* Environment badge */}
+        {/* Environment badge & Exit sample mode */}
         {mounted && (
           demo ? (
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-amber/10 border border-amber/30 text-amber">
-              <span className="w-1.5 h-1.5 rounded-full bg-amber animate-pulse" />
-              Demo data
-            </span>
+            <div className="flex items-center gap-2">
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-amber/10 border border-amber/30 text-amber">
+                <span className="w-1.5 h-1.5 rounded-full bg-amber animate-pulse" />
+                Sample mode
+              </span>
+              <button
+                type="button"
+                onClick={() => {
+                  sessionStorage.removeItem('apf_demo_mode')
+                  setDemo(false)
+                  router.push('/console/login')
+                }}
+                className="text-xs text-ink-muted hover:text-vermilion underline transition-colors"
+              >
+                Exit sample mode
+              </button>
+            </div>
           ) : (
             <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-forest/10 border border-forest/30 text-forest">
               <span className="w-1.5 h-1.5 rounded-full bg-forest" />

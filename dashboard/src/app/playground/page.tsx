@@ -506,10 +506,10 @@ export default function PlaygroundPage() {
         </div>
         <div className="flex items-center gap-2.5 flex-wrap">
           <Link
-            href="/console"
+            href="/console?demo=1"
             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-paper-high hover:bg-paper-highest text-ink font-sans text-xs font-medium border border-border transition-colors"
           >
-            <span>Operator Console</span>
+            <span>Sample console</span>
             <ChevronRight className="w-3.5 h-3.5 text-ink-muted" />
           </Link>
           <a
