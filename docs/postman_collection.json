@@ -5,6 +5,14 @@
     "description": "Comprehensive API collection for the Agent Payment Firewall hackathon project. Intercepts autonomous agent transactions before settlement with deterministic rules, atomic budgets, canary honeypots, and LLM risk adjudication.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
+  "variable": [
+    {
+      "key": "session_secret",
+      "value": "",
+      "type": "string",
+      "description": "Session secret returned upon initializing a demo playground session"
+    }
+  ],
   "item": [
     {
       "name": "Health & System",
@@ -114,8 +122,22 @@
               "host": ["{{base_url}}"],
               "path": ["intents"]
             },
-            "description": "Submits an adversarial prompt injection intent. Canary and risk judge flag and reject it."
+            "description": "Submits an adversarial prompt injection intent. The outcome depends on LLM risk evaluation and honeypot canary detection, resulting in either denial or human escalation."
           },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Prompt injection blocked or escalated', function () {",
+                  "    var res = pm.response.json();",
+                  "    pm.expect(res.decision).to.be.oneOf(['denied', 'escalated']);",
+                  "});"
+                ]
+              }
+            }
+          ],
           "response": []
         },
         {

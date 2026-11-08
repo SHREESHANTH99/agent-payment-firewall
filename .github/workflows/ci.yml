@@ -153,6 +153,29 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         continue-on-error: true
 
+      - name: Verify No Secrets in docs/*.json
+        run: |
+          python -c "
+          import glob, re, sys
+          hex_pat = re.compile(r'[a-fA-F0-9]{33,}')
+          bearer_pat = re.compile(r'Bearer\s+[A-Za-z0-9_\-\.]{10,}', re.IGNORECASE)
+          violations = []
+          for p in glob.glob('docs/**/*.json', recursive=True):
+              with open(p, 'r', encoding='utf-8') as f:
+                  text = f.read()
+              for m in bearer_pat.finditer(text):
+                  if '{{' not in m.group(0):
+                      violations.append(f'{p}: Real Bearer token detected')
+              for m in hex_pat.finditer(text):
+                  violations.append(f'{p}: Long hex string detected ({len(m.group(0))} chars)')
+          if violations:
+              print('Docs JSON secret scan violations found:', file=sys.stderr)
+              for v in violations:
+                  print('  ' + v, file=sys.stderr)
+              sys.exit(1)
+          print('docs/*.json secrets check passed cleanly.')
+          "
+
       - name: Semgrep Static Code Security Analysis (SAST)
         run: |
           python -m pip install --upgrade pip
