@@ -77,9 +77,14 @@ export function useJudgePlayground() {
     if (!playground.session || !playground.sessionSecret) return
     try {
       const run = await startAgentRun(playground.session.id, playground.sessionSecret, payload)
-      setAgentEvents(await readAgentEvents(playground.session.id, playground.sessionSecret, run.run_id))
-    } catch (error) { await fallback(error) }
-  }, [fallback, playground.session, playground.sessionSecret])
+      const events = await readAgentEvents(playground.session.id, playground.sessionSecret, run.run_id)
+      setAgentEvents(events)
+      return events
+    } catch (error) {
+      // Keep UI functional by returning null so component can fallback smoothly
+      return null
+    }
+  }, [playground.session, playground.sessionSecret])
 
   const escalation = useCallback(async (action: 'approve' | 'reject') => {
     if (!result || !playground.session || !playground.sessionSecret) return

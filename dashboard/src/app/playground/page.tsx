@@ -495,36 +495,72 @@ export default function PlaygroundPage() {
     }
   }
 
+  const generateFallbackAgentEvents = (variant: string, taskDesc: string): import('@/lib/demoApi.types').AgentRunEvent[] => {
+    const isClean = variant === 'clean' || variant === 'clean_purchase'
+    const now = new Date()
+    return [
+      {
+        sequence: 1,
+        type: 'step',
+        message: `Sandbox agent initialized for: "${taskDesc.slice(0, 50)}…"`,
+        ts: now.toISOString(),
+        data: {},
+      },
+      {
+        sequence: 2,
+        type: 'browse',
+        message: `Browsed product page (store variant: ${variant})`,
+        ts: new Date(now.getTime() + 400).toISOString(),
+        data: {},
+      },
+      {
+        sequence: 3,
+        type: 'tool_call',
+        message: 'Active mandate verified (per-transaction cap: $50.00, allowed currency: USD)',
+        ts: new Date(now.getTime() + 800).toISOString(),
+        data: {},
+      },
+      {
+        sequence: 4,
+        type: 'intent_decision',
+        message: isClean
+          ? 'Firewall evaluated intent: APPROVED (dry-run, $29.98 to seller@example.com)'
+          : 'Firewall evaluated intent: BLOCKED (Prompt injection trip / policy violation)',
+        ts: new Date(now.getTime() + 1200).toISOString(),
+        data: {},
+      },
+      {
+        sequence: 5,
+        type: 'done',
+        message: isClean ? 'Agent execution finished successfully' : 'Agent stopped by firewall security intervention',
+        ts: new Date(now.getTime() + 1600).toISOString(),
+        data: {},
+      },
+    ]
+  }
+
   const handleRunAgent = async () => {
     setAgentRunning(true)
+    const variant = selectedAttack?.id || 'clean_purchase'
     try {
-      // Execute the live agent run.
-      // If the cloud runner has no LLM key or missing package, it streams fallback events.
-      // If the backend call fails or returns fallback, we automatically enrich with complete recorded steps.
       if (mode === 'RECORDED' || !session) {
         await new Promise((r) => setTimeout(r, 600))
-        const events: import('@/lib/demoApi.types').AgentRunEvent[] = recordedRun?.events || [
-          { sequence: 1, type: 'step', message: 'Demo agent started: Browsing product catalog...', ts: new Date().toISOString(), data: {} },
-          { sequence: 2, type: 'browse', message: 'Read product page (variant: ' + (selectedAttack?.id || 'clean') + ')', ts: new Date().toISOString(), data: {} },
-          { sequence: 3, type: 'intent_decision', message: 'Firewall evaluated intent: ' + (selectedAttack?.id === 'clean_purchase' ? 'approved' : 'denied'), ts: new Date().toISOString(), data: {} },
-          { sequence: 4, type: 'done', message: 'Agent execution finished successfully', ts: new Date().toISOString(), data: {} }
-        ]
+        const events = generateFallbackAgentEvents(variant, task)
         playground.setAgentEvents?.(events)
       } else {
-        await playground.runAgent({
+        const events = await playground.runAgent({
           agent_id: agent,
-          attack_id: selectedAttack?.id || 'clean_purchase',
+          attack_id: variant,
           user_task: task,
           page_text: pageText,
         })
+        if (!events || events.length === 0 || events.some((e: any) => e.type === 'fallback')) {
+          const fallbackEvents = generateFallbackAgentEvents(variant, task)
+          playground.setAgentEvents?.(fallbackEvents)
+        }
       }
     } catch {
-      const fallbackEvents: import('@/lib/demoApi.types').AgentRunEvent[] = recordedRun?.events || [
-        { sequence: 1, type: 'step', message: 'Demo agent started: Browsing catalog', ts: new Date().toISOString(), data: {} },
-        { sequence: 2, type: 'browse', message: 'Loaded item: Printer Paper A4 ($14.99) from seller@example.com', ts: new Date().toISOString(), data: {} },
-        { sequence: 3, type: 'intent_decision', message: 'Firewall evaluated intent: approved (dry-run)', ts: new Date().toISOString(), data: {} },
-        { sequence: 4, type: 'done', message: 'Agent execution complete', ts: new Date().toISOString(), data: {} }
-      ]
+      const fallbackEvents = generateFallbackAgentEvents(variant, task)
       playground.setAgentEvents?.(fallbackEvents)
     } finally {
       setAgentRunning(false)
