@@ -442,6 +442,7 @@ export default function PlaygroundPage() {
         playground.setResult?.(simulated)
         animateCheckpoints()
         if (tourStep === 1) setTourStep(2)
+        setPanel('firewall')
       } else {
         const next = await playground.submit({
           ...intent,
@@ -450,11 +451,13 @@ export default function PlaygroundPage() {
         if (next) {
           animateCheckpoints()
           if (tourStep === 1) setTourStep(2)
+          setPanel('firewall')
         } else {
           const fallbackRes = buildFallbackResult()
           playground.setResult?.(fallbackRes)
           animateCheckpoints()
           if (tourStep === 1) setTourStep(2)
+          setPanel('firewall')
         }
       }
     } catch {
@@ -462,6 +465,7 @@ export default function PlaygroundPage() {
       playground.setResult?.(fallbackRes)
       animateCheckpoints()
       if (tourStep === 1) setTourStep(2)
+      setPanel('firewall')
     } finally {
       setSubmitting(false)
     }
@@ -658,14 +662,18 @@ export default function PlaygroundPage() {
         )}
       </div>
 
-      {/* ── Mobile tab nav ── */}
-      <nav className="flex sm:hidden gap-1 px-4 pt-4" aria-label="Playground panels">
+      {/* ── Mobile tab nav docked below header ── */}
+      <nav className="sticky top-14 z-20 bg-paper/98 backdrop-blur border-b border-border flex sm:hidden gap-1 px-4 py-2" aria-label="Playground panels">
         {(['setup', 'attack', 'firewall'] as Panel[]).map((item) => (
           <button
             key={item}
             type="button"
             onClick={() => setPanel(item)}
-            className={`flex-1 border px-2 py-2 text-xs uppercase ${panel === item ? 'bg-ink text-paper' : 'border-border'}`}
+            className={`flex-1 border px-2 py-2.5 text-xs font-semibold uppercase tracking-wider min-h-[44px] transition-colors ${
+              panel === item
+                ? 'bg-ink text-paper border-ink'
+                : 'border-border bg-paper-low text-ink-muted hover:text-ink'
+            }`}
           >
             {item}
           </button>
@@ -852,10 +860,25 @@ export default function PlaygroundPage() {
                   </div>
                 </fieldset>
 
-                <Button onClick={send} disabled={submitting}>
-                  {submitting ? <Loader2 size={14} className="mr-2 animate-spin" /> : <Play size={14} className="mr-2" />}
-                  {submitting ? 'Evaluating intent…' : 'Send intent'}
-                </Button>
+                <div className="hidden sm:block">
+                  <Button onClick={send} disabled={submitting}>
+                    {submitting ? <Loader2 size={14} className="mr-2 animate-spin" /> : <Play size={14} className="mr-2" />}
+                    {submitting ? 'Evaluating intent…' : 'Send intent'}
+                  </Button>
+                </div>
+
+                {/* Sticky action bar on mobile */}
+                <div className="sm:hidden fixed bottom-0 left-0 right-0 z-header bg-paper/98 backdrop-blur border-t border-border p-3 pb-safe-bottom shadow-lg">
+                  <button
+                    type="button"
+                    onClick={send}
+                    disabled={submitting}
+                    className="w-full flex items-center justify-center gap-2 py-3 px-4 bg-vermilion text-white font-sans text-sm font-semibold rounded shadow-xs min-h-[44px] disabled:opacity-50"
+                  >
+                    {submitting ? <Loader2 size={16} className="animate-spin" /> : <Play size={16} />}
+                    <span>{submitting ? 'Evaluating intent…' : 'Send intent'}</span>
+                  </button>
+                </div>
               </div>
             </div>
           ) : (

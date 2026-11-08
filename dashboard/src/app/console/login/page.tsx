@@ -44,14 +44,14 @@ export default function ConsoleLoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-paper flex items-center justify-center px-4">
+    <div className="min-h-[100dvh] bg-paper flex items-center justify-center px-4 py-8">
       <div className="w-full max-w-sm">
         {/* Mark */}
-        <div className="flex flex-col items-center mb-8">
-          <div className="w-12 h-12 bg-vermilion flex items-center justify-center mb-3">
+        <div className="flex flex-col items-center mb-6">
+          <div className="w-12 h-12 bg-vermilion flex items-center justify-center mb-3 rounded">
             <Shield className="w-6 h-6 text-white" />
           </div>
-          <h1 className="font-serif text-2xl text-ink">Operator authentication</h1>
+          <h1 className="font-serif text-2xl text-ink text-center">Operator authentication</h1>
           <p className="font-sans text-xs text-ink-muted mt-1 text-center">
             Enter your secret firewall operator token to access the governance console.
           </p>
@@ -65,7 +65,7 @@ export default function ConsoleLoginPage() {
 
         <form onSubmit={handleLogin} className="space-y-3">
           <div>
-            <label className="font-sans text-2xs uppercase tracking-wider text-ink-muted mb-1.5 block">
+            <label className="font-sans text-2xs uppercase tracking-wider text-ink-muted mb-1.5 block font-semibold">
               Bearer token
             </label>
             <input
@@ -73,12 +73,12 @@ export default function ConsoleLoginPage() {
               value={token}
               onChange={(e) => setToken(e.target.value)}
               placeholder="64-character hex token"
-              className="w-full px-3 py-2 text-xs font-mono bg-paper-low border border-border text-ink placeholder-ink-muted focus:outline-none focus:border-ink transition-colors"
+              className="field w-full px-3 py-2.5 text-xs font-mono bg-paper-low border border-border text-ink placeholder-ink-muted focus:outline-none focus:border-ink transition-colors rounded min-h-[44px]"
               required
               autoFocus
             />
           </div>
-          <Button type="submit" className="w-full justify-center" disabled={loading}>
+          <Button type="submit" className="w-full justify-center min-h-[44px]" disabled={loading}>
             {loading ? 'Verifying…' : 'Sign in to console'}
           </Button>
         </form>
@@ -89,7 +89,7 @@ export default function ConsoleLoginPage() {
           <div className="flex-1 h-px bg-border" />
         </div>
 
-        <Button variant="secondary" className="w-full justify-center mt-4" onClick={handleDemo}>
+        <Button variant="secondary" className="w-full justify-center mt-4 min-h-[44px]" onClick={handleDemo}>
           Explore in demo mode
         </Button>
 
