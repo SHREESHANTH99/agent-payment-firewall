@@ -66,7 +66,7 @@ module.exports = {
         lg: '4px',
       },
       fontSize: {
-        '2xs': ['12px', { lineHeight: '16px' }],
+        '2xs': ['13px', { lineHeight: '18px' }], // Minimum text size 13px per DESIGN.md
         xs: ['13px', { lineHeight: '18px' }], // Minimum text size 13px per constraint
         sm: ['14px', { lineHeight: '20px' }],
         base: ['15px', { lineHeight: '22px' }],
