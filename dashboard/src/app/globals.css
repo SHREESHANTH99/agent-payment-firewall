@@ -6,6 +6,20 @@
 @import 'ag-grid-community/styles/ag-theme-alpine.css';
 
 :root {
+  /* Breakpoint constants (keep aligned with useBreakpoint.ts) */
+  --bp-phone-max: 767px;
+  --bp-tablet-min: 768px;
+  --bp-tablet-max: 1023px;
+  --bp-desktop-min: 1024px;
+
+  /* Z-Index scale strictly layered to avoid overlap */
+  --z-header: 30;
+  --z-bottom-bar: 40;
+  --z-sheet-backdrop: 45;
+  --z-sheet: 50;
+  --z-modal: 60;
+  --z-toast: 70;
+
   /* Paper and Ink Palette (DESIGN.md specification) */
   --paper: #F3F0E8;
   --paper-low: #F8F3EC;
@@ -123,7 +137,39 @@ p, h1, h2, h3, h4, h5, h6 {
   color: var(--ink);
   padding: 0.55rem 0.65rem;
   font: inherit;
-  font-size: 14px;
+  font-size: 16px; /* 16px prevents mobile safari auto-zoom on input focus */
+}
+
+@media (min-width: 768px) {
+  .field {
+    font-size: 14px;
+  }
+}
+
+/* Safe area padding utilities for fixed headers & bottom bars */
+.pt-safe-top {
+  padding-top: max(env(safe-area-inset-top, 0px), 0px);
+}
+
+.pb-safe-bottom {
+  padding-bottom: max(env(safe-area-inset-bottom, 0px), 0px);
+}
+
+/* Content spacing for pages with fixed bottom nav bar on mobile */
+.content-bottom-nav-spacer {
+  padding-bottom: calc(4.25rem + env(safe-area-inset-bottom, 0px));
+}
+
+@media (min-width: 768px) {
+  .content-bottom-nav-spacer {
+    padding-bottom: 1.5rem;
+  }
+}
+
+/* Minimum touch target utility (44px by 44px) */
+.touch-target {
+  min-width: 44px;
+  min-height: 44px;
 }
 
 .field:focus {
