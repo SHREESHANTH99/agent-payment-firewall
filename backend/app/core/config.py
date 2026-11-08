@@ -61,6 +61,7 @@ class Settings(BaseSettings):
     LLM_FALLBACK_API_KEY: str = ""
     LLM_FALLBACK_MODEL: str = ""
     DASHBOARD_ORIGIN: str = "http://localhost:3000"
+    AGENT_RESPONSE_DETAIL: str = "minimal"  # minimal | full
 
     @field_validator("DATABASE_URL", mode="before")
     @classmethod

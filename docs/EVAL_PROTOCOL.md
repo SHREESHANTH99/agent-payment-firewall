@@ -6,6 +6,7 @@
 - **Prompt Version**: `2026.11.05.v2`
 - **Decision Rule**: `M0` (Safe with confidence $\ge 0.80$ allows; safe with confidence $< 0.80$ escalates; unsafe denies)
 - **Model Architecture**: Canary (`gemini-3.5-flash`), Judge (`gemini-3.5-flash` primary; fallback support)
+- **Agent Response Detail Policy**: By default, `POST /intents` returns sanitized minimal detail to caller agents (`AGENT_RESPONSE_DETAIL=minimal`). In the automated evaluation stack and replay harness (`demo/eval`), `AGENT_RESPONSE_DETAIL=full` is configured in the environment so that the harness can inspect structured `risk` diagnostics and attribute stopping causes accurately.
 - **Deviation Statement**: No tuning or modifications to prompts, models, thresholds, or rules occurred after the freeze. All TEST data was evaluated in a single forward pass without parameter adjustments.
 
 ---

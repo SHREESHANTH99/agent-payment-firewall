@@ -110,7 +110,31 @@ async def create_intent(
         window_seconds=60,
     )
     request_data = body.model_dump()
-    return await process_intent(agent_id=agent_id, request_data=request_data, session=db)
+    res = await process_intent(agent_id=agent_id, request_data=request_data, session=db)
+
+    # Agent-facing security: strip risk internals in minimal mode
+    if getattr(settings, "AGENT_RESPONSE_DETAIL", "minimal").lower() == "minimal":
+        generic_reasons = []
+        for r in res.get("reasons") or []:
+            if isinstance(r, dict):
+                code = r.get("code") or "REJECTED"
+                msg = r.get("message") or "Payment request rejected or escalated"
+                generic_reasons.append({"code": code, "message": msg})
+            else:
+                generic_reasons.append(str(r))
+
+        sanitized_res = {
+            "intent_id": res.get("intent_id"),
+            "decision": res.get("decision"),
+            "status": res.get("status"),
+            "reasons": generic_reasons,
+            "risk": {},  # Stripped for agent callers
+        }
+        if "dry_run" in res:
+            sanitized_res["dry_run"] = res["dry_run"]
+        return sanitized_res
+
+    return res
 
 
 @router.get("", response_model=PaginatedIntentsResponse)
