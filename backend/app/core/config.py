@@ -60,7 +60,7 @@ class Settings(BaseSettings):
     LLM_FALLBACK_BASE_URL: str = ""
     LLM_FALLBACK_API_KEY: str = ""
     LLM_FALLBACK_MODEL: str = ""
-    DASHBOARD_ORIGIN: str = "http://localhost:3000,https://payment-firewall-dashboard.onrender.com"
+    DASHBOARD_ORIGIN: str = "http://localhost:3000"
 
     @field_validator("DATABASE_URL", mode="before")
     @classmethod
