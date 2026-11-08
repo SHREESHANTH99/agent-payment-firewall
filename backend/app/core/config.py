@@ -63,6 +63,12 @@ class Settings(BaseSettings):
     DASHBOARD_ORIGIN: str = "http://localhost:3000"
     AGENT_RESPONSE_DETAIL: str = "minimal"  # minimal | full
 
+    # Brand configuration
+    PRODUCT_NAME: str = "Spendlatch"
+    PRODUCT_TAGLINE: str = "Payment firewall for AI agents"
+    PRODUCT_REPO_URL: str = "https://github.com/SHREESHANTH99/agent-payment-firewall"
+    PRODUCT_DOCS_URL: str = "https://github.com/SHREESHANTH99/agent-payment-firewall#readme"
+
     @field_validator("DATABASE_URL", mode="before")
     @classmethod
     def normalize_database_url(cls, v: Any) -> str:
