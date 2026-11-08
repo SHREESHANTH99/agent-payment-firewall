@@ -330,7 +330,7 @@ export default function LandingPage() {
       <header className="fixed top-0 left-0 right-0 z-50 bg-paper/95 backdrop-blur border-b border-border h-14 flex items-center">
         <div className="max-w-7xl mx-auto px-4 md:px-8 w-full flex items-center justify-between gap-4">
           {/* Brand */}
-          <Link href="/" className="flex items-center gap-2.5">
+          <Link href="/" className="flex items-center gap-2.5 shrink-0">
             <svg viewBox="0 0 24 24" fill="none" className="w-7 h-7 shrink-0">
               <rect width="24" height="24" rx="3" fill="#E5391B" />
               <path d="M12 4 L20 7 V13 C20 17.5 16.5 20.5 12 22 C7.5 20.5 4 17.5 4 13 V7 Z" fill="white" />
@@ -338,9 +338,9 @@ export default function LandingPage() {
               <line x1="12" y1="10.5" x2="12" y2="13.5" stroke="white" strokeWidth="1.5" strokeLinecap="square" />
               <circle cx="12" cy="15.5" r="0.75" fill="white" />
             </svg>
-            <div>
-              <p className="font-sans font-bold text-xs uppercase tracking-wider text-ink">Gatekeeper</p>
-              <p className="font-mono text-2xs text-ink-muted hidden sm:block">Payment firewall for AI</p>
+            <div className="flex flex-col justify-center">
+              <span className="font-sans font-bold text-xs uppercase tracking-wider text-ink leading-tight">Agent Payment Firewall</span>
+              <span className="font-mono text-2xs text-ink-muted leading-tight hidden sm:block whitespace-nowrap">Settlement Interception for AI</span>
             </div>
           </Link>
 
