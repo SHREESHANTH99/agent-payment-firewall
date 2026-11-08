@@ -88,91 +88,115 @@ function AnimatedLedger() {
   }, [])
 
   return (
-    <div className="border border-border bg-paper-low p-4 font-mono text-xs select-none" aria-label="Example: intent blocked by firewall">
-      <div className="flex items-center justify-between mb-3 pb-2 border-b border-border">
-        <div>
-          <p className="font-sans text-2xs uppercase text-ink-muted">Example transaction</p>
-          <p className="font-bold text-sm text-ink">$850.00 → dark-escrow-node.org</p>
+    <div className="border border-border bg-paper-low p-4 font-mono text-xs select-none w-full overflow-hidden" aria-label="Example: intent blocked by firewall">
+      <div className="flex items-center justify-between mb-3 pb-2 border-b border-border gap-2">
+        <div className="min-w-0">
+          <p className="font-sans text-2xs uppercase text-ink-muted truncate">Example transaction</p>
+          <p className="font-bold text-sm text-ink truncate">$850.00 → dark-escrow-node.org</p>
         </div>
-        <span className="px-1.5 py-0.5 bg-amber/10 border border-amber/30 text-amber text-2xs font-bold">INTERCEPTED</span>
+        <span className="px-1.5 py-0.5 bg-amber/10 border border-amber/30 text-amber text-2xs font-bold shrink-0">INTERCEPTED</span>
       </div>
       <div className="space-y-2">
         {HERO_CHECKPOINTS.map((cp, i) => (
           <div
             key={cp.name}
-            className={`flex items-center justify-between transition-all duration-200 ${i < visible ? 'opacity-100' : 'opacity-0'}`}
+            className={`flex items-center justify-between py-1 transition-opacity duration-300 ${
+              i < visible ? 'opacity-100' : 'opacity-20'
+            }`}
           >
-            <span className="text-ink-muted text-2xs">{cp.name}</span>
-            <StatusChip status={i < visible ? cp.status : 'pending'} />
+            <span className="text-ink-muted text-xs truncate mr-2">{cp.name}</span>
+            {i < visible && <StatusChip status={cp.status} />}
           </div>
         ))}
       </div>
       {done && (
-        <div className="mt-3 pt-2 border-t border-border flex items-center justify-between">
-          <span className="text-2xs text-ink-muted">Settlement</span>
-          <span className="px-2 py-0.5 border-2 border-vermilion text-vermilion font-bold text-sm tracking-widest">BLOCKED</span>
+        <div className="mt-3 pt-2 border-t border-border flex items-center justify-between text-2xs text-vermilion">
+          <span>STATUS: REJECTED</span>
+          <span>CODE: CANARY_TRIGGERED</span>
         </div>
       )}
-      <p className="mt-2 text-2xs text-ink-muted font-sans">This is a recorded example. No real funds involved.</p>
+      <p className="mt-3 font-sans text-2xs text-ink-muted/70">
+        This is a recorded example. No real funds involved.
+      </p>
     </div>
   )
 }
 
-// -- Interactive simulator ---------------------------------------------------
+// -- Interactive Simulator ---------------------------------------------------
 function Simulator({ scenarios }: { scenarios: Scenario[] }) {
-  const [selected, setSelected] = useState(scenarios[0]?.id ?? '')
+  const [selectedId, setSelectedId] = useState(scenarios[0]?.id || '')
   const [firewallOn, setFirewallOn] = useState(true)
   const [running, setRunning] = useState(false)
-  const [step, setStep] = useState(-1)
+  const [step, setStep] = useState(0)
   const [done, setDone] = useState(false)
 
-  const scenario = scenarios.find((s) => s.id === selected) ?? scenarios[0]
-  const checkpoints = scenario?.firewall_on_checkpoints ?? []
+  const scenario = scenarios.find((s) => s.id === selectedId) || scenarios[0]
+  const checkpoints = scenario?.firewall_on_checkpoints || []
 
   const run = useCallback(() => {
     if (running) return
-    setRunning(true); setStep(-1); setDone(false)
+    setRunning(true)
+    setStep(0)
+    setDone(false)
+
+    const stepInterval = 400
     checkpoints.forEach((_, i) => {
       setTimeout(() => {
-        setStep(i)
-        if (i === checkpoints.length - 1) setTimeout(() => { setDone(true); setRunning(false) }, 350)
-      }, i * 450)
+        setStep(i + 1)
+        if (i === checkpoints.length - 1) {
+          setTimeout(() => {
+            setDone(true)
+            setRunning(false)
+          }, 300)
+        }
+      }, (i + 1) * stepInterval)
     })
-  }, [checkpoints, running])
-
-  const reset = () => { setStep(-1); setDone(false); setRunning(false) }
+  }, [running, checkpoints])
 
   return (
-    <div className="border border-border bg-paper-low p-4 space-y-4">
-      <div className="flex flex-wrap items-end gap-4">
-        <div>
-          <label className="font-sans text-2xs uppercase text-ink-muted block mb-1">Scenario</label>
+    <div className="border border-border bg-paper p-4 md:p-6 space-y-4">
+      {/* Controls */}
+      <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-border">
+        <div className="flex flex-wrap items-center gap-3">
+          <label htmlFor="scenario-select" className="font-sans text-xs font-medium text-ink-muted">
+            Scenario:
+          </label>
           <select
-            value={selected}
-            onChange={(e) => { setSelected(e.target.value); reset() }}
-            className="font-sans text-xs bg-paper border border-border text-ink px-2 py-1.5 focus:outline-none"
+            id="scenario-select"
+            value={selectedId}
+            onChange={(e) => {
+              setSelectedId(e.target.value)
+              setStep(0)
+              setDone(false)
+            }}
+            className="field text-xs py-1 px-2 border border-border bg-paper text-ink rounded"
           >
-            {scenarios.map((s) => <option key={s.id} value={s.id}>{s.name} — {s.tag}</option>)}
+            {scenarios.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.name} ({s.tag})
+              </option>
+            ))}
           </select>
         </div>
-        <div className="flex items-center gap-2">
-          <label className="font-sans text-2xs uppercase text-ink-muted">Firewall</label>
-          <button
-            onClick={() => { setFirewallOn(!firewallOn); reset() }}
-            className={`w-10 h-5 border relative transition-colors ${firewallOn ? 'bg-forest border-forest' : 'bg-paper-highest border-border'}`}
-            role="switch"
-            aria-checked={firewallOn}
-          >
-            <span className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white transition-transform ${firewallOn ? 'translate-x-5' : 'translate-x-0'}`} />
-          </button>
-          <span className="font-mono text-2xs text-ink-muted">{firewallOn ? 'On' : 'Off'}</span>
+
+        <div className="flex items-center gap-3">
+          <label className="flex items-center gap-2 cursor-pointer font-sans text-xs text-ink-muted">
+            <input
+              type="checkbox"
+              checked={firewallOn}
+              onChange={(e) => setFirewallOn(e.target.checked)}
+              className="accent-vermilion min-w-[20px] min-h-[20px]"
+            />
+            <span>Firewall active</span>
+          </label>
         </div>
+
         <button
           onClick={run}
           disabled={running}
-          className="flex items-center gap-1.5 px-3 py-1.5 bg-vermilion text-white font-sans text-xs font-semibold hover:bg-ink transition-colors disabled:opacity-50"
+          className="flex items-center gap-1.5 px-3 py-1.5 bg-vermilion text-white font-sans text-xs font-semibold hover:bg-ink transition-colors disabled:opacity-50 min-h-[44px]"
         >
-          <Play className="w-3 h-3" />
+          <Play className="w-3.5 h-3.5" />
           Run
         </button>
       </div>
@@ -191,14 +215,14 @@ function Simulator({ scenarios }: { scenarios: Scenario[] }) {
               {checkpoints.map((cp, i) => (
                 <div
                   key={cp.id}
-                  className={`flex items-center justify-between px-3 py-1.5 border transition-all duration-200 ${
+                  className={`flex items-center justify-between px-3 py-2 border transition-all duration-200 ${
                     i <= step ? 'border-border bg-paper' : 'border-dashed border-border opacity-40'
                   }`}
                 >
                   <span className={`font-sans text-xs ${i <= step ? 'text-ink' : 'text-ink-muted'}`}>{cp.name}</span>
                   <div className="flex items-center gap-2">
                     {i <= step && <StatusChip status={cp.status} />}
-                    {i <= step && <span className="font-sans text-2xs text-ink-muted max-w-[200px] truncate">{cp.detail}</span>}
+                    {i <= step && <span className="font-sans text-2xs text-ink-muted max-w-[140px] sm:max-w-[200px] truncate">{cp.detail}</span>}
                   </div>
                 </div>
               ))}
@@ -274,7 +298,7 @@ function EvidenceSection({ calibration, eval: evalData }: { calibration: Calibra
           <div className="space-y-1.5">
             {categories.map(([cat, vals]: [string, any]) => (
               <div key={cat} className="flex items-center gap-3">
-                <span className="font-sans text-xs text-ink-muted w-40 shrink-0 capitalize">{cat.replace(/_/g, ' ')}</span>
+                <span className="font-sans text-xs text-ink-muted w-36 sm:w-40 shrink-0 capitalize truncate">{cat.replace(/_/g, ' ')}</span>
                 <div className="flex-1 h-2 bg-paper-high overflow-hidden">
                   <div
                     className="h-full bg-forest transition-all"
@@ -319,21 +343,33 @@ export default function LandingPage() {
     fetch('/data/eval.json').then(r => r.json()).then(setEvalData).catch(() => {})
   }, [])
 
+  // Lock body scroll when mobile menu is open
+  useEffect(() => {
+    if (menuOpen) {
+      document.body.style.overflow = 'hidden'
+    } else {
+      document.body.style.overflow = ''
+    }
+    return () => {
+      document.body.style.overflow = ''
+    }
+  }, [menuOpen])
+
   const scrollTo = (id: string) => {
     document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' })
     setMenuOpen(false)
   }
 
   return (
-    <div className="min-h-screen bg-paper text-ink">
+    <div className="min-h-screen bg-paper text-ink overflow-x-hidden">
       {/* Sticky nav */}
-      <header className="fixed top-0 left-0 right-0 z-50 bg-paper/95 backdrop-blur border-b border-border h-14 flex items-center">
+      <header className="fixed top-0 left-0 right-0 z-header bg-paper/95 backdrop-blur border-b border-border h-14 flex items-center">
         <div className="max-w-7xl mx-auto px-4 md:px-8 w-full flex items-center justify-between gap-4">
           {/* Brand */}
           <Link href="/" className="flex items-center gap-2.5 shrink-0">
             <svg viewBox="0 0 24 24" fill="none" className="w-7 h-7 shrink-0">
               <rect width="24" height="24" rx="3" fill="#E5391B" />
-              <path d="M12 4 L20 7 V13 C20 17.5 16.5 20.5 12 22 C7.5 20.5 4 17.5 4 13 V7 Z" fill="white" />
+              <path d="M12 4 L20 7 V13 C20 17.5 16.5 20.5 12 22 C7.5 20.5 4 17.5 4 13 Z" fill="white" />
               <path d="M12 7.5 L17.5 9.5 V12.5 C17.5 15.5 15 17.5 12 18.5 C9 17.5 6.5 15.5 6.5 12.5 V9.5 Z" fill="#E5391B" />
               <line x1="12" y1="10.5" x2="12" y2="13.5" stroke="white" strokeWidth="1.5" strokeLinecap="square" />
               <circle cx="12" cy="15.5" r="0.75" fill="white" />
@@ -361,94 +397,154 @@ export default function LandingPage() {
             ))}
           </nav>
 
-          {/* CTA */}
+          {/* Header Controls */}
           <div className="flex items-center gap-1.5 shrink-0">
+            {/* Theme toggle always visible */}
             <button
               onClick={toggle}
-              className="w-8 h-8 rounded-md hover:bg-paper-high text-ink-muted hover:text-ink flex items-center justify-center transition-colors"
+              className="w-9 h-9 rounded-md hover:bg-paper-high text-ink-muted hover:text-ink flex items-center justify-center transition-colors min-h-[44px] min-w-[44px]"
               aria-label="Toggle theme"
             >
-              {theme === 'dark' ? <Sun className="w-3.5 h-3.5" /> : <Moon className="w-3.5 h-3.5" />}
+              {theme === 'dark' ? <Sun className="w-4 h-4 text-amber" /> : <Moon className="w-4 h-4" />}
             </button>
+
+            {/* Desktop only links */}
             <a
               href="https://github.com/SHREESHANTH99/agent-payment-firewall"
               target="_blank"
               rel="noopener noreferrer"
-              className="hidden sm:inline-flex items-center gap-1.5 h-8 px-2.5 rounded-md hover:bg-paper-high text-ink-muted hover:text-ink font-sans text-xs font-medium transition-colors whitespace-nowrap"
+              className="hidden md:inline-flex items-center gap-1.5 h-8 px-2.5 rounded-md hover:bg-paper-high text-ink-muted hover:text-ink font-sans text-xs font-medium transition-colors whitespace-nowrap"
             >
               <Github className="w-3.5 h-3.5" />
               <span>GitHub</span>
             </a>
             <Link
               href="/playground"
-              className="inline-flex items-center gap-1.5 h-8 px-3 rounded-md bg-paper-high hover:bg-paper-highest text-ink font-sans text-xs font-medium border border-border transition-colors whitespace-nowrap"
+              className="hidden md:inline-flex items-center gap-1.5 h-8 px-3 rounded-md bg-paper-high hover:bg-paper-highest text-ink font-sans text-xs font-medium border border-border transition-colors whitespace-nowrap"
             >
               <span>Playground</span>
             </Link>
             <Link
               href="/console?demo=1"
-              className="inline-flex items-center gap-1.5 h-8 px-3 rounded-md bg-amber/10 hover:bg-amber/20 text-amber font-sans text-xs font-medium border border-amber/30 transition-colors whitespace-nowrap"
+              className="hidden md:inline-flex items-center gap-1.5 h-8 px-3 rounded-md bg-amber/10 hover:bg-amber/20 text-amber font-sans text-xs font-medium border border-amber/30 transition-colors whitespace-nowrap"
             >
               <span>Sample console</span>
             </Link>
             <Link
               href="/console/login"
-              className="hidden sm:inline text-xs text-ink-muted hover:text-ink transition-colors whitespace-nowrap px-1"
+              className="hidden md:inline text-xs text-ink-muted hover:text-ink transition-colors whitespace-nowrap px-1"
             >
               Sign in with token
             </Link>
+
+            {/* Menu toggle for mobile and tablet (< 1280px) */}
             <button
               onClick={() => setMenuOpen(!menuOpen)}
-              className="xl:hidden w-8 h-8 rounded-md hover:bg-paper-high text-ink-muted hover:text-ink flex items-center justify-center transition-colors"
+              className="xl:hidden w-9 h-9 rounded-md hover:bg-paper-high text-ink-muted hover:text-ink flex items-center justify-center transition-colors min-h-[44px] min-w-[44px]"
               aria-label={menuOpen ? 'Close menu' : 'Open menu'}
+              aria-expanded={menuOpen}
             >
-              {menuOpen ? <X className="w-4 h-4" /> : <Menu className="w-4 h-4" />}
+              {menuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
             </button>
           </div>
         </div>
       </header>
 
-      {/* Mobile menu */}
+      {/* Full-screen Mobile Sheet for Navigation & CTAs */}
       {menuOpen && (
-        <div className="xl:hidden fixed inset-0 z-40 bg-paper pt-14">
-          <nav className="flex flex-col p-4 gap-1">
-            {SECTIONS.map((id) => (
-              <button
-                key={id}
-                onClick={() => scrollTo(id)}
-                className="text-left px-3 py-2 font-sans text-sm text-ink hover:bg-paper-high transition-colors"
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="Mobile navigation"
+          className="xl:hidden fixed inset-0 z-modal bg-paper flex flex-col pt-14 pb-safe-bottom overflow-y-auto"
+        >
+          <div className="flex-1 px-6 py-6 flex flex-col justify-between">
+            {/* Section links */}
+            <div>
+              <p className="font-mono text-2xs uppercase tracking-wider text-ink-muted mb-3 font-semibold">
+                Navigation
+              </p>
+              <nav className="flex flex-col space-y-1">
+                {SECTIONS.map((id) => (
+                  <button
+                    key={id}
+                    onClick={() => scrollTo(id)}
+                    className="text-left py-3 px-3 rounded-lg font-sans text-base text-ink hover:bg-paper-high transition-colors min-h-[44px] flex items-center"
+                  >
+                    {SECTION_LABELS[id]}
+                  </button>
+                ))}
+              </nav>
+            </div>
+
+            {/* CTAs in mobile menu */}
+            <div className="pt-6 border-t border-border space-y-3 mt-6">
+              <p className="font-mono text-2xs uppercase tracking-wider text-ink-muted mb-2 font-semibold">
+                Get started
+              </p>
+              <Link
+                href="/playground"
+                onClick={() => setMenuOpen(false)}
+                className="w-full flex items-center justify-center gap-2 py-3 px-4 bg-vermilion text-white font-sans text-sm font-semibold rounded shadow-xs min-h-[44px]"
               >
-                {SECTION_LABELS[id]}
-              </button>
-            ))}
-          </nav>
+                Try the Playground
+                <ExternalLink className="w-4 h-4" />
+              </Link>
+              <Link
+                href="/console?demo=1"
+                onClick={() => setMenuOpen(false)}
+                className="w-full flex items-center justify-center gap-2 py-3 px-4 border border-amber/40 bg-amber/10 text-amber font-sans text-sm font-semibold rounded min-h-[44px]"
+              >
+                View sample console
+              </Link>
+              <Link
+                href="/console/login"
+                onClick={() => setMenuOpen(false)}
+                className="w-full flex items-center justify-center gap-2 py-3 px-4 border border-border text-ink font-sans text-sm font-medium rounded hover:bg-paper-high min-h-[44px]"
+              >
+                Sign in with token
+              </Link>
+              <a
+                href="https://github.com/SHREESHANTH99/agent-payment-firewall"
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={() => setMenuOpen(false)}
+                className="w-full flex items-center justify-center gap-2 py-2.5 px-4 text-ink-muted font-sans text-sm hover:text-ink min-h-[44px]"
+              >
+                <Github className="w-4 h-4" />
+                View on GitHub
+              </a>
+            </div>
+          </div>
         </div>
       )}
 
       <main className="pt-14">
         {/* 01 Hero */}
-        <section id="hero" className="max-w-7xl mx-auto px-4 md:px-8 py-16 md:py-24">
+        <section id="hero" className="max-w-7xl mx-auto px-4 md:px-8 py-12 md:py-24">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
             {/* Left */}
             <div className="lg:col-span-6 flex flex-col gap-6">
-              <h1 className="font-serif text-4xl md:text-5xl text-ink leading-tight">
+              <h1 className="font-serif text-3xl sm:text-4xl md:text-5xl text-ink leading-tight">
                 Let agents pay.<br />Not blindly.
               </h1>
-              <p className="font-sans text-base text-ink-muted max-w-lg leading-relaxed">
-                The open-source, deterministic payment firewall that intercepts autonomous agent transactions
+              <p className="font-sans text-sm sm:text-base text-ink-muted max-w-lg leading-relaxed">
+                The open-source, policy-driven payment firewall that intercepts autonomous agent transactions
                 before settlement — through policy rules, atomic budget accounting, honeypot canary scanning, and LLM-based risk adjudication.
               </p>
-              <div className="flex flex-wrap gap-3">
+
+              {/* CTAs: stacked full width on phone in exact order */}
+              <div className="flex flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-center gap-3">
                 <Link
                   href="/playground"
-                  className="inline-flex items-center gap-2 px-5 py-2.5 bg-vermilion text-white font-sans text-sm font-semibold hover:bg-ink transition-colors shadow-xs"
+                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-3 bg-vermilion text-white font-sans text-sm font-semibold hover:bg-ink transition-colors shadow-xs min-h-[44px]"
                 >
                   Try the Playground
                   <ExternalLink className="w-3.5 h-3.5" />
                 </Link>
                 <Link
                   href="/console?demo=1"
-                  className="inline-flex items-center gap-2 px-4 py-2.5 border border-border bg-paper-high text-ink font-sans text-sm font-semibold hover:bg-paper-highest transition-colors"
+                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-3 border border-border bg-paper-high text-ink font-sans text-sm font-semibold hover:bg-paper-highest transition-colors min-h-[44px]"
                 >
                   View sample console
                 </Link>
@@ -456,23 +552,25 @@ export default function LandingPage() {
                   href="https://github.com/SHREESHANTH99/agent-payment-firewall"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 px-4 py-2.5 border border-border text-ink font-sans text-sm hover:bg-paper-high transition-colors"
+                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 py-2.5 px-3 text-ink-muted hover:text-ink font-sans text-sm underline sm:no-underline sm:border sm:border-border sm:hover:bg-paper-high transition-colors min-h-[44px]"
                 >
-                  <Github className="w-3.5 h-3.5" />
+                  <Github className="w-4 h-4" />
                   GitHub
                 </a>
               </div>
-              <div className="flex items-center gap-3 text-xs font-mono text-ink-muted">
+
+              {/* Clean non-jagged meta chips */}
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs font-mono text-ink-muted pt-1">
                 <span>MIT Licensed</span>
-                <span>•</span>
+                <span className="text-ink-muted/40">•</span>
                 <span>Python 3.12 &amp; Next.js</span>
-                <span>•</span>
+                <span className="text-ink-muted/40">•</span>
                 <span>Sandbox Settlement</span>
               </div>
             </div>
 
             {/* Right — animated ledger */}
-            <div className="lg:col-span-6">
+            <div className="lg:col-span-6 w-full">
               <AnimatedLedger />
             </div>
           </div>
@@ -482,10 +580,10 @@ export default function LandingPage() {
         <div className="border-t border-border" />
 
         {/* 02 Problem */}
-        <section id="problem" className="bg-paper-low py-16">
+        <section id="problem" className="bg-paper-low py-12 md:py-16">
           <div className="max-w-7xl mx-auto px-4 md:px-8">
             <div className="mb-8">
-              <h2 className="font-serif text-3xl text-ink">Autonomous payments fail silently.</h2>
+              <h2 className="font-serif text-2xl sm:text-3xl text-ink">Autonomous payments fail silently.</h2>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {[
@@ -546,10 +644,10 @@ export default function LandingPage() {
         </section>
 
         {/* 03 Attack story */}
-        <section id="attack" className="py-16 border-t border-border">
+        <section id="attack" className="py-12 md:py-16 border-t border-border">
           <div className="max-w-7xl mx-auto px-4 md:px-8">
             <div className="mb-8">
-              <h2 className="font-serif text-3xl text-ink">How a prompt injection attack unfolds.</h2>
+              <h2 className="font-serif text-2xl sm:text-3xl text-ink">How a prompt injection attack unfolds.</h2>
               <p className="font-sans text-sm text-ink-muted mt-2 max-w-xl">
                 From a poisoned web page to a blocked settlement — the four stages of an intercept.
               </p>
@@ -578,10 +676,10 @@ export default function LandingPage() {
         </section>
 
         {/* 04 Interactive simulator */}
-        <section id="simulator" className="bg-paper-low py-16 border-t border-border">
+        <section id="simulator" className="bg-paper-low py-12 md:py-16 border-t border-border">
           <div className="max-w-7xl mx-auto px-4 md:px-8">
             <div className="mb-6">
-              <h2 className="font-serif text-3xl text-ink">Run a scenario.</h2>
+              <h2 className="font-serif text-2xl sm:text-3xl text-ink">Run a scenario.</h2>
               <p className="font-sans text-sm text-ink-muted mt-2">
                 Select an attack scenario, toggle the firewall, and watch the checkpoint pipeline animate in order.
               </p>
@@ -594,10 +692,10 @@ export default function LandingPage() {
         </section>
 
         {/* 05 Architecture */}
-        <section id="architecture" className="py-16 border-t border-border">
+        <section id="architecture" className="py-12 md:py-16 border-t border-border">
           <div className="max-w-7xl mx-auto px-4 md:px-8">
             <div className="mb-6">
-              <h2 className="font-serif text-3xl text-ink">Six deterministic checkpoints.</h2>
+              <h2 className="font-serif text-2xl sm:text-3xl text-ink">Six deterministic checkpoints.</h2>
               <p className="font-sans text-sm text-ink-muted mt-2 max-w-xl">
                 Every payment intent passes through the full pipeline, in order. No shortcut. No bypass.
               </p>
@@ -624,10 +722,10 @@ export default function LandingPage() {
         </section>
 
         {/* 06 Evidence */}
-        <section id="evidence" className="bg-paper-low py-16 border-t border-border">
+        <section id="evidence" className="bg-paper-low py-12 md:py-16 border-t border-border">
           <div className="max-w-7xl mx-auto px-4 md:px-8">
             <div className="mb-6">
-              <h2 className="font-serif text-3xl text-ink">Empirically measured, honestly presented.</h2>
+              <h2 className="font-serif text-2xl sm:text-3xl text-ink">Empirically measured, honestly presented.</h2>
               <p className="font-sans text-sm text-ink-muted mt-2 max-w-xl">
                 Results from the calibration harness. Detection is probabilistic. Sample sizes are shown. No figures are invented.
               </p>
@@ -640,10 +738,10 @@ export default function LandingPage() {
         </section>
 
         {/* 07 Console preview */}
-        <section id="preview" className="py-16 border-t border-border">
+        <section id="preview" className="py-12 md:py-16 border-t border-border">
           <div className="max-w-7xl mx-auto px-4 md:px-8">
             <div className="mb-6">
-              <h2 className="font-serif text-3xl text-ink">Full real-time governance console.</h2>
+              <h2 className="font-serif text-2xl sm:text-3xl text-ink">Full real-time governance console.</h2>
               <p className="font-sans text-sm text-ink-muted mt-2 max-w-xl">
                 Overview, approval queue, intent ledger, mandates, audit chain, and risk controls — all live over WebSocket.
               </p>
@@ -660,17 +758,17 @@ export default function LandingPage() {
                 </div>
               ))}
             </div>
-            <div className="mt-6 flex gap-3">
+            <div className="mt-6 flex flex-col sm:flex-row gap-3">
               <Link
                 href="/playground"
-                className="inline-flex items-center gap-2 px-4 py-2.5 bg-vermilion text-white font-sans text-sm font-semibold hover:bg-ink transition-colors"
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-vermilion text-white font-sans text-sm font-semibold hover:bg-ink transition-colors min-h-[44px]"
               >
                 Open demo console
                 <ExternalLink className="w-3.5 h-3.5" />
               </Link>
               <Link
                 href="/console/login"
-                className="inline-flex items-center gap-2 px-4 py-2.5 border border-border text-ink font-sans text-sm hover:bg-paper-high transition-colors"
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-2.5 border border-border text-ink font-sans text-sm hover:bg-paper-high transition-colors min-h-[44px]"
               >
                 Sign in with token
               </Link>
@@ -679,10 +777,10 @@ export default function LandingPage() {
         </section>
 
         {/* 08 Open source */}
-        <section id="open-source" className="bg-paper-high py-16 border-t border-border">
+        <section id="open-source" className="bg-paper-high py-12 md:py-16 border-t border-border">
           <div className="max-w-7xl mx-auto px-4 md:px-8">
             <div className="mb-6">
-              <h2 className="font-serif text-3xl text-ink">Free, auditable, self-hosted.</h2>
+              <h2 className="font-serif text-2xl sm:text-3xl text-ink">Free, auditable, self-hosted.</h2>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
               <div className="space-y-4">
@@ -693,7 +791,7 @@ export default function LandingPage() {
                   href="https://github.com/SHREESHANTH99/agent-payment-firewall"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 px-4 py-2.5 border border-border text-ink font-sans text-sm hover:bg-paper-high transition-colors"
+                  className="inline-flex items-center gap-2 px-4 py-2.5 border border-border text-ink font-sans text-sm hover:bg-paper-high transition-colors min-h-[44px]"
                 >
                   <Github className="w-4 h-4" />
                   View on GitHub
@@ -717,14 +815,14 @@ docker compose up --build`}
       </main>
 
       {/* Footer */}
-      <footer className="border-t border-border bg-paper py-6">
+      <footer className="border-t border-border bg-paper py-6 pb-safe-bottom">
         <div className="max-w-7xl mx-auto px-4 md:px-8 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs font-sans text-ink-muted">
           <span>Agent Payment Firewall — MIT License</span>
-          <div className="flex items-center gap-4">
-            <a href="https://github.com/SHREESHANTH99/agent-payment-firewall" target="_blank" rel="noopener noreferrer" className="hover:text-ink transition-colors">GitHub</a>
-            <Link href="/playground" className="hover:text-ink transition-colors">Playground</Link>
-            <Link href="/console?demo=1" className="hover:text-ink transition-colors">Sample console</Link>
-            <Link href="/console/login" className="hover:text-ink transition-colors">Sign in with token</Link>
+          <div className="flex flex-wrap items-center justify-center gap-4">
+            <a href="https://github.com/SHREESHANTH99/agent-payment-firewall" target="_blank" rel="noopener noreferrer" className="hover:text-ink transition-colors min-h-[44px] flex items-center">GitHub</a>
+            <Link href="/playground" className="hover:text-ink transition-colors min-h-[44px] flex items-center">Playground</Link>
+            <Link href="/console?demo=1" className="hover:text-ink transition-colors min-h-[44px] flex items-center">Sample console</Link>
+            <Link href="/console/login" className="hover:text-ink transition-colors min-h-[44px] flex items-center">Sign in with token</Link>
           </div>
         </div>
       </footer>
