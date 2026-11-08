@@ -29,3 +29,13 @@ Open-source payment firewall between AI agents and PayPal (SANDBOX ONLY). An age
 
 ## Conventions
 Small commits per logical part; run tests after each; push to the working branch; summarize what changed WITHOUT printing secrets.
+
+
+## Playground rules
+- Demo safety (must always hold): demo intents are forced to dry_run and never reach PayPal; no OPERATOR_TOKEN in any demo route, response, log or client bundle; protection toggles are per demo session only (never the global risk config); per-IP limits and the daily LLM budget apply; sessions are isolated; a cross-agent probe is indistinguishable from a nonexistent mandate; user-supplied text is length-limited and rendered escaped.
+- Protected files (do not edit): backend/app/services/pipeline.py, rules.py, budget.py, idempotency.py, audit.py, circuit_breaker.py and backend/app/risk/*. Demo-only backend files (backend/app/api/demo.py and demo modules) and the dashboard may change.
+- Do not run LLM-backed evaluations. Do not change prompts, decision rules, thresholds or models (eval-freeze-v1).
+- Tests mock all network and LLM calls. Never print or commit secrets.
+- One commit per numbered part; after each, run dashboard tests, a production build, and non-database backend tests.
+- Every user action shows pending, success and error states. No silent failures and no infinite spinners.
+- Follow DESIGN.md: minimum text size 13px, sentence case, responsive to 360px, reduced motion respected, color never the only signal.
