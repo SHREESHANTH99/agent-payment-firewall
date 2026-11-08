@@ -106,9 +106,19 @@ docker compose up --build
 
 ## Model Context Protocol (MCP) Server
 
-Gatekeeper exposes a native **FastMCP** server, allowing autonomous agents in **Claude Desktop**, **Cursor**, or **LangChain** to use the payment firewall as an MCP tool:
+Gatekeeper exposes a native **FastMCP** server (`backend/app/mcp_server.py`), enabling autonomous agents in **Claude Desktop**, **Cursor**, or **LangChain** to use the payment firewall as an MCP tool while enforcing strict security boundaries:
+
+- **Caller Authentication & Identity Invariant**: Identity is derived solely from the server's configured environment key (`MCP_AGENT_API_KEY`). Callers cannot supply or spoof `agent_id`.
+- **Dry-Run Enforcement**: Controlled by the server environment (`MCP_DRY_RUN`, default `true`). Callers cannot disable dry-run execution.
+- **Sanitized Responses**: Returns only `{intent_id, decision, status, reason, escalated}`. Canary tokens, judge reasons, confidence scores, and raw internal error traces are never returned to the caller agent.
+- **Input Guardrails**: Enforces API character limits (merchant 255, description 2000, reasoning 4000, user_task 2000, source_context 50000) with a 90-second timeout.
 
 ```bash
+# Environment Configuration
+export FIREWALL_BASE_URL="http://localhost:8000"
+export MCP_AGENT_API_KEY="your-agent-api-key"
+export MCP_DRY_RUN="true"
+
 # Run the FastMCP server over stdio
 python -m app.mcp_server
 ```
@@ -124,7 +134,9 @@ Add to `claude_desktop_config.json`:
       "cwd": "/path/to/agent-payment-firewall/backend",
       "env": {
         "FIREWALL_BASE_URL": "http://localhost:8000",
-        "AGENT_MANDATE_ID": "mnd-prod-001"
+        "MCP_AGENT_API_KEY": "your-agent-api-key",
+        "AGENT_MANDATE_ID": "mnd-prod-001",
+        "MCP_DRY_RUN": "true"
       }
     }
   }
@@ -136,16 +148,19 @@ Add to `claude_desktop_config.json`:
 
 ## Postman Collection
 
-A complete Postman v2.1 collection and pre-configured environment are available in:
+As a convenience for testing and exploring the API endpoints, a complete Postman v2.1 collection and pre-configured environment are provided:
 - [`docs/postman_collection.json`](docs/postman_collection.json)
 - [`docs/postman_environment.json`](docs/postman_environment.json)
 
-Includes test assertions for:
-- Health and readiness probes
+<!-- TODO: Add Run-in-Postman badge once public workspace URL is published -->
+
+The collection includes automated test assertions and verification requests for:
+- Health and readiness probes (`/health`, `/ready`)
 - Clean purchase intent approval
-- Prompt injection canary trip
+- Adversarial prompt injection (asserts decision is `denied` or `escalated` based on LLM/canary risk evaluation)
 - High-value intent human escalation
-- Audit hash-chain verification (`/audit/verify`)
+- Demo playground session initialization and execution with session secrets
+- Audit hash-chain cryptographic verification (`/audit/verify`)
 
 ---
 
