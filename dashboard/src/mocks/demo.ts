@@ -58,14 +58,14 @@ export const frozenMandate: MandateView = {
 
 const operatorView = (
   risk: IntentResult['risk'],
-  balances: IntentResult['operatorView']['balances'],
+  balances: NonNullable<IntentResult['operatorView']>['balances'],
   event: string,
 ): IntentResult['operatorView'] => ({
-  risk: { canary: risk.canary, judge: risk.judge },
-  denial_cause: risk.denial_cause ?? null,
-  escalation_cause: risk.escalation_cause ?? null,
+  risk: { canary: risk?.canary, judge: risk?.judge },
+  denial_cause: risk?.denial_cause ?? null,
+  escalation_cause: risk?.escalation_cause ?? null,
   balances,
-  new_audit_entries: [{ event, hash: `hash-${event}`, created_at: now }],
+  new_audit_entries: [{ id: 1, event, payload: {}, hash: "hash-" + event, created_at: now }],
 })
 
 export const approvedIntent: IntentResult = {
@@ -232,7 +232,7 @@ export const demoHandlers = [
   http.get('*/demo/sessions/:id/escalations', ({ request, params }) => {
     if (!isAuthorized({ request, params })) return errorResponse(401, 'invalid_demo_auth', 'Valid demo session headers are required.')
     if (params.id !== demoSession.id) return errorResponse(404, 'demo_session_not_found', 'Demo session not found.')
-    return HttpResponse.json({ items: clone(demoState.session.escalations), total: demoState.session.escalations.length })
+    return HttpResponse.json({ items: clone(demoState.session.escalations), total: (demoState.session.escalations || []).length })
   }),
   http.post('*/demo/sessions/:id/escalations/:intent_id/approve', ({ request, params }) => {
     if (!isAuthorized({ request, params })) return errorResponse(401, 'invalid_demo_auth', 'Valid demo session headers are required.')
@@ -254,7 +254,7 @@ export const demoHandlers = [
       reasons: [{ code: 'OPERATOR_REJECTED', message: reason }],
       operatorView: operatorView(
         escalatedIntent.risk,
-        escalatedIntent.operatorView.balances,
+        escalatedIntent.operatorView!.balances,
         'intent.rejected',
       ),
     })
@@ -292,4 +292,4 @@ export const demoHandlers = [
   }),
 ]
 
-export const sampleEscalation: Escalation = demoState.session.escalations[0]
+export const sampleEscalation: Escalation = demoState.session.escalations![0]

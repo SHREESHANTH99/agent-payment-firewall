@@ -12,6 +12,7 @@ import { formatCents } from '@/lib/utils'
 type Panel = 'setup' | 'attack' | 'firewall'
 
 const fallbackIntent = (agent: DemoAgentId, mandateId: string): IntentRequest => ({
+  agent: agent,
   agent_id: agent,
   mandate_id: mandateId,
   idempotency_key: `playground-${Date.now()}`,
@@ -63,14 +64,15 @@ function AgentCard({
 }
 
 function CheckpointStrip({ result }: { result: IntentResult | null }) {
-  const canary = result?.risk.canary
-  const judge = result?.risk.judge
+  const canary = result?.risk?.canary
+  const judge = result?.risk?.judge
+  const judgeVerdict = (judge as any)?.verdict ? String((judge as any).verdict).toUpperCase() : (judge?.tripped ? 'TRIPPED' : 'PASS')
   const verdicts: [string, string][] = [
     ['Idempotency', 'NOT RECORDED'],
-    ['Mandate & rules', result ? (result.reasons.some((r) => r.code === 'MANDATE_NOT_FOUND') ? 'DENIED' : 'PASS') : 'WAITING'],
+    ['Mandate & rules', result ? (result.reasons?.some((r) => r.code === 'MANDATE_NOT_FOUND') ? 'DENIED' : 'PASS') : 'WAITING'],
     ['Atomic budget', result ? 'PASS' : 'WAITING'],
     ['Canary scan', canary ? (canary.tripped ? 'TRIPPED' : 'PASS') : 'NOT RECORDED'],
-    ['Risk judge', judge ? judge.verdict.toUpperCase() : 'NOT RECORDED'],
+    ['Risk judge', judge ? judgeVerdict : 'NOT RECORDED'],
     ['Decision & payout', result ? result.decision.toUpperCase() : 'WAITING'],
   ]
   return (
@@ -92,11 +94,10 @@ function RiskDetails({ result }: { result: IntentResult | null }) {
   const [open, setOpen] = useState(false)
   if (!result)
     return <p className="text-sm text-ink-muted">Send an intent to inspect canary and judge evidence.</p>
-  const reasons = [
-    ...(result.risk.judge?.reasons || []),
-    ...(result.risk.judge?.mismatch_reasons || []),
-    ...result.reasons.map((r) => r.message),
-  ]
+  const judgeReasons: string[] = Array.isArray((result.risk as any)?.judge?.reasons) ? (result.risk as any).judge.reasons : []
+  const mismatchReasons: string[] = Array.isArray((result.risk as any)?.judge?.mismatch_reasons) ? (result.risk as any).judge.mismatch_reasons : []
+  const directReasons = (result.reasons || []).map((r) => r.message)
+  const reasons = [...judgeReasons, ...mismatchReasons, ...directReasons]
   return (
     <div className="border border-border">
       <button
@@ -113,13 +114,13 @@ function RiskDetails({ result }: { result: IntentResult | null }) {
           <div className="grid grid-cols-2 gap-3 text-xs">
             <div>
               <p className="text-ink-muted">Canary</p>
-              <p className="font-mono">{result.risk.canary?.tripped ? 'TRIPPED' : result.risk.canary ? 'PASS' : 'NOT RECORDED'}</p>
+              <p className="font-mono">{result.risk?.canary?.tripped ? 'TRIPPED' : result.risk?.canary ? 'PASS' : 'NOT RECORDED'}</p>
             </div>
             <div>
               <p className="text-ink-muted">Judge confidence</p>
               <p className="font-mono">
-                {result.risk.judge?.confidence !== undefined
-                  ? `${Math.round(result.risk.judge.confidence * 100)}%`
+                {result.risk?.judge?.confidence !== undefined
+                  ? `${Math.round(Number((result.risk?.judge as any)?.confidence ?? 0) * 100)}%`
                   : 'NOT RECORDED'}
               </p>
             </div>
@@ -131,8 +132,8 @@ function RiskDetails({ result }: { result: IntentResult | null }) {
               ))}
             </ul>
           )}
-          {result.risk.canary?.honeypot_calls && (
-            <p className="text-sm text-ink-muted">Canary calls: {result.risk.canary.honeypot_calls.length}</p>
+          {result.risk?.canary?.honeypot_calls && (
+            <p className="text-sm text-ink-muted">Canary calls: {result.risk?.canary.honeypot_calls.length}</p>
           )}
         </div>
       )}
@@ -770,7 +771,7 @@ export default function PlaygroundPage() {
                     const attack = attacks.find((a) => a.id === e.target.value)
                     if (attack) {
                       setSelectedAttack(attack)
-                      setPageText(attack.default_intent.source_context)
+                      setPageText(attack.default_intent.source_context || '')
                     }
                   }}
                 >

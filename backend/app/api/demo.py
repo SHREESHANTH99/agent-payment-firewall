@@ -89,6 +89,46 @@ def _ensure_enabled() -> None:
         raise _error("demo_disabled", "The demo playground is disabled", status.HTTP_404_NOT_FOUND)
 
 
+class DemoHealthResponse(BaseModel):
+    enabled: bool
+    quota_remaining: int
+    version: str = "0.1.0"
+
+
+@router.get(
+    "/health",
+    response_model=DemoHealthResponse,
+    responses={
+        200: {"description": "Demo service healthy"},
+        503: {"description": "Demo service disabled or unavailable"},
+    },
+)
+async def demo_health() -> DemoHealthResponse:
+    """Return health and quota status for the demo playground.
+
+    Returns 503 with code 'demo_disabled' when DEMO_ENABLED is false.
+    """
+    if not _env_bool("DEMO_ENABLED", True):
+        raise _error("demo_disabled", "The demo playground is disabled", status.HTTP_503_SERVICE_UNAVAILABLE)
+    
+    # Check quota remaining for today
+    daily_budget = max(0, int(os.getenv("DEMO_DAILY_LLM_CALL_BUDGET", "1000")))
+    remaining = daily_budget
+    try:
+        r = await _redis()
+        day = _now().strftime("%Y-%m-%d")
+        calls = int(await r.get(f"demo:llm-budget:{day}") or 0)
+        remaining = max(0, daily_budget - calls)
+    except Exception:
+        pass
+    
+    return DemoHealthResponse(
+        enabled=True,
+        quota_remaining=remaining,
+        version="0.1.0",
+    )
+
+
 def _safe_text(value: Optional[str], field: str, *, required: bool = False) -> Optional[str]:
     if value is None:
         if required:
