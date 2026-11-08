@@ -9,7 +9,31 @@ import { Button, Banner, Skeleton, EmptyState } from '@/components/ui'
 import { HashBlock } from '@/components/ui/HashBlock'
 import { AgGridReact } from 'ag-grid-react'
 import { ColDef } from 'ag-grid-community'
-import { CheckCircle2, AlertOctagon, Loader2, Link2 } from 'lucide-react'
+import { CheckCircle2, AlertOctagon, Loader2, Link2, Copy, Check } from 'lucide-react'
+
+function CopyHash({ hash }: { hash?: string | null }) {
+  const [copied, setCopied] = useState(false)
+  if (!hash) return <span className="font-mono text-2xs text-ink-muted">genesis</span>
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(hash)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 1500)
+  }
+
+  return (
+    <div className="flex items-center gap-1 font-mono text-xs text-ink">
+      <span>{hash.slice(0, 10)}…{hash.slice(-6)}</span>
+      <button
+        onClick={handleCopy}
+        className="p-1 text-ink-muted hover:text-ink min-h-[36px] min-w-[36px] flex items-center justify-center"
+        aria-label="Copy full hash"
+      >
+        {copied ? <Check className="w-3.5 h-3.5 text-forest" /> : <Copy className="w-3.5 h-3.5" />}
+      </button>
+    </div>
+  )
+}
 
 export default function AuditPage() {
   const [logs, setLogs] = useState<AuditItem[]>([])
@@ -82,14 +106,14 @@ export default function AuditPage() {
             SHA-256 hash-chained audit log stored in Postgres. Each entry references the previous entry's hash.
           </p>
         </div>
-        <Button onClick={handleVerify} variant="secondary" className="flex items-center gap-2">
-          {verifying ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Link2 className="w-3.5 h-3.5" />}
-          Verify chain
+        <Button onClick={handleVerify} variant="secondary" className="flex items-center gap-2 min-h-[44px]">
+          {verifying ? <Loader2 className="w-4 h-4 animate-spin" /> : <Link2 className="w-4 h-4" />}
+          <span>Verify chain</span>
         </Button>
       </div>
 
       {demo && (
-        <Banner variant="info" title="Sample data">Sample audit entries — no real ledger data.</Banner>
+        <Banner variant="info" title="Sample data">Sample audit entries &mdash; no real ledger data.</Banner>
       )}
 
       {/* Verify result */}
@@ -98,69 +122,81 @@ export default function AuditPage() {
           {verifyResult.valid
             ? <CheckCircle2 className="w-4 h-4 shrink-0" />
             : <AlertOctagon className="w-4 h-4 shrink-0" />}
-          <span className="font-sans text-xs">
+          <span className="font-sans font-medium">
             {verifyResult.valid
-              ? `Chain integrity verified — ${verifyResult.checked_count ?? logs.length} entries checked, all valid.`
-              : `Chain integrity violation — first broken link at index ${verifyResult.first_broken_index ?? 'unknown'}.`}
+              ? `Chain verified valid (${verifyResult.entries_checked ?? logs.length} blocks checked, 0 broken links)`
+              : `Chain verification failed: ${verifyResult.error ?? 'Broken hash link detected'}`}
           </span>
         </div>
       )}
 
-      {/* Hash chain visualization */}
-      {logs.length > 0 && (
-        <div className="overflow-x-auto">
-          <div className="flex items-center gap-0 pb-2 min-w-max">
-            {logs.slice(0, 8).map((entry, i) => (
-              <div key={entry.id} className="flex items-center">
-                <div
-                  className={`p-2 border ${animating ? 'border-forest bg-forest/5 transition-colors' : 'border-border bg-paper-low'} text-center min-w-[96px] transition-all duration-200`}
-                  style={{ transitionDelay: animating ? `${i * 80}ms` : '0ms' }}
-                >
-                  <p className="font-mono text-2xs text-ink-muted truncate">{(entry.event || '').replace(/_/g, ' ')}</p>
-                  <p className="font-mono text-2xs font-bold text-ink mt-0.5">{formatShortHash(entry.hash)}</p>
-                </div>
-                {i < Math.min(logs.length, 8) - 1 && (
-                  <div className={`w-6 h-px ${animating ? 'bg-forest' : 'bg-border'} transition-colors`} style={{ transitionDelay: `${i * 80 + 40}ms` }} />
-                )}
-              </div>
-            ))}
-            {logs.length > 8 && (
-              <div className="pl-2 font-mono text-2xs text-ink-muted">+{logs.length - 8} more</div>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* AG Grid ledger */}
       {loading ? (
         <Skeleton className="h-64" />
       ) : logs.length === 0 ? (
-        <EmptyState icon={Link2} title="No audit entries" description="The audit ledger is empty." />
+        <EmptyState icon={Link2} title="No audit entries" description="The hash chain is currently empty." />
       ) : (
-        <div className="ag-theme-alpine border border-border" style={{ height: '400px' }}>
-          <AgGridReact
-            rowData={logs}
-            columnDefs={colDefs}
-            defaultColDef={{ resizable: true }}
-          />
-        </div>
+        <>
+          {/* Mobile Card List View (< 768px) */}
+          <div className="md:hidden space-y-3">
+            {logs.map((item) => (
+              <div
+                key={item.id}
+                className="p-4 bg-paper-low border border-border rounded-lg space-y-2.5"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="font-sans text-sm font-semibold capitalize text-ink">
+                    {(item.event || '').replace(/_/g, ' ')}
+                  </span>
+                  <span className="font-mono text-2xs text-ink-muted">
+                    {formatDate(item.created_at)}
+                  </span>
+                </div>
+                {item.intent_id && (
+                  <p className="font-mono text-2xs text-ink-muted truncate">
+                    Intent: {item.intent_id}
+                  </p>
+                )}
+                <div className="pt-2 border-t border-border/50 space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-2xs font-mono uppercase text-ink-muted">Hash:</span>
+                    <CopyHash hash={item.hash} />
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-2xs font-mono uppercase text-ink-muted">Prev:</span>
+                    <CopyHash hash={item.prev_hash} />
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Desktop AG Grid (>= 768px) */}
+          <div className="hidden md:block ag-theme-alpine border border-border" style={{ height: '480px' }}>
+            <AgGridReact
+              rowData={logs}
+              columnDefs={colDefs}
+              defaultColDef={{ resizable: true, sortable: true }}
+              suppressCellFocus={false}
+            />
+          </div>
+        </>
       )}
 
       {/* Pagination */}
-      <div className="flex items-center justify-between text-xs font-sans text-ink-muted">
+      <div className="flex items-center justify-between text-xs font-sans text-ink-muted pt-2">
         <span className="font-mono">{total} total entries</span>
         <div className="flex items-center gap-2">
           <button
             onClick={() => setOffset((o) => Math.max(0, o - LIMIT))}
             disabled={offset === 0}
-            className="px-2 py-1 border border-border hover:bg-paper-high disabled:opacity-40 transition-colors"
+            className="px-3 py-2 border border-border hover:bg-paper-high disabled:opacity-40 transition-colors rounded min-h-[44px]"
           >
             Previous
           </button>
           <button
             onClick={() => setOffset((o) => o + LIMIT)}
-            disabled={logs.length < LIMIT}
-            className="px-2 py-1 border border-border hover:bg-paper-high disabled:opacity-40 transition-colors"
+            disabled={offset + LIMIT >= total}
+            className="px-3 py-2 border border-border hover:bg-paper-high disabled:opacity-40 transition-colors rounded min-h-[44px]"
           >
             Next
           </button>

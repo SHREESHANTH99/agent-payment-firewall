@@ -180,9 +180,10 @@ export default function ConsoleOverviewPage() {
     return (
       <div className="space-y-4">
         <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-          {[...Array(5)].map((_, i) => (
+          {[...Array(4)].map((_, i) => (
             <Skeleton key={i} className="h-24 rounded-lg" />
           ))}
+          <Skeleton className="col-span-2 md:col-span-1 h-24 rounded-lg" />
         </div>
         <Skeleton className="h-40 rounded-lg" />
         <Skeleton className="h-64 rounded-lg" />
@@ -212,7 +213,7 @@ export default function ConsoleOverviewPage() {
           action={
             <Link
               href="/console/mandates"
-              className="inline-flex items-center gap-1 font-semibold underline text-xs hover:text-vermilion"
+              className="inline-flex items-center gap-1 font-semibold underline text-xs hover:text-vermilion min-h-[44px]"
             >
               <span>Review mandate</span>
               <ArrowRight className="w-3.5 h-3.5" />
@@ -223,20 +224,7 @@ export default function ConsoleOverviewPage() {
         </Banner>
       )}
 
-      {/* Demo Mode Notice */}
-      {demo && (
-        <div className="flex items-center justify-between px-3.5 py-1.5 rounded-md bg-paper-low border border-border text-xs text-ink-muted">
-          <span className="flex items-center gap-2">
-            <span className="w-1.5 h-1.5 rounded-full bg-amber" />
-            <span>Interactive demo &mdash; pre-loaded attack telemetry and simulated payouts.</span>
-          </span>
-          <span className="font-mono text-2xs text-ink-muted/70 hidden sm:inline">
-            No real funds moved
-          </span>
-        </div>
-      )}
-
-      {/* KPIs */}
+      {/* KPIs: 2-column grid on phones, 5th card spans full width (col-span-2) */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
         <KpiNumeral
           label="Total settled"
@@ -267,6 +255,7 @@ export default function ConsoleOverviewPage() {
           count={stats?.frozen_mandates ?? 0}
           trend={stats?.frozen_mandates ? 'danger' : 'neutral'}
           subtext={stats?.frozen_mandates ? 'circuit breaker tripped' : 'all policies active'}
+          className="col-span-2 md:col-span-1"
         />
       </div>
 
