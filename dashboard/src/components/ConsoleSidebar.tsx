@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation'
 import { useState, useEffect, useRef } from 'react'
 import { useRealtime } from '@/hooks/useRealtime'
 import { activeApi, isDemoMode } from '@/lib/activeApi'
+import { BRAND } from '@/lib/brand'
 import {
   FULL_TELEMETRY_ITEMS,
   FULL_GOVERNANCE_ITEMS,
@@ -161,7 +162,7 @@ export function ConsoleSidebar({ escalationCount = 0 }: { escalationCount?: numb
             </svg>
             {isTabletExpanded && (
               <div className="min-w-0">
-                <p className="font-sans font-bold text-sm tracking-tight text-ink truncate">Gatekeeper</p>
+                <p className="font-sans font-bold text-sm tracking-tight text-ink truncate">{BRAND.name}</p>
                 <p className="font-sans text-xs text-ink-muted truncate">Console</p>
               </div>
             )}
@@ -214,7 +215,7 @@ export function ConsoleSidebar({ escalationCount = 0 }: { escalationCount?: numb
               <circle cx="12" cy="15.5" r="0.75" fill="white" />
             </svg>
             <div className="min-w-0">
-              <p className="font-sans font-bold text-sm tracking-tight text-ink truncate">Gatekeeper</p>
+              <p className="font-sans font-bold text-sm tracking-tight text-ink truncate">{BRAND.name}</p>
               <p className="font-sans text-xs text-ink-muted truncate">Operator console</p>
             </div>
           </Link>

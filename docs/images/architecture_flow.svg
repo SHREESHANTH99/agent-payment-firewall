@@ -26,7 +26,7 @@
   <rect x="0" y="0" width="1100" height="70" fill="#0f172a" />
   <circle cx="45" cy="35" r="16" fill="#E5391B" />
   <text x="45" y="41" text-anchor="middle" fill="#ffffff" font-size="14" font-weight="bold">🛡️</text>
-  <text x="75" y="32" fill="#ffffff" font-size="18" font-weight="800" letter-spacing="0.5">AGENT PAYMENT FIREWALL (GATEKEEPER)</text>
+  <text x="75" y="32" fill="#ffffff" font-size="18" font-weight="800" letter-spacing="0.5">AGENT PAYMENT FIREWALL (SPENDLATCH)</text>
   <text x="75" y="52" fill="#94a3b8" font-size="12">Deterministic Defense-in-Depth Pipeline Intercepting AI Agent Transactions Before Settlement</text>
 
   <!-- Column 1: AI Agent & Attacker Context -->
@@ -63,7 +63,7 @@
   <g transform="translate(295, 85)" filter="url(#glow)">
     <rect width="490" height="415" rx="12" fill="#0b1120" stroke="#E5391B" stroke-width="2.5"/>
     <path d="M 0 12 Q 0 0 12 0 L 478 0 Q 490 0 490 12 L 490 42 L 0 42 Z" fill="#E5391B" />
-    <text x="245" y="26" text-anchor="middle" fill="#ffffff" font-size="13" font-weight="800" letter-spacing="1">2. GATEKEEPER INSPECTION PIPELINE</text>
+    <text x="245" y="26" text-anchor="middle" fill="#ffffff" font-size="13" font-weight="800" letter-spacing="1">2. SPENDLATCH INSPECTION PIPELINE</text>
 
     <!-- Stage 1 -->
     <rect x="20" y="55" width="450" height="48" rx="6" fill="#161f30" stroke="#334155"/>

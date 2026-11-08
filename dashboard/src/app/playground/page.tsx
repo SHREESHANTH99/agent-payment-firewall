@@ -663,7 +663,7 @@ export default function PlaygroundPage() {
           <div className="h-4 w-px bg-border/60 hidden sm:block" />
           <div>
             <div className="flex items-center gap-2">
-              <p className="font-mono text-xs uppercase tracking-widest text-vermilion font-bold">Agent Payment Firewall</p>
+              <p className="font-mono text-xs uppercase tracking-widest text-vermilion font-bold">Spendlatch</p>
               <span className="text-ink-muted/40 text-xs font-mono">/</span>
               <span className="text-xs text-ink-muted font-medium">Sandbox Evaluation</span>
             </div>

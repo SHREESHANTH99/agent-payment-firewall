@@ -2,7 +2,7 @@
 
 Exposes `submit_payment_intent` as a hardened MCP tool so autonomous agents
 (Claude Desktop, Cursor, LangChain, etc.) can discover and submit payment
-requests through the Gatekeeper deterministic firewall.
+requests through the Spendlatch deterministic firewall.
 
 Security invariants:
 1. Identity is derived strictly from server-configured credentials (MCP_AGENT_API_KEY).
@@ -25,7 +25,7 @@ try:
 except ImportError:
     FastMCP = None  # type: ignore
 
-mcp = FastMCP("Gatekeeper Payment Firewall") if FastMCP else None
+mcp = FastMCP("Spendlatch Payment Firewall") if FastMCP else None
 
 DEFAULT_FIREWALL_URL = os.environ.get("FIREWALL_BASE_URL", "http://localhost:8000")
 DEFAULT_MANDATE_ID = os.environ.get("AGENT_MANDATE_ID", "mnd-prod-001")
@@ -58,7 +58,7 @@ async def _execute_firewall_intent(
     agent_api_key: Optional[str] = None,
     **kwargs: Any,
 ) -> Dict[str, Any]:
-    """Internal helper to validate and dispatch payment intent via HTTP to Gatekeeper firewall."""
+    """Internal helper to validate and dispatch payment intent via HTTP to Spendlatch firewall."""
     # Reject forbidden caller-controlled security overrides
     if "agent_id" in kwargs:
         return {
@@ -208,7 +208,7 @@ async def _execute_firewall_intent(
         return {
             "status": "error",
             "error_code": "CONNECTION_ERROR",
-            "message": "Failed to connect to the Gatekeeper payment firewall.",
+            "message": "Failed to connect to the Spendlatch payment firewall.",
         }
 
 
@@ -223,7 +223,7 @@ if mcp is not None:
         source_context: str,
         mandate_id: Optional[str] = None,
     ) -> Dict[str, Any]:
-        """Submit a payment intent to the Gatekeeper Payment Firewall for evaluation.
+        """Submit a payment intent to the Spendlatch Payment Firewall for evaluation.
 
         Args:
             amount_usd: Amount in USD dollars (e.g. 25.50).

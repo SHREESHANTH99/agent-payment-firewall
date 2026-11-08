@@ -1,8 +1,9 @@
 import { RealtimeProvider } from '@/hooks/useRealtime'
+import { BRAND } from '@/lib/brand'
 import './globals.css'
 
 export const metadata = {
-  title: 'Agent Payment Firewall — Settlement Interception for Autonomous AI',
+  title: `${BRAND.name} — ${BRAND.tagline}`,
   description: 'Deterministic policy firewall, canary scanning, LLM risk judge, and SHA-256 hash-chained audit ledger for autonomous agent payments.',
   icons: {
     icon: '/favicon.svg',

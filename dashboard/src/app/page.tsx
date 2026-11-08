@@ -375,7 +375,7 @@ export default function LandingPage() {
               <circle cx="12" cy="15.5" r="0.75" fill="white" />
             </svg>
             <div className="flex flex-col justify-center">
-              <span className="font-sans font-bold text-xs uppercase tracking-wider text-ink leading-tight">Agent Payment Firewall</span>
+              <span className="font-sans font-bold text-xs uppercase tracking-wider text-ink leading-tight">Spendlatch</span>
               <span className="font-mono text-2xs text-ink-muted leading-tight hidden sm:block whitespace-nowrap">Settlement Interception for AI</span>
             </div>
           </Link>
@@ -817,7 +817,7 @@ docker compose up --build`}
       {/* Footer */}
       <footer className="border-t border-border bg-paper py-6 pb-safe-bottom">
         <div className="max-w-7xl mx-auto px-4 md:px-8 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs font-sans text-ink-muted">
-          <span>Agent Payment Firewall — MIT License</span>
+          <span>Spendlatch — MIT License</span>
           <div className="flex flex-wrap items-center justify-center gap-4">
             <a href="https://github.com/SHREESHANTH99/agent-payment-firewall" target="_blank" rel="noopener noreferrer" className="hover:text-ink transition-colors min-h-[44px] flex items-center">GitHub</a>
             <Link href="/playground" className="hover:text-ink transition-colors min-h-[44px] flex items-center">Playground</Link>

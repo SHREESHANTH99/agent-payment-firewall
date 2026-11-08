@@ -1,7 +1,7 @@
 {
   "info": {
     "_postman_id": "c8f9b41a-7b3c-4d2a-8f19-94b6ce12a83f",
-    "name": "Agent Payment Firewall (Gatekeeper) API",
+    "name": "Spendlatch — Agent Payment Firewall API",
     "description": "Comprehensive API collection for the Agent Payment Firewall hackathon project. Intercepts autonomous agent transactions before settlement with deterministic rules, atomic budgets, canary honeypots, and LLM risk adjudication.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
