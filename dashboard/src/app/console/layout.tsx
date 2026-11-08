@@ -3,6 +3,7 @@
 import { usePathname } from 'next/navigation'
 import { ConsoleSidebar } from '@/components/ConsoleSidebar'
 import { ConsoleHeader } from '@/components/ConsoleHeader'
+import { ConsoleBottomBar } from '@/components/ConsoleBottomBar'
 
 export default function ConsoleLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
@@ -14,20 +15,32 @@ export default function ConsoleLayout({ children }: { children: React.ReactNode 
 
   return (
     <div className="flex h-screen overflow-hidden bg-paper">
+      {/* Sidebar for tablet rail and desktop */}
       <ConsoleSidebar />
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
         <ConsoleHeader />
+
+        {/* Sample mode banner */}
         {typeof window !== 'undefined' && sessionStorage.getItem('apf_demo_mode') === '1' && (
-          <div className="bg-amber/10 border-b border-amber/30 px-4 py-2 flex items-center justify-between text-xs text-amber">
+          <div className="bg-amber/10 border-b border-amber/30 px-4 py-2 flex items-center justify-between text-xs text-amber shrink-0">
             <span>Sample data. No real transactions.</span>
             <a href="/playground" className="underline font-medium hover:text-ink">
               Try the Playground &rarr;
             </a>
           </div>
         )}
-        <main className="flex-1 overflow-y-auto p-4 md:p-6" id="main-content">
+
+        {/* Main page content area with safe area padding and bottom nav spacing on mobile */}
+        <main
+          className="flex-1 overflow-y-auto p-4 md:p-6 content-bottom-nav-spacer md:pb-6"
+          id="main-content"
+        >
           {children}
         </main>
+
+        {/* Phone bottom bar */}
+        <ConsoleBottomBar />
       </div>
     </div>
   )

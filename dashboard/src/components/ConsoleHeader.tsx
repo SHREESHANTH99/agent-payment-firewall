@@ -55,19 +55,19 @@ export function ConsoleHeader() {
   const pageTitle = PAGE_NAMES[pathname] || 'Overview'
 
   return (
-    <header className="h-14 border-b border-border bg-paper/95 backdrop-blur-sm px-4 md:px-6 flex items-center justify-between shrink-0 z-20">
-      {/* Left: Breadcrumbs */}
+    <header className="h-14 border-b border-border bg-paper/95 backdrop-blur-sm px-4 md:px-6 flex items-center justify-between shrink-0 z-header">
+      {/* Left: Breadcrumbs / Title */}
       <div className="flex items-center gap-2 min-w-0">
         <Link
           href="/console"
-          className="font-sans text-xs font-medium text-ink-muted hover:text-ink transition-colors"
+          className="hidden sm:inline font-sans text-xs font-medium text-ink-muted hover:text-ink transition-colors"
         >
           Console
         </Link>
-        <span className="text-ink-muted/40 text-xs font-mono">/</span>
-        <span className="font-sans text-xs font-semibold text-ink truncate">
+        <span className="hidden sm:inline text-ink-muted/40 text-xs font-mono">/</span>
+        <h1 className="font-sans text-sm md:text-xs font-semibold text-ink truncate">
           {pageTitle}
-        </span>
+        </h1>
       </div>
 
       {/* Right: Environment & Actions */}
@@ -87,7 +87,7 @@ export function ConsoleHeader() {
                   setDemo(false)
                   router.push('/console/login')
                 }}
-                className="text-xs text-ink-muted hover:text-vermilion underline transition-colors"
+                className="hidden sm:inline text-xs text-ink-muted hover:text-vermilion underline transition-colors"
               >
                 Exit sample mode
               </button>
@@ -100,55 +100,57 @@ export function ConsoleHeader() {
           )
         )}
 
-        {/* Realtime status */}
-        <div className="hidden md:flex items-center gap-1.5 px-2 py-1 rounded text-xs font-mono text-ink-muted">
-          {status === 'connected' ? (
-            <>
-              <span className="w-1.5 h-1.5 rounded-full bg-forest" />
-              <span>Live</span>
-            </>
-          ) : status === 'connecting' ? (
-            <>
-              <Loader2 className="w-3 h-3 text-amber animate-spin" />
-              <span>Connecting</span>
-            </>
-          ) : (
-            <>
-              <span className="w-1.5 h-1.5 rounded-full bg-ink-muted opacity-40" />
-              <span>Offline</span>
-            </>
-          )}
-        </div>
+        {/* Realtime status (only shown on md+ and only if not in demo mode) */}
+        {!demo && (
+          <div className="hidden md:flex items-center gap-1.5 px-2 py-1 rounded text-xs font-mono text-ink-muted">
+            {status === 'connected' ? (
+              <>
+                <span className="w-1.5 h-1.5 rounded-full bg-forest" />
+                <span>Live</span>
+              </>
+            ) : status === 'connecting' ? (
+              <>
+                <Loader2 className="w-3 h-3 text-amber animate-spin" />
+                <span>Connecting</span>
+              </>
+            ) : (
+              <>
+                <span className="w-1.5 h-1.5 rounded-full bg-ink-muted opacity-40" />
+                <span>Offline</span>
+              </>
+            )}
+          </div>
+        )}
 
         <div className="h-4 w-px bg-border/40 hidden sm:block mx-1" />
 
-        {/* Theme toggle */}
+        {/* Theme toggle (hidden on phone, available in More bottom sheet) */}
         <button
           onClick={toggleTheme}
-          className="w-8 h-8 rounded-md hover:bg-paper-high text-ink-muted hover:text-ink flex items-center justify-center transition-colors"
+          className="hidden sm:flex w-8 h-8 rounded-md hover:bg-paper-high text-ink-muted hover:text-ink items-center justify-center transition-colors min-h-[44px] min-w-[44px]"
           aria-label="Toggle color theme"
         >
-          {mounted && theme === 'dark' ? <Sun className="w-3.5 h-3.5" /> : <Moon className="w-3.5 h-3.5" />}
+          {mounted && theme === 'dark' ? <Sun className="w-4 h-4 text-amber" /> : <Moon className="w-4 h-4" />}
         </button>
 
-        {/* Back to site */}
+        {/* Back to site (hidden on phone, available in More bottom sheet) */}
         <Link
           href="/"
-          className="inline-flex items-center gap-1.5 h-8 px-2.5 rounded-md hover:bg-paper-high text-xs font-medium text-ink-muted hover:text-ink transition-colors"
+          className="hidden sm:inline-flex items-center gap-1.5 h-8 px-2.5 rounded-md hover:bg-paper-high text-xs font-medium text-ink-muted hover:text-ink transition-colors min-h-[44px]"
         >
           <ArrowLeft className="w-3.5 h-3.5" />
-          <span className="hidden sm:inline">Back to site</span>
+          <span>Back to site</span>
         </Link>
 
-        {/* Sign out (if mounted and not demo mode) */}
+        {/* Sign out (desktop/tablet only if mounted and not demo mode) */}
         {mounted && !demo && (
           <button
             onClick={handleLogout}
-            className="w-8 h-8 rounded-md hover:bg-vermilion/10 text-ink-muted hover:text-vermilion flex items-center justify-center transition-colors"
+            className="hidden sm:flex w-8 h-8 rounded-md hover:bg-vermilion/10 text-ink-muted hover:text-vermilion items-center justify-center transition-colors min-h-[44px] min-w-[44px]"
             aria-label="Sign out"
             title="Sign out"
           >
-            <LogOut className="w-3.5 h-3.5" />
+            <LogOut className="w-4 h-4" />
           </button>
         )}
       </div>
