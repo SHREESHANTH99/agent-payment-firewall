@@ -353,48 +353,104 @@ export default function PlaygroundPage() {
   }
 
   const buildFallbackResult = (): IntentResult => {
-    const isClean = selectedAttack?.id === 'clean_purchase'
-    const isPromptInj = selectedAttack?.category === 'prompt_injection'
-    const isProbe = selectedAttack?.id === 'cross_agent_probe' || (intent as any).target_mandate === 'other'
-    const decision = isClean ? 'approved' : 'denied'
-    const reasons = isClean
-      ? []
-      : isProbe
-        ? [{ code: 'MANDATE_NOT_FOUND', message: 'Mandate not found' }]
-        : [{ code: 'RISK_POLICY_VIOLATION', message: 'Prompt injection attempt detected' }]
+    // Dynamically evaluate based on the actual live form contents
+    const untrustedText = (intent.source_context || '').toLowerCase()
+    const descText = (intent.description || '').toLowerCase()
+    const taskText = (intent.user_task || '').toLowerCase()
+    const fullText = `${untrustedText} ${descText} ${taskText}`
+
+    // Check for actual canary trigger patterns or prompt injection keywords
+    const injectionKeywords = [
+      'ignore previous',
+      'system diagnostic',
+      'execute canary',
+      'print the agent',
+      'api key',
+      'token',
+      'honeypot',
+      'dark-escrow',
+      'payout override',
+      'transfer funds',
+      'bash',
+      'curl',
+      'sh ',
+    ]
+    const hasInjection = injectionKeywords.some((kw) => fullText.includes(kw))
+
+    // Check for cross-agent mandate probes
+    const isProbe = (intent as any).target_mandate === 'other'
+
+    // Amount check (over per-transaction cap $50.00 = 5000 cents)
+    const amountVal = parseFloat(intent.amount) || 0
+    const isOverCap = amountVal > 50
+
+    // Check protections toggles
+    const canaryActive = session?.config?.canary_enabled ?? true
+    const judgeActive = session?.config?.judge_enabled ?? true
+
+    // Evaluation logic
+    let decision: 'approved' | 'denied' | 'escalated' = 'approved'
+    let status: 'executed' | 'denied' | 'escalated' = 'executed'
+    let denialCause: 'rules' | 'canary' | 'judge' | undefined = undefined
+    const reasons: Array<{ code: string; message: string }> = []
+
+    if (isProbe) {
+      decision = 'denied'
+      status = 'denied'
+      denialCause = 'rules'
+      reasons.push({ code: 'MANDATE_NOT_FOUND', message: 'Target mandate not found' })
+    } else if (isOverCap) {
+      decision = 'denied'
+      status = 'denied'
+      denialCause = 'rules'
+      reasons.push({ code: 'CAP_EXCEEDED', message: 'Amount exceeds per-transaction cap of $50.00' })
+    } else if (hasInjection && canaryActive) {
+      decision = 'denied'
+      status = 'denied'
+      denialCause = 'canary'
+      reasons.push({ code: 'CANARY_TRIPPED', message: 'Honeypot tool call or injection pattern detected' })
+    } else if (hasInjection && !canaryActive && judgeActive) {
+      decision = 'denied'
+      status = 'denied'
+      denialCause = 'judge'
+      reasons.push({ code: 'RISK_POLICY_VIOLATION', message: 'Semantic diversion detected by LLM risk judge' })
+    }
+
+    const canaryTripped = hasInjection && canaryActive
+    const judgeSafe = !hasInjection || (!canaryActive && !judgeActive)
 
     return {
       intent_id: 'rec-' + Date.now(),
       decision,
-      status: isClean ? 'executed' : 'denied',
+      status,
       reasons,
       risk: {
-        denial_cause: isClean ? undefined : (isProbe ? 'rules' : 'canary'),
-        canary: { tripped: isPromptInj },
+        denial_cause: denialCause,
+        canary: { tripped: canaryTripped },
         judge: {
-          safe: isClean,
-          verdict: isClean ? 'allow' : 'deny',
-          mismatch_reasons: [],
-          reasons: [],
+          safe: judgeSafe,
+          verdict: judgeSafe ? 'allow' : 'deny',
+          mismatch_reasons: judgeSafe ? [] : ['Context instructions deviate from principal user task'],
+          reasons: judgeSafe ? [] : ['Semantic diversion detected'],
         },
       },
       dry_run: true,
       operatorView: {
         risk: {
-          canary: { tripped: isPromptInj },
+          canary: { tripped: canaryTripped },
           judge: {
-            safe: isClean,
-            verdict: isClean ? 'allow' : 'deny',
-            mismatch_reasons: [],
-            reasons: [],
+            safe: judgeSafe,
+            verdict: judgeSafe ? 'allow' : 'deny',
+            mismatch_reasons: judgeSafe ? [] : ['Context instructions deviate from principal user task'],
+            reasons: judgeSafe ? [] : ['Semantic diversion detected'],
           },
         },
-        denial_cause: isClean ? null : (isProbe ? 'rules' : 'canary'),
+        denial_cause: denialCause || null,
         escalation_cause: null,
         balances: {
-          spent_cents: isClean ? 2500 : 0,
+          spent_cents: decision === 'approved' ? Math.round(amountVal * 100) : 0,
           reserved_cents: 0,
-          remaining_cents: isClean ? 7500 : 10000,
+          remaining_cents: decision === 'approved' ? Math.max(0, 10000 - Math.round(amountVal * 100)) : 10000,
         },
         new_audit_entries: [
           {
@@ -406,7 +462,7 @@ export default function PlaygroundPage() {
           },
           {
             id: 'aud-2-' + Date.now(),
-            event: isClean ? 'intent.approved' : 'intent.denied',
+            event: decision === 'approved' ? 'intent.approved' : 'intent.denied',
             payload: { decision, reasons },
             hash: 'cd137c948d51378ed015ff8bb22f04adaa5d89ad72a81fe51ab9ae787d08916e',
             created_at: new Date().toISOString(),
