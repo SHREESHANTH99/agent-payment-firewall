@@ -4,6 +4,8 @@
 [![Semgrep](https://img.shields.io/badge/Security-Semgrep%20SAST-blueviolet)](https://semgrep.dev)
 [![Coverage](https://img.shields.io/badge/coverage-85%25-brightgreen.svg)](https://github.com/SHREESHANTH99/agent-payment-firewall)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Postman Collection](https://img.shields.io/badge/Postman-v2.1%20Collection-orange?logo=postman)](docs/postman_collection.json)
+[![MCP Server](https://img.shields.io/badge/MCP-FastMCP%20Enabled-blue?logo=anthropic)](backend/app/mcp_server.py)
 [![PayPal](https://img.shields.io/badge/PayPal-Sandbox%20Only-orange.svg)](docs/deploy-render.md)
 
 **Open-source, deterministic payment firewall between autonomous AI agents and PayPal Payouts.**
@@ -46,6 +48,26 @@ docker compose up --build
 4. **Canary Scanner**: Injects honeypot tool definitions into the agent tool list; if called, prompt injection is caught with zero LLM inference cost.
 5. **LLM Risk Judge**: Semantic review analyzing discrepancies between original user tasks and synthesized payment arguments. Operates **fail-closed** on quota or provider failures.
 6. **Execution & Payout**: Dispatches via PayPal Payouts v1 (Sandbox) with two-phase webhook settlement (`PAYMENT.PAYOUTS-ITEM.SUCCEEDED`) and SHA-256 hash-chain audit logging.
+
+---
+
+## FastMCP Server & Postman Collection
+
+### FastMCP Tool Integration (S2)
+Autonomous tool-calling agents (Claude Desktop, Cursor, Gemini, LangChain) can natively connect to Gatekeeper via Model Context Protocol:
+```bash
+# Run the FastMCP server over stdio
+python -m app.mcp_server
+```
+Registered tool: `submit_payment_intent(agent_id, amount_usd, merchant, description, reasoning, user_task, source_context, mandate_id, dry_run)`
+
+### Postman Collection (S5)
+A complete Postman v2.1 collection and environment are pre-configured in [`docs/postman_collection.json`](docs/postman_collection.json) and [`docs/postman_environment.json`](docs/postman_environment.json), covering:
+- Health & readiness probes
+- Clean vs prompt-injected vs high-value payment intents
+- Operator console telemetry & approvals
+- SHA-256 hash-chain verification
+- Demo playground session simulation
 
 ---
 
