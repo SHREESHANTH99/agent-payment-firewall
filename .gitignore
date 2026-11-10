@@ -60,3 +60,7 @@ Thumbs.db
 .agents/
 .impeccable/
 skills-lock.json
+
+# Media & Raw Captures (Gallery assets & video walkthroughs)
+docs/media/
+
