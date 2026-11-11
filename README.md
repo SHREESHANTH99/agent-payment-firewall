@@ -15,8 +15,8 @@ Open-source payment firewall that intercepts autonomous AI agent transactions be
 Explore the hosted environments directly in your browser:
 - Hosted Playground: [Open Interactive Playground](https://payment-firewall-dashboard.onrender.com/playground)
 - Sample Operator Console: [Open Sample Console](https://payment-firewall-dashboard.onrender.com/console?demo=1)
-- Demo Video: [Watch Demo Video (TODO: add video link)](https://www.youtube.com/watch?v=h9XVG8UuLlA)
-- Devpost Submission: [View Devpost Project (TODO: add Devpost link)](https://devpost.com/software/spendlatch-a-payment-firewall-for-ai-agents)
+- Demo Video: [Watch Demo Video ](https://www.youtube.com/watch?v=h9XVG8UuLlA)
+- Devpost Submission: [View Devpost Project](https://devpost.com/software/spendlatch-a-payment-firewall-for-ai-agents)
 
 Three scenarios to try in the Playground:
 1. Send a normal purchase: Choose the clean stationery purchase preset; observe instant approval through all checkpoints.
